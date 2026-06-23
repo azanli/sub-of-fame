@@ -25,7 +25,7 @@ Note: `context.subredditName` always reflects the host subreddit, even when acce
 
 - **Curation:** No manual curation, no decoys.
 - **Campaign Source:** Each subreddit campaign is a live ladder sourced from the subreddit's all-time top posts.
-- **MVP Ladder Semantics:** `currentRankIndex` means the next ladder item the player should attempt in the current cached ladder, not a permanent canonical post identity. `clearedRankIndex` means the highest ladder item successfully submitted for leaderboard display.
+- **MVP Ladder Semantics:** `rankIndex` means the player's current milestone in the current cached ladder, not a permanent canonical post identity.
 - **Ladder Cache:** Reddit post metadata is cached in paged chunks with a short TTL so gameplay avoids repeated live top-list fetches while keeping implementation simple.
 - **Post Filters:** No NSFW; no spoiler; usable title or body; enough top-level comments to build a puzzle.
 - **Skip Behavior:** Invalid posts are skipped by advancing the player's linear progress pointer. A bounded validation loop prevents serverless timeouts.
@@ -41,7 +41,7 @@ Canonical cache keys, TTLs, snapshot shapes, attempt shapes, and exact validatio
 
 - **Slot Accuracy:** 0-3 points per round, with 1 point per correctly placed comment.
 - **Hive IQ Metric:** Long-term slot accuracy shown globally and per subreddit.
-- **Global Leaderboards:** Subreddit-specific standings based on `clearedRankIndex`, the highest successfully submitted ladder milestone. For MVP, these are casual social rankings because cached ladder pages may refresh over time.
+- **Global Leaderboards:** Subreddit-specific standings based on furthest reachable ladder rank, not strictly puzzles cleared. Invalid-post skips may advance this rank because they are server-side validation cleanup, while Hive IQ remains the skill metric for rounds actually played. For MVP, these are casual social rankings because cached ladder pages may refresh over time.
 - **Reveal Mechanics:** Green/red indicators per slot. Show frozen historical scores. No client-side answers or correct IDs are exposed before submission.
 
 The scoring formula, statistics counters, and leaderboard storage contract are defined in `002-api.md`.
