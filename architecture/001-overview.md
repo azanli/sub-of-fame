@@ -26,7 +26,7 @@ Note: `context.subredditName` always reflects the host subreddit, even when acce
 - **Curation:** No manual curation, no decoys.
 - **Campaign Source:** Each subreddit campaign is a live ladder sourced from the subreddit's all-time top posts.
 - **MVP Ladder Semantics:** `rankIndex` means the player's current/next playable rank in the current cached ladder, not a permanent canonical post identity. Because invalid posts are skipped, `rankIndex` is a reachability pointer, not a count of puzzles solved.
-- **Ladder Cache:** Reddit post metadata is cached in paged chunks with a short TTL so gameplay avoids repeated live top-list fetches while keeping implementation simple.
+- **Ladder Cache:** Reddit post metadata is cached in cursor-linked chunks with a short TTL so gameplay avoids repeated live top-list fetches while keeping implementation simple. Ranks beyond the first 100 are reached by following cached Reddit listing cursors, not by random-access page fetches.
 - **Post Filters:** No NSFW; no spoiler; usable title or body; enough top-level comments to build a puzzle.
 - **Skip Behavior:** Invalid posts are skipped by advancing the player's linear progress pointer. A bounded validation loop prevents serverless timeouts.
 - **Comment Extraction:** Use the first three valid top-level comment roots sorted by public score. The backend freezes the true answer order in a short-lived snapshot before returning a shuffled presentation order.
@@ -101,7 +101,7 @@ Auth is handled via Devvit context. Hono hosts the Devvit web server, but gamepl
 
 1. **Shared Types (`src/shared/api.ts` + `subreddits.ts` allowlist array)**
 2. **Redis Layer Schema Configuration (Progress hash, Profile Stats hash, Leaderboard ZSET)**
-3. **The Live Ladder Cache Pagination Pipeline (`session.selectSubreddit` validation + caching loop)**
+3. **The Cursor-Linked Live Ladder Cache Pipeline (`session.selectSubreddit` validation + page warming loop)**
 4. **The Safe `puzzle.next` Loop (Validation checks, skip limits, and attempt emission)**
 5. **Drag-and-Drop Rank Frontend UI**
 6. **Submission Verification Procedure (`puzzle.submit`)**
