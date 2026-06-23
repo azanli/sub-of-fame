@@ -19,6 +19,8 @@ Behavior is determined by `context.subredditName`:
 
 Note: `context.subredditName` always reflects the host subreddit, even when accessed from the Home Feed.
 
+Community host locking is a backend invariant, not a UI convention. In the App Hub, gameplay procedures may use the subreddit selected by the player. In a Community Post, gameplay procedures resolve the campaign from `context.subredditName`; client-provided subreddit names are only accepted if they match the host subreddit after normalization. This prevents a post installed in `r/example` from launching or submitting gameplay for `r/askreddit`.
+
 ---
 
 ## Content Pipeline & Caching
@@ -58,7 +60,7 @@ The scoring formula, statistics counters, and leaderboard storage contract are d
 | **Active Hub Session**  | Ephemeral client state         | Ephemeral client state         |
 
 - **Hub Session Behavior:** Subreddit locks on select for active runtime loop. Exiting to the Dashboard resets active selection.
-- **Community Session Behavior:** The active campaign is the host subreddit and bypasses Hub selection.
+- **Community Session Behavior:** The active campaign is the host subreddit and bypasses Hub selection. The server re-derives this lock from Devvit context on `init`, `puzzle.next`, and `puzzle.submit`; the client cannot switch campaigns from a Community launch.
 - **Attempt Ownership:** A round's auth mode is frozen when the puzzle is served. Logged-in rounds belong to that user and can only be submitted by that same user. Logged-out rounds are guest rounds, even if the player signs in before pressing submit.
 - **Auth-State Changes:** For MVP, a guest round submitted after sign-in still reveals and returns guest-only next progress, but does not update profile stats, persisted progress, or leaderboards. Continuing while signed in requests the account's authoritative next puzzle. A logged-in round submitted after logout or account switch is rejected and the client refreshes to the current authoritative puzzle.
 
@@ -91,9 +93,9 @@ The scoring formula, statistics counters, and leaderboard storage contract are d
 Auth is handled via Devvit context. Hono hosts the Devvit web server, but gameplay calls are tRPC procedures with shared TypeScript input/output contracts. This section describes procedure purpose only; exact contracts live in `002-api.md`.
 
 - `init` query -> Hydrates entry state for Hub or Community launch.
-- `session.selectSubreddit` mutation -> Validates a Hub campaign selection and prepares the campaign.
-- `puzzle.next` mutation -> Resolves the player's current ladder position and returns the next playable puzzle.
-- `puzzle.submit` mutation -> Validates an active attempt, scores a guess, reveals the frozen answer data, updates progression, and refreshes metrics according to the attempt owner frozen at puzzle creation. Expired, stale, duplicate, invalid, and cross-user submissions fail without changing progress or stats.
+- `session.selectSubreddit` mutation -> Validates a Hub campaign selection and prepares the campaign. This is unavailable from Community launches.
+- `puzzle.next` mutation -> Resolves the effective subreddit from launch context, then resolves the player's current ladder position and returns the next playable puzzle.
+- `puzzle.submit` mutation -> Validates an active attempt against launch context, scores a guess, reveals the frozen answer data, updates progression, and refreshes metrics according to the attempt owner frozen at puzzle creation. Expired, stale, duplicate, invalid, cross-user, and host-mismatched submissions fail without changing progress or stats.
 
 ---
 
