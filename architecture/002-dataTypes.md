@@ -6,16 +6,16 @@ Companion to `001-specs.md`. Defines shared TypeScript types (`src/shared/api.ts
 
 ## Design Principles
 
-| Principle | Decision |
-| --- | --- |
-| Progression | Linear rank pointer per subreddit (`rankIndex`), not a seen-set |
-| Submit correlation | Server-issued `attemptId` bound to `rankIndex` |
-| Truth vs presentation | `PuzzleSnapshot` = true rank order; `PuzzleAttempt` = shuffled IDs |
-| User guess | Presentation indices into the shuffled layout |
-| Logged-out rank | Client-authoritative; server ignores client rank when logged-in |
-| Skip persistence | Invalid posts increment progress permanently (logged-in: Redis; logged-out: returned `rankIndex`) |
-| Hive IQ | `(correctSlots / totalSlots) × 100`, computed at read time |
-| Hub session | `activeSubreddit` is ephemeral client state; `/api/init` returns `null` on cold boot |
+| Principle             | Decision                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------- |
+| Progression           | Linear rank pointer per subreddit (`rankIndex`), not a seen-set                                   |
+| Submit correlation    | Server-issued `attemptId` bound to `rankIndex`                                                    |
+| Truth vs presentation | `PuzzleSnapshot` = true rank order; `PuzzleAttempt` = shuffled IDs                                |
+| User guess            | Presentation indices into the shuffled layout                                                     |
+| Logged-out rank       | Client-authoritative; server ignores client rank when logged-in                                   |
+| Skip persistence      | Invalid posts increment progress permanently (logged-in: Redis; logged-out: returned `rankIndex`) |
+| Hive IQ               | `(correctSlots / totalSlots) × 100`, computed at read time                                        |
+| Hub session           | `activeSubreddit` is ephemeral client state; `/api/init` returns `null` on cold boot              |
 
 ---
 
@@ -23,14 +23,22 @@ Companion to `001-specs.md`. Defines shared TypeScript types (`src/shared/api.ts
 
 ```typescript
 export type SubredditOption = {
-  name: string;           // lowercase internal key, e.g. 'askreddit'
-  displayName: string;    // presentation name, e.g. 'AskReddit'
-  description: string;    // brief thematic hook
+  name: string; // lowercase internal key, e.g. 'askreddit'
+  displayName: string; // presentation name, e.g. 'AskReddit'
+  description: string; // brief thematic hook
 };
 
 export const CURATED_SUBREDDITS: SubredditOption[] = [
-  { name: 'askreddit', displayName: 'AskReddit', description: 'Predict the collective human experience.' },
-  { name: 'gaming', displayName: 'Gaming', description: 'Test your knowledge on crowd gaming culture.' },
+  {
+    name: 'askreddit',
+    displayName: 'AskReddit',
+    description: 'Predict the collective human experience.',
+  },
+  {
+    name: 'gaming',
+    displayName: 'Gaming',
+    description: 'Test your knowledge on crowd gaming culture.',
+  },
   // ... top 10 choices
 ];
 ```
@@ -39,7 +47,7 @@ Client-side merge for Hub dashboard (not an API type):
 
 ```typescript
 type SubredditPickerItem = SubredditOption & {
-  currentRankIndex: number | null;  // null = never played
+  currentRankIndex: number | null; // null = never played
   subredditHiveIQ: number | null;
 };
 ```
@@ -52,8 +60,8 @@ Custom subreddits: validated live on `POST /api/session/sub` via `getSubredditBy
 
 ### User Progress (logged-in only)
 
-| Key | Type | Fields |
-| --- | --- | --- |
+| Key                      | Type | Fields                                                      |
+| ------------------------ | ---- | ----------------------------------------------------------- |
 | `user:{userId}:progress` | Hash | `{ [subredditName]: rankIndex }` (integer strings, 1-based) |
 
 - Default `rankIndex` for unseen subs: `1`
@@ -61,8 +69,8 @@ Custom subreddits: validated live on `POST /api/session/sub` via `getSubredditBy
 
 ### User Statistics (logged-in only)
 
-| Key | Type | Fields |
-| --- | --- | --- |
+| Key                   | Type | Fields                                                                                       |
+| --------------------- | ---- | -------------------------------------------------------------------------------------------- |
 | `user:{userId}:stats` | Hash | `global:correct`, `global:total`, `sub:{subredditName}:correct`, `sub:{subredditName}:total` |
 
 - Updated via atomic `HINCRBY` on each submission
@@ -70,8 +78,8 @@ Custom subreddits: validated live on `POST /api/session/sub` via `getSubredditBy
 
 ### Subreddit Leaderboard (logged-in only)
 
-| Key | Type | Score | Member |
-| --- | --- | --- | --- |
+| Key                           | Type       | Score                               | Member   |
+| ----------------------------- | ---------- | ----------------------------------- | -------- |
 | `leaderboard:{subredditName}` | Sorted Set | `rankIndex` (ladder height reached) | `userId` |
 
 - Updated on successful submit: `ZADD leaderboard:{sub} CH {nextRankIndex} {userId}`
@@ -79,17 +87,17 @@ Custom subreddits: validated live on `POST /api/session/sub` via `getSubredditBy
 
 ### Ladder Cache (shared)
 
-| Key | Type | TTL |
-| --- | --- | --- |
+| Key                                 | Type         | TTL |
+| ----------------------------------- | ------------ | --- |
 | `sub:ladder:{subredditName}:{page}` | List of JSON | 24h |
 
 Page mapping: page 1 = ranks 1–100, page 2 = 101–200, etc.
 
 ```typescript
 type LadderPostSummary = {
-  id: string;           // t3_...
+  id: string; // t3_...
   title: string;
-  hasBody: boolean;     // body length >= 50
+  hasBody: boolean; // body length >= 50
   isNSFW: boolean;
   isSpoiler: boolean;
   commentCount: number; // must be >= 10
@@ -106,22 +114,26 @@ Title validation: `title.length >= 10` OR `hasBody === true`.
 
 ### Puzzle Snapshot (shared, comment truth)
 
-| Key | Type | TTL |
-| --- | --- | --- |
+| Key                              | Type        | TTL |
+| -------------------------------- | ----------- | --- |
 | `puzzle:snapshot:{sourcePostId}` | JSON string | 24h |
 
 ```typescript
 type PuzzleCommentSnapshot = {
-  id: string;       // t1_...
+  id: string; // t1_...
   body: string;
-  score: number;    // frozen upvotes at snapshot time
+  score: number; // frozen upvotes at snapshot time
   createdAt: number;
 };
 
 type PuzzleSnapshot = {
   sourcePostId: string;
   post: { title: string; body?: string };
-  comments: [PuzzleCommentSnapshot, PuzzleCommentSnapshot, PuzzleCommentSnapshot];
+  comments: [
+    PuzzleCommentSnapshot,
+    PuzzleCommentSnapshot,
+    PuzzleCommentSnapshot,
+  ];
   // index 0 = #1 most upvotes (true rank); never scrambled
   createdAt: number;
   expiresAt: number;
@@ -132,8 +144,8 @@ Created on first valid post after comment extraction (`getComments({ sort: 'top'
 
 ### Puzzle Attempt (ephemeral, per round)
 
-| Key | Type | TTL |
-| --- | --- | --- |
+| Key                          | Type        | TTL |
+| ---------------------------- | ----------- | --- |
 | `puzzle:attempt:{attemptId}` | JSON string | ~1h |
 
 ```typescript
@@ -168,9 +180,9 @@ export type UserStatsProfile = {
 };
 
 export type HiveIQMetrics = {
-  globalHiveIQ: number;       // (global:correct / global:total) * 100
-  subredditHiveIQ: number;    // (sub:correct / sub:total) * 100
-  currentRankIndex: number;   // ladder height on active sub
+  globalHiveIQ: number; // (global:correct / global:total) * 100
+  subredditHiveIQ: number; // (sub:correct / sub:total) * 100
+  currentRankIndex: number; // ladder height on active sub
 };
 ```
 
@@ -180,8 +192,8 @@ export type HiveIQMetrics = {
 export type LeaderboardEntry = {
   userId: string;
   rankIndex: number;
-  subredditHiveIQ: number;  // hydrated from stats hash
-  displayRank: number;      // tied users share displayRank
+  subredditHiveIQ: number; // hydrated from stats hash
+  displayRank: number; // tied users share displayRank
 };
 ```
 
@@ -191,8 +203,8 @@ export type LeaderboardEntry = {
 export type InitResponse = {
   hostSubreddit: string;
   isHub: boolean;
-  activeSubreddit: string | null;          // null on Hub boot; hostSubreddit in Community
-  hiveIQ: HiveIQMetrics | null;            // null when logged-out
+  activeSubreddit: string | null; // null on Hub boot; hostSubreddit in Community
+  hiveIQ: HiveIQMetrics | null; // null when logged-out
   progress: Record<string, number> | null; // null when logged-out; sub → rankIndex
 };
 
@@ -252,7 +264,7 @@ export type PuzzleSubmitResponse = {
     correct: boolean;
   }>;
   hiveIQ: HiveIQMetrics | null; // null when logged-out
-  nextRankIndex: number;        // for logged-out client progression sync
+  nextRankIndex: number; // for logged-out client progression sync
 };
 ```
 
@@ -276,9 +288,9 @@ export type PuzzleSubmitResponse = {
 4. Lazy-warm `sub:ladder:{sub}:1` if missing.
 5. Return `{ activeSubreddit, currentRankIndex }` from progress hash (default `1`).
 
-### `GET /api/puzzle/next`
+### `POST /api/puzzle/next`
 
-1. Resolve `rankIndex`: logged-in → Redis progress; logged-out → request param (default `1`).
+1. Resolve `rankIndex`: logged-in → Redis progress; logged-out → request body value (default `1`).
 2. Initialize `itemsChecked = 0`.
 3. **Evaluation loop** (max 20 iterations):
    - Read post from `sub:ladder:{sub}:{page}` at offset.
@@ -320,7 +332,7 @@ Submit validates `slots` is a permutation of `[0, 1, 2]`.
 
 1. **Shared types** — `src/shared/api.ts`, `src/shared/subreddits.ts`
 2. **Redis schema** — helpers for progress, stats, ladder, snapshot, attempt keys
-3. **`GET /api/puzzle/next`** — ladder cache + validation loop + snapshot pipeline
+3. **`POST /api/puzzle/next`** — ladder cache + validation loop + snapshot pipeline
 4. **Ranking UI** — drag-and-drop slots, shuffled comment pool
 5. **`POST /api/puzzle/submit`** — scoring, reveal, Hive IQ + leaderboard writes
 6. **Main menu + hub routing** — init dashboard, session/sub picker, community bypass

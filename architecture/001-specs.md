@@ -86,7 +86,7 @@ All types located in `src/shared/api.ts`. Auth via Devvit context.
 
 - `GET  /api/init` $\rightarrow$ Hydrates the main dashboard (host sub, `isHub`, global `HiveIQMetrics`, full `progress` map). Enforces a clean menu state on Hub launch by defaulting `activeSubreddit` to `null`.
 - `POST /api/session/sub` $\rightarrow$ Sanitizes and validates a target campaign request. Triggers lazy-loading of the ladder cache page if missing.
-- `GET  /api/puzzle/next` $\rightarrow$ Resolves target index against the filter loop. Returns an ephemeral `attemptId` bound to a localized scrambled array of comment strings.
+- `POST /api/puzzle/next` $\rightarrow$ Resolves target index from the request body against the filter loop. Returns an ephemeral `attemptId` bound to a localized scrambled array of comment strings.
 - `POST /api/puzzle/submit` $\rightarrow$ Receives array indices payload `{ attemptId, slots: [number, number, number] }`. Evaluates, logs profile stats, updates leaderboard position, and issues an atomic `INCR` to progress.
 
 ---
