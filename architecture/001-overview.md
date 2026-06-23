@@ -25,7 +25,7 @@ Note: `context.subredditName` always reflects the host subreddit, even when acce
 
 - **Curation:** No manual curation, no decoys.
 - **Campaign Source:** Each subreddit campaign is a live ladder sourced from the subreddit's all-time top posts.
-- **MVP Ladder Semantics:** `rankIndex` means the player's current milestone in the current cached ladder, not a permanent canonical post identity.
+- **MVP Ladder Semantics:** `currentRankIndex` means the next ladder item the player should attempt in the current cached ladder, not a permanent canonical post identity. `clearedRankIndex` means the highest ladder item successfully submitted for leaderboard display.
 - **Ladder Cache:** Reddit post metadata is cached in paged chunks with a short TTL so gameplay avoids repeated live top-list fetches while keeping implementation simple.
 - **Post Filters:** No NSFW; no spoiler; usable title or body; enough top-level comments to build a puzzle.
 - **Skip Behavior:** Invalid posts are skipped by advancing the player's linear progress pointer. A bounded validation loop prevents serverless timeouts.
@@ -41,7 +41,7 @@ Canonical cache keys, TTLs, snapshot shapes, attempt shapes, and exact validatio
 
 - **Slot Accuracy:** 0-3 points per round, with 1 point per correctly placed comment.
 - **Hive IQ Metric:** Long-term slot accuracy shown globally and per subreddit.
-- **Global Leaderboards:** Subreddit-specific standings based on highest cleared ladder milestone. For MVP, these are casual social rankings because cached ladder pages may refresh over time.
+- **Global Leaderboards:** Subreddit-specific standings based on `clearedRankIndex`, the highest successfully submitted ladder milestone. For MVP, these are casual social rankings because cached ladder pages may refresh over time.
 - **Reveal Mechanics:** Green/red indicators per slot. Show frozen historical scores. No client-side answers or correct IDs are exposed before submission.
 
 The scoring formula, statistics counters, and leaderboard storage contract are defined in `002-api.md`.
@@ -71,7 +71,6 @@ The scoring formula, statistics counters, and leaderboard storage contract are d
   - level badges derived from each summary's `currentRankIndex`
   - per-subreddit Hive IQ when the user has played that subreddit
   - leaderboard rank badges when the user is ranked for that subreddit
-- Leaderboard rank badges can open a full subreddit leaderboard view showing top players and, when applicable, the current player's own row.
 - Hub cold boot has no active campaign; dashboard data must not depend on active-subreddit metrics.
 - Scrollable grid of curated subreddits + text input bar for **Custom Subreddit Requests**.
 - Custom requests validate the subreddit before initializing the campaign.
@@ -90,7 +89,6 @@ The scoring formula, statistics counters, and leaderboard storage contract are d
 Auth is handled via Devvit context. This section describes endpoint purpose only; exact request/response contracts live in `002-api.md`.
 
 - `GET /api/init` -> Hydrates entry state for Hub or Community launch.
-- `GET /api/leaderboard/:subreddit` -> Returns a full subreddit leaderboard, including top ranked players and the current user's ranked row when outside the top window.
 - `POST /api/session/sub` -> Validates a Hub campaign selection and prepares the campaign.
 - `POST /api/puzzle/next` -> Resolves the player's current ladder position and returns the next playable puzzle.
 - `POST /api/puzzle/submit` -> Validates an active attempt, scores a guess, reveals the frozen answer data, updates progression, and refreshes metrics. Expired, stale, duplicate, invalid, and cross-user submissions fail without changing progress or stats.
