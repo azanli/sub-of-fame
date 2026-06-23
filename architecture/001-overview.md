@@ -95,7 +95,7 @@ Auth is handled via Devvit context. Hono hosts the Devvit web server, but gamepl
 - `init` query -> Hydrates entry state for Hub or Community launch.
 - `session.selectSubreddit` mutation -> Validates a Hub campaign selection and prepares the campaign. This is unavailable from Community launches.
 - `puzzle.next` mutation -> Resolves the effective subreddit from launch context, then resolves the player's current ladder position and returns the next playable puzzle.
-- `puzzle.submit` mutation -> Validates an active attempt against launch context, scores a guess, reveals the frozen answer data, updates progression, and refreshes metrics according to the attempt owner frozen at puzzle creation. Expired, stale, duplicate, invalid, cross-user, and host-mismatched submissions fail without changing progress or stats.
+- `puzzle.submit` mutation -> Validates an active attempt against launch context, acquires the Redis duplicate-submit lock for the attempt, scores a guess, reveals the frozen answer data, updates progression, and refreshes metrics according to the attempt owner frozen at puzzle creation. Expired, stale, duplicate, invalid, cross-user, and host-mismatched submissions fail without changing progress or stats. The API contract in `002-api.md` owns the exact atomic `SET NX EX` guard.
 
 ---
 
