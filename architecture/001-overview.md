@@ -59,6 +59,8 @@ The scoring formula, statistics counters, and leaderboard storage contract are d
 
 - **Hub Session Behavior:** Subreddit locks on select for active runtime loop. Exiting to the Dashboard resets active selection.
 - **Community Session Behavior:** The active campaign is the host subreddit and bypasses Hub selection.
+- **Attempt Ownership:** A round's auth mode is frozen when the puzzle is served. Logged-in rounds belong to that user and can only be submitted by that same user. Logged-out rounds are guest rounds, even if the player signs in before pressing submit.
+- **Auth-State Changes:** For MVP, a guest round submitted after sign-in still reveals and returns guest-only next progress, but does not update profile stats, persisted progress, or leaderboards. Continuing while signed in requests the account's authoritative next puzzle. A logged-in round submitted after logout or account switch is rejected and the client refreshes to the current authoritative puzzle.
 
 ---
 
@@ -91,7 +93,7 @@ Auth is handled via Devvit context. Hono hosts the Devvit web server, but gamepl
 - `init` query -> Hydrates entry state for Hub or Community launch.
 - `session.selectSubreddit` mutation -> Validates a Hub campaign selection and prepares the campaign.
 - `puzzle.next` mutation -> Resolves the player's current ladder position and returns the next playable puzzle.
-- `puzzle.submit` mutation -> Validates an active attempt, scores a guess, reveals the frozen answer data, updates progression, and refreshes metrics. Expired, stale, duplicate, invalid, and cross-user submissions fail without changing progress or stats.
+- `puzzle.submit` mutation -> Validates an active attempt, scores a guess, reveals the frozen answer data, updates progression, and refreshes metrics according to the attempt owner frozen at puzzle creation. Expired, stale, duplicate, invalid, and cross-user submissions fail without changing progress or stats.
 
 ---
 
