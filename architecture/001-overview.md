@@ -59,6 +59,7 @@ The scoring formula, statistics counters, and leaderboard storage contract are d
 
 - **Hub Session Behavior:** Subreddit locks on select for active runtime loop. Exiting to the Dashboard resets active selection.
 - **Community Session Behavior:** The active campaign is the host subreddit and bypasses Hub selection.
+- **Logged-out Hub Dashboard:** `/api/init` does not return dashboard summaries for logged-out users. Any logged-out level badges or in-session progress shown on Hub cards must come from client-held progress state; Hive IQ and leaderboard badges remain unavailable.
 
 ---
 
@@ -67,10 +68,11 @@ The scoring formula, statistics counters, and leaderboard storage contract are d
 ### Dashboard Hub Menu (`splash.html` / Dashboard)
 
 - Displays user's **Global Hive IQ** from all submitted rounds.
-- Displays per-subreddit dashboard cards by merging curated subreddit metadata with dashboard summaries:
+- Displays per-subreddit dashboard cards by merging curated subreddit metadata with dashboard summaries when logged-in:
   - level badges derived from each summary's `currentRankIndex`
   - per-subreddit Hive IQ when the user has played that subreddit
   - leaderboard rank badges when the user is ranked for that subreddit
+- Logged-out dashboard cards use curated subreddit metadata plus any client-held progress from the current anonymous session. The server returns no logged-out dashboard summaries.
 - Hub cold boot has no active campaign; dashboard data must not depend on active-subreddit metrics.
 - Scrollable grid of curated subreddits + text input bar for **Custom Subreddit Requests**.
 - Custom requests validate the subreddit before initializing the campaign.
