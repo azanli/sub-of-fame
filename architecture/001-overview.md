@@ -30,7 +30,7 @@ Note: `context.subredditName` always reflects the host subreddit, even when acce
 - **Skip Behavior:** Invalid posts are skipped by advancing the player's linear progress pointer. A bounded validation loop prevents serverless timeouts.
 - **Comment Extraction:** Use the top-level comment roots sorted by popularity. The backend freezes the true answer order in a snapshot before returning a shuffled presentation order.
 
-Canonical cache keys, TTLs, snapshot shapes, attempt shapes, and exact validation contracts live in `002-dataTypes.md`.
+Canonical cache keys, TTLs, snapshot shapes, attempt shapes, and exact validation contracts live in `002-api.md`.
 
 ---
 
@@ -41,7 +41,7 @@ Canonical cache keys, TTLs, snapshot shapes, attempt shapes, and exact validatio
 - **Global Leaderboards:** Subreddit-specific standings based on highest cleared ladder milestone.
 - **Reveal Mechanics:** Green/red indicators per slot. Show frozen historical scores. No client-side answers or correct IDs are exposed before submission.
 
-The scoring formula, statistics counters, and leaderboard storage contract are defined in `002-dataTypes.md`.
+The scoring formula, statistics counters, and leaderboard storage contract are defined in `002-api.md`.
 
 ---
 
@@ -63,7 +63,12 @@ The scoring formula, statistics counters, and leaderboard storage contract are d
 
 ### Dashboard Hub Menu (`splash.html` / Dashboard)
 
-- Displays user's **Global Hive IQ**, per-subreddit level badges derived from `currentRankIndex`, and leaderboard rank badges.
+- Displays user's **Global Hive IQ** from all submitted rounds.
+- Displays per-subreddit dashboard cards by merging curated subreddit metadata with dashboard summaries:
+  - level badges derived from each summary's `currentRankIndex`
+  - per-subreddit Hive IQ when the user has played that subreddit
+  - leaderboard rank badges when the user is ranked for that subreddit
+- Hub cold boot has no active campaign; dashboard data must not depend on active-subreddit metrics.
 - Scrollable grid of curated subreddits + text input bar for **Custom Subreddit Requests**.
 - Custom requests validate the subreddit before initializing the campaign.
 
@@ -78,7 +83,7 @@ The scoring formula, statistics counters, and leaderboard storage contract are d
 
 ## API (Hono REST)
 
-Auth is handled via Devvit context. This section describes endpoint purpose only; exact request/response contracts live in `002-dataTypes.md` and `src/shared/api.ts`.
+Auth is handled via Devvit context. This section describes endpoint purpose only; exact request/response contracts live in `002-api.md`.
 
 - `GET /api/init` -> Hydrates entry state for Hub or Community launch.
 - `POST /api/session/sub` -> Validates a Hub campaign selection and prepares the campaign.
