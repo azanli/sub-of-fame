@@ -25,7 +25,7 @@ Note: `context.subredditName` always reflects the host subreddit, even when acce
 
 - **Curation:** No manual curation, no decoys.
 - **Campaign Source:** Each subreddit campaign is a live ladder sourced from the subreddit's all-time top posts.
-- **MVP Ladder Semantics:** `rankIndex` means the player's current milestone in the current cached ladder, not a permanent canonical post identity.
+- **MVP Ladder Semantics:** `rankIndex` means the player's current/next playable milestone in the current cached ladder, not a permanent canonical post identity. A player who clears rank 1 advances to `rankIndex = 2`; rounds completed is `rankIndex - 1`.
 - **Ladder Cache:** Reddit post metadata is cached in paged chunks with a short TTL so gameplay avoids repeated live top-list fetches while keeping implementation simple.
 - **Post Filters:** No NSFW; no spoiler; usable title or body; enough top-level comments to build a puzzle.
 - **Skip Behavior:** Invalid posts are skipped by advancing the player's linear progress pointer. A bounded validation loop prevents serverless timeouts.
@@ -41,7 +41,7 @@ Canonical cache keys, TTLs, snapshot shapes, attempt shapes, and exact validatio
 
 - **Slot Accuracy:** 0-3 points per round, with 1 point per correctly placed comment.
 - **Hive IQ Metric:** Long-term slot accuracy shown globally and per subreddit.
-- **Global Leaderboards:** Subreddit-specific standings based on highest cleared ladder milestone. For MVP, these are casual social rankings because cached ladder pages may refresh over time.
+- **Global Leaderboards:** Subreddit-specific standings based on highest reached `rankIndex` / next playable milestone. For MVP, these are casual social rankings because cached ladder pages may refresh over time.
 - **Reveal Mechanics:** Green/red indicators per slot. Show frozen historical scores after submission. For hackathon MVP, pre-submit comment cards may include real Reddit comment IDs for drag-and-drop identity, but not the true answer order or frozen scores; the game accepts casual trust rather than preventing external lookup.
 
 The scoring formula, statistics counters, and leaderboard storage contract are defined in `002-api.md`.
@@ -84,14 +84,14 @@ The scoring formula, statistics counters, and leaderboard storage contract are d
 
 ---
 
-## API (Hono REST)
+## API (Hono-hosted tRPC)
 
-Auth is handled via Devvit context. This section describes endpoint purpose only; exact request/response contracts live in `002-api.md`.
+Auth is handled via Devvit context. Hono hosts the Devvit web server, but gameplay calls are tRPC procedures with shared TypeScript input/output contracts. This section describes procedure purpose only; exact contracts live in `002-api.md`.
 
-- `GET /api/init` -> Hydrates entry state for Hub or Community launch.
-- `POST /api/session/sub` -> Validates a Hub campaign selection and prepares the campaign.
-- `POST /api/puzzle/next` -> Resolves the player's current ladder position and returns the next playable puzzle.
-- `POST /api/puzzle/submit` -> Validates an active attempt, scores a guess, reveals the frozen answer data, updates progression, and refreshes metrics. Expired, stale, duplicate, invalid, and cross-user submissions fail without changing progress or stats.
+- `init` query -> Hydrates entry state for Hub or Community launch.
+- `session.selectSubreddit` mutation -> Validates a Hub campaign selection and prepares the campaign.
+- `puzzle.next` mutation -> Resolves the player's current ladder position and returns the next playable puzzle.
+- `puzzle.submit` mutation -> Validates an active attempt, scores a guess, reveals the frozen answer data, updates progression, and refreshes metrics. Expired, stale, duplicate, invalid, and cross-user submissions fail without changing progress or stats.
 
 ---
 
@@ -99,8 +99,8 @@ Auth is handled via Devvit context. This section describes endpoint purpose only
 
 1. **Shared Types (`src/shared/api.ts` + `subreddits.ts` allowlist array)**
 2. **Redis Layer Schema Configuration (Progress hash, Profile Stats hash, Leaderboard ZSET)**
-3. **The Live Ladder Cache Pagination Pipeline (`/api/session/sub` validation + caching loop)**
-4. **The Safe `/api/puzzle/next` Loop (Validation checks, skip limits, and attempt emission)**
+3. **The Live Ladder Cache Pagination Pipeline (`session.selectSubreddit` validation + caching loop)**
+4. **The Safe `puzzle.next` Loop (Validation checks, skip limits, and attempt emission)**
 5. **Drag-and-Drop Rank Frontend UI**
-6. **Submission Verification Endpoint (`/api/puzzle/submit`)**
+6. **Submission Verification Procedure (`puzzle.submit`)**
 7. **Hub Statistics Dashboard Construction & Polishing**
