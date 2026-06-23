@@ -25,7 +25,7 @@ Note: `context.subredditName` always reflects the host subreddit, even when acce
 
 - **Curation:** No manual curation, no decoys.
 - **Campaign Source:** Each subreddit campaign is a live ladder sourced from the subreddit's all-time top posts.
-- **MVP Ladder Semantics:** `rankIndex` means the player's current/next playable rank in the current cached ladder, not a permanent canonical post identity. Because invalid posts are skipped, `rankIndex` is a reachability pointer, not a count of puzzles solved.
+- **MVP Ladder Semantics:** `rankIndex` means the player's current/next playable rank in the current cached ladder, not a permanent canonical post identity. Because invalid posts are skipped, `rankIndex` is a reachability pointer, not a count of puzzles solved or leaderboard credit earned.
 - **Ladder Cache:** Reddit post metadata is cached in cursor-linked chunks with a short TTL so gameplay avoids repeated live top-list fetches while keeping implementation simple. Ranks beyond the first 100 are reached by following cached Reddit listing cursors, not by random-access page fetches.
 - **Post Filters:** No NSFW; no spoiler; usable title or body; enough top-level comments to build a puzzle.
 - **Skip Behavior:** Invalid posts are skipped by advancing the player's linear progress pointer. A bounded validation loop prevents serverless timeouts.
@@ -41,7 +41,7 @@ Canonical cache keys, TTLs, snapshot shapes, attempt shapes, and exact validatio
 
 - **Slot Accuracy:** 0-3 points per round, with 1 point per correctly placed comment.
 - **Hive IQ Metric:** Long-term slot accuracy shown globally and per subreddit.
-- **Global Leaderboards:** Subreddit-specific standings based on furthest reachable `rankIndex` / next playable rank. For MVP, these are casual social progress rankings because invalid-post skips and cached ladder refreshes mean the score is not a strict count of cleared puzzles.
+- **Global Leaderboards:** Subreddit-specific standings based on the furthest playable ladder rank a logged-in player has cleared by submitting a valid puzzle. Invalid-post skips may advance the player's current `rankIndex`, but they do not create or advance leaderboard credit by themselves. For MVP, these remain casual social progress rankings because cached ladder refreshes mean the source ladder is not a permanent competitive archive.
 - **Reveal Mechanics:** Green/red indicators per slot. Show frozen historical scores after submission. For hackathon MVP, pre-submit comment cards may include real Reddit comment IDs for drag-and-drop identity, but not the true answer order or frozen scores; the game accepts casual trust rather than preventing external lookup.
 
 The scoring formula, statistics counters, and leaderboard storage contract are defined in `002-api.md`.
