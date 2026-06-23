@@ -8,12 +8,13 @@ Companion to `001-specs.md`. Defines shared TypeScript types (`src/shared/api.ts
 
 | Principle             | Decision                                                                                          |
 | --------------------- | ------------------------------------------------------------------------------------------------- |
-| Progression           | Linear rank pointer per subreddit (`rankIndex`), not a seen-set                                   |
+| Progression           | Linear next/current puzzle pointer per subreddit (`rankIndex`), not a seen-set                     |
 | Submit correlation    | Server-issued `attemptId` bound to `rankIndex`                                                    |
 | Truth vs presentation | `PuzzleSnapshot` = true rank order; `PuzzleAttempt` = shuffled IDs                                |
 | User guess            | Presentation indices into the shuffled layout                                                     |
 | Logged-out rank       | Client-authoritative; server ignores client rank when logged-in                                   |
 | Skip persistence      | Invalid posts increment progress permanently (logged-in: Redis; logged-out: returned `rankIndex`) |
+| Leaderboard score     | Highest solved puzzle rank (`clearedRankIndex`), not the next/current `rankIndex` pointer         |
 | Hive IQ               | `(correctSlots / totalSlots) × 100`, computed at read time                                        |
 | Hub session           | `activeSubreddit` is ephemeral client state; `/api/init` returns `null` on cold boot              |
 
@@ -66,6 +67,7 @@ Custom subreddits: validated live on `POST /api/session/sub` via `getSubredditBy
 
 - Default `rankIndex` for unseen subs: `1`
 - Incremented on: invalid-post skips during `/api/puzzle/next`, successful submit (`INCR` by 1)
+- Invariant: `rankIndex` is the next/current puzzle to resolve. After clearing puzzle `1`, progress becomes `2`.
 
 ### User Statistics (logged-in only)
 
@@ -78,11 +80,11 @@ Custom subreddits: validated live on `POST /api/session/sub` via `getSubredditBy
 
 ### Subreddit Leaderboard (logged-in only)
 
-| Key                           | Type       | Score                               | Member   |
-| ----------------------------- | ---------- | ----------------------------------- | -------- |
-| `leaderboard:{subredditName}` | Sorted Set | `rankIndex` (ladder height reached) | `userId` |
+| Key                           | Type       | Score                                    | Member   |
+| ----------------------------- | ---------- | ---------------------------------------- | -------- |
+| `leaderboard:{subredditName}` | Sorted Set | `clearedRankIndex` (highest solved rank) | `userId` |
 
-- Updated on successful submit: `ZADD leaderboard:{sub} CH {nextRankIndex} {userId}`
+- Updated on successful submit: `ZADD leaderboard:{sub} CH {clearedRankIndex} {userId}`, where `clearedRankIndex = attempt.rankIndex`
 - Ties accepted at Redis layer; Hive IQ breaks ties at display time only
 
 ### Ladder Cache (shared)
@@ -182,7 +184,7 @@ export type UserStatsProfile = {
 export type HiveIQMetrics = {
   globalHiveIQ: number; // (global:correct / global:total) * 100
   subredditHiveIQ: number; // (sub:correct / sub:total) * 100
-  currentRankIndex: number; // ladder height on active sub
+  currentRankIndex: number; // next/current puzzle pointer on active sub
 };
 ```
 
@@ -191,7 +193,7 @@ export type HiveIQMetrics = {
 ```typescript
 export type LeaderboardEntry = {
   userId: string;
-  rankIndex: number;
+  clearedRankIndex: number;
   subredditHiveIQ: number; // hydrated from stats hash
   displayRank: number; // tied users share displayRank
 };
@@ -310,10 +312,11 @@ export type PuzzleSubmitResponse = {
 3. Score: for each slot `i`, resolve `attempt.commentOrder[slots[i]]` vs `snapshot.comments[i].id` → 1 point per match.
 4. Mark attempt `submitted: true`.
 5. If logged-in:
+   - Set `clearedRankIndex = attempt.rankIndex`.
    - `HINCRBY` stats counters.
    - `HINCR` progress for active sub.
-   - `ZADD leaderboard:{sub} CH {nextRankIndex} {userId}`.
-6. Return reveal payload with frozen scores + updated Hive IQ.
+   - `ZADD leaderboard:{sub} CH {clearedRankIndex} {userId}`.
+6. Return reveal payload with frozen scores + updated Hive IQ + `nextRankIndex`.
 
 ---
 
