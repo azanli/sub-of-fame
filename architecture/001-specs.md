@@ -45,7 +45,7 @@ Behavior is determined by `context.subredditName`:
 
 - **Slot Accuracy:** 0–3 points per round ($1$ point per correct position).
 - **Hive IQ Metric:** Programmatically derived at read-time via $\left(\frac{\text{correctSlots}}{\text{totalSlots}}\right) \times 100$. Updated atomically via Redis hashes.
-- **Global Leaderboards:** Subreddit-specific standings sorted natively via a Redis Sorted Set (`leaderboard:{subredditName}`). The score stored is the user's highest solved rank as `clearedRankIndex`; progression `rankIndex` remains the next/current puzzle pointer.
+- **Global Leaderboards:** Subreddit-specific standings sorted natively via a Redis Sorted Set (`leaderboard:{subredditName}`). The score stored is the user's highest cleared integer `rankIndex`.
 - **Reveal Mechanics:** Green/red indicators per slot. Show frozen historical scores. _No client-side answers or correct IDs are exposed before submission._
 
 ---
@@ -67,7 +67,7 @@ Behavior is determined by `context.subredditName`:
 
 ### Dashboard Hub Menu (`splash.html` / Dashboard)
 
-- Displays user's **Global Hive IQ** + leaderboard rank badges.
+- Displays user's **Global Hive IQ**, per-subreddit level badges derived from `currentRankIndex`, and leaderboard rank badges.
 - Scrollable grid of curated subreddits + text input bar for **Custom Subreddit Requests**.
 - Custom requests execute a serialization and live check lookup (`context.reddit.getSubredditByName`) on submit before initialization.
 
@@ -84,10 +84,10 @@ Behavior is determined by `context.subredditName`:
 
 All types located in `src/shared/api.ts`. Auth via Devvit context.
 
-- `GET  /api/init` $\rightarrow$ Hydrates the main dashboard (host sub, `isHub`, global `HiveIQMetrics`, full `progress` map). Enforces a clean menu state on Hub launch by defaulting `activeSubreddit` to `null`.
+- `GET  /api/init` $\rightarrow$ Hydrates the entry state (host sub, `isHub`, global Hive IQ, and Hub dashboard summaries). Enforces a clean menu state on Hub launch by defaulting `activeSubreddit` to `null`.
 - `POST /api/session/sub` $\rightarrow$ Sanitizes and validates a target campaign request. Triggers lazy-loading of the ladder cache page if missing.
 - `POST /api/puzzle/next` $\rightarrow$ Resolves target index from the request body against the filter loop. Returns an ephemeral `attemptId` bound to a localized scrambled array of comment strings.
-- `POST /api/puzzle/submit` $\rightarrow$ Receives array indices payload `{ attemptId, slots: [number, number, number] }`. Evaluates, logs profile stats, updates leaderboard position with the cleared attempt rank, and issues an atomic `INCR` to progress.
+- `POST /api/puzzle/submit` $\rightarrow$ Receives array indices payload `{ attemptId, slots: [number, number, number] }`. Evaluates, logs profile stats, updates leaderboard position, and issues an atomic `INCR` to progress.
 
 ---
 
@@ -95,17 +95,30 @@ All types located in `src/shared/api.ts`. Auth via Devvit context.
 
 ```typescript
 export type HiveIQMetrics = {
-  globalHiveIQ: number;
   subredditHiveIQ: number;
   currentRankIndex: number;
+};
+
+export type GlobalHiveIQMetrics = {
+  globalHiveIQ: number;
+  totalCorrectSlots: number;
+  totalSlots: number;
+};
+
+export type SubredditDashboardSummary = {
+  subreddit: string;
+  currentRankIndex: number;
+  subredditHiveIQ: number | null;
+  leaderboardRank: number | null;
 };
 
 export type InitResponse = {
   hostSubreddit: string;
   isHub: boolean;
   activeSubreddit: string | null;
-  hiveIQ: HiveIQMetrics | null;
-  progress: Record<string, number> | null;
+  globalHiveIQ: GlobalHiveIQMetrics | null;
+  dashboardSubreddits: SubredditDashboardSummary[] | null;
+  activeSubredditMetrics: HiveIQMetrics | null;
 };
 
 export type PuzzleNextResponse =

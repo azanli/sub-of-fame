@@ -8,13 +8,12 @@ Companion to `001-specs.md`. Defines shared TypeScript types (`src/shared/api.ts
 
 | Principle             | Decision                                                                                          |
 | --------------------- | ------------------------------------------------------------------------------------------------- |
-| Progression           | Linear next/current puzzle pointer per subreddit (`rankIndex`), not a seen-set                     |
+| Progression           | Linear rank pointer per subreddit (`rankIndex`), not a seen-set                                   |
 | Submit correlation    | Server-issued `attemptId` bound to `rankIndex`                                                    |
 | Truth vs presentation | `PuzzleSnapshot` = true rank order; `PuzzleAttempt` = shuffled IDs                                |
 | User guess            | Presentation indices into the shuffled layout                                                     |
 | Logged-out rank       | Client-authoritative; server ignores client rank when logged-in                                   |
 | Skip persistence      | Invalid posts increment progress permanently (logged-in: Redis; logged-out: returned `rankIndex`) |
-| Leaderboard score     | Highest solved puzzle rank (`clearedRankIndex`), not the next/current `rankIndex` pointer         |
 | Hive IQ               | `(correctSlots / totalSlots) × 100`, computed at read time                                        |
 | Hub session           | `activeSubreddit` is ephemeral client state; `/api/init` returns `null` on cold boot              |
 
@@ -44,14 +43,17 @@ export const CURATED_SUBREDDITS: SubredditOption[] = [
 ];
 ```
 
-Client-side merge for Hub dashboard (not an API type):
+Client-side merge for Hub dashboard:
 
 ```typescript
 type SubredditPickerItem = SubredditOption & {
-  currentRankIndex: number | null; // null = never played
+  currentRankIndex: number; // drives level badge display
   subredditHiveIQ: number | null;
+  leaderboardRank: number | null;
 };
 ```
+
+`GET /api/init` returns dashboard summaries keyed by subreddit. The client merges those summaries with `CURATED_SUBREDDITS` for display metadata.
 
 Custom subreddits: validated live on `POST /api/session/sub` via `getSubredditByName`, with lazy ladder cache warm on first play.
 
@@ -67,7 +69,6 @@ Custom subreddits: validated live on `POST /api/session/sub` via `getSubredditBy
 
 - Default `rankIndex` for unseen subs: `1`
 - Incremented on: invalid-post skips during `/api/puzzle/next`, successful submit (`INCR` by 1)
-- Invariant: `rankIndex` is the next/current puzzle to resolve. After clearing puzzle `1`, progress becomes `2`.
 
 ### User Statistics (logged-in only)
 
@@ -80,11 +81,11 @@ Custom subreddits: validated live on `POST /api/session/sub` via `getSubredditBy
 
 ### Subreddit Leaderboard (logged-in only)
 
-| Key                           | Type       | Score                                    | Member   |
-| ----------------------------- | ---------- | ---------------------------------------- | -------- |
-| `leaderboard:{subredditName}` | Sorted Set | `clearedRankIndex` (highest solved rank) | `userId` |
+| Key                           | Type       | Score                               | Member   |
+| ----------------------------- | ---------- | ----------------------------------- | -------- |
+| `leaderboard:{subredditName}` | Sorted Set | `rankIndex` (ladder height reached) | `userId` |
 
-- Updated on successful submit: `ZADD leaderboard:{sub} CH {clearedRankIndex} {userId}`, where `clearedRankIndex = attempt.rankIndex`
+- Updated on successful submit: `ZADD leaderboard:{sub} CH {nextRankIndex} {userId}`
 - Ties accepted at Redis layer; Hive IQ breaks ties at display time only
 
 ### Ladder Cache (shared)
@@ -181,10 +182,22 @@ export type UserStatsProfile = {
   bySubreddit: Record<string, PerformanceCounters>;
 };
 
-export type HiveIQMetrics = {
+export type GlobalHiveIQMetrics = {
   globalHiveIQ: number; // (global:correct / global:total) * 100
+  totalCorrectSlots: number;
+  totalSlots: number;
+};
+
+export type HiveIQMetrics = {
   subredditHiveIQ: number; // (sub:correct / sub:total) * 100
-  currentRankIndex: number; // next/current puzzle pointer on active sub
+  currentRankIndex: number; // ladder height on active sub
+};
+
+export type SubredditDashboardSummary = {
+  subreddit: string;
+  currentRankIndex: number; // default 1; drives level badge display
+  subredditHiveIQ: number | null; // null when never played or logged-out
+  leaderboardRank: number | null; // null when absent from leaderboard or logged-out
 };
 ```
 
@@ -193,7 +206,7 @@ export type HiveIQMetrics = {
 ```typescript
 export type LeaderboardEntry = {
   userId: string;
-  clearedRankIndex: number;
+  rankIndex: number;
   subredditHiveIQ: number; // hydrated from stats hash
   displayRank: number; // tied users share displayRank
 };
@@ -206,8 +219,9 @@ export type InitResponse = {
   hostSubreddit: string;
   isHub: boolean;
   activeSubreddit: string | null; // null on Hub boot; hostSubreddit in Community
-  hiveIQ: HiveIQMetrics | null; // null when logged-out
-  progress: Record<string, number> | null; // null when logged-out; sub → rankIndex
+  globalHiveIQ: GlobalHiveIQMetrics | null; // null when logged-out
+  dashboardSubreddits: SubredditDashboardSummary[] | null; // Hub only
+  activeSubredditMetrics: HiveIQMetrics | null; // Community launch only
 };
 
 export type SessionSubRequest = {
@@ -265,7 +279,7 @@ export type PuzzleSubmitResponse = {
     score: number;
     correct: boolean;
   }>;
-  hiveIQ: HiveIQMetrics | null; // null when logged-out
+  hiveIQ: HiveIQMetrics | null; // active subreddit metrics; null when logged-out
   nextRankIndex: number; // for logged-out client progression sync
 };
 ```
@@ -277,10 +291,12 @@ export type PuzzleSubmitResponse = {
 ### `GET /api/init`
 
 1. Derive `isHub` from `context.subredditName === 'SubOfFame'`.
-2. If logged-out → `hiveIQ: null`, `progress: null`.
-3. If logged-in → parallel fetch `user:{userId}:progress` + `user:{userId}:stats`.
+2. If logged-out → `globalHiveIQ: null`, `dashboardSubreddits: null`, `activeSubredditMetrics: null`.
+3. If logged-in → parallel fetch `user:{userId}:progress`, `user:{userId}:stats`, and leaderboard ranks for dashboard subreddits.
 4. Set `activeSubreddit`: Community → `hostSubreddit`; Hub → `null`.
-5. Compute `HiveIQMetrics` from stats hash at read time.
+5. Compute `GlobalHiveIQMetrics` from global stats counters.
+6. If Hub → return `dashboardSubreddits` with progress, subreddit Hive IQ, and leaderboard rank per dashboard subreddit.
+7. If Community → return `activeSubredditMetrics` for `hostSubreddit`; `dashboardSubreddits` remains `null`.
 
 ### `POST /api/session/sub` (Hub only)
 
@@ -312,11 +328,10 @@ export type PuzzleSubmitResponse = {
 3. Score: for each slot `i`, resolve `attempt.commentOrder[slots[i]]` vs `snapshot.comments[i].id` → 1 point per match.
 4. Mark attempt `submitted: true`.
 5. If logged-in:
-   - Set `clearedRankIndex = attempt.rankIndex`.
    - `HINCRBY` stats counters.
    - `HINCR` progress for active sub.
-   - `ZADD leaderboard:{sub} CH {clearedRankIndex} {userId}`.
-6. Return reveal payload with frozen scores + updated Hive IQ + `nextRankIndex`.
+   - `ZADD leaderboard:{sub} CH {nextRankIndex} {userId}`.
+6. Return reveal payload with frozen scores + updated Hive IQ.
 
 ---
 
