@@ -84,14 +84,14 @@ The scoring formula, statistics counters, and leaderboard storage contract are d
 
 ---
 
-## API (tRPC v11)
+## API (Hono REST)
 
-Client/server communication uses tRPC v11. Hono remains the Devvit server host, but gameplay calls are exposed as typed tRPC procedures rather than REST endpoints. Auth is handled via Devvit context. This section describes procedure purpose only; exact input/output contracts live in `002-api.md`.
+Auth is handled via Devvit context. This section describes endpoint purpose only; exact request/response contracts live in `002-api.md`.
 
-- `init` query -> Hydrates entry state for Hub or Community launch.
-- `session.selectSubreddit` mutation -> Validates a Hub campaign selection and prepares the campaign.
-- `puzzle.next` mutation -> Resolves the player's current ladder position and returns the next playable puzzle.
-- `puzzle.submit` mutation -> Validates an active attempt, scores a guess, reveals the frozen answer data, updates progression, and refreshes metrics. Expired, stale, duplicate, invalid, and cross-user submissions fail without changing progress or stats.
+- `GET /api/init` -> Hydrates entry state for Hub or Community launch.
+- `POST /api/session/sub` -> Validates a Hub campaign selection and prepares the campaign.
+- `POST /api/puzzle/next` -> Resolves the player's current ladder position and returns the next playable puzzle.
+- `POST /api/puzzle/submit` -> Validates an active attempt, scores a guess, reveals the frozen answer data, updates progression, and refreshes metrics. Expired, stale, duplicate, invalid, and cross-user submissions fail without changing progress or stats.
 
 ---
 
@@ -99,8 +99,8 @@ Client/server communication uses tRPC v11. Hono remains the Devvit server host, 
 
 1. **Shared Types (`src/shared/api.ts` + `subreddits.ts` allowlist array)**
 2. **Redis Layer Schema Configuration (Progress hash, Profile Stats hash, Leaderboard ZSET)**
-3. **The Live Ladder Cache Pagination Pipeline (`session.selectSubreddit` validation + caching loop)**
-4. **The Safe `puzzle.next` Loop (Validation checks, skip limits, and attempt emission)**
+3. **The Live Ladder Cache Pagination Pipeline (`/api/session/sub` validation + caching loop)**
+4. **The Safe `/api/puzzle/next` Loop (Validation checks, skip limits, and attempt emission)**
 5. **Drag-and-Drop Rank Frontend UI**
-6. **Submission Verification Procedure (`puzzle.submit`)**
+6. **Submission Verification Endpoint (`/api/puzzle/submit`)**
 7. **Hub Statistics Dashboard Construction & Polishing**
