@@ -1,10 +1,12 @@
-# Sub of Fame — Data Types & Redis Schema
+# Sub of Fame - Contracts, Data Types & Redis Schema
 
-Companion to `001-specs.md`. Defines shared TypeScript types (`src/shared/api.ts`), Redis keys, and API request/response contracts for the linear progression model.
+Canonical contract companion to `001-specs.md`.
+
+This document owns shared TypeScript types (`src/shared/api.ts`), Redis keys, TTLs, request/response shapes, backend invariants, and endpoint execution flows for the linear progression model. Product overview, UX intent, and build roadmap belong in `001-specs.md`.
 
 ---
 
-## Design Principles
+## Contract Invariants
 
 | Principle             | Decision                                                                                          |
 | --------------------- | ------------------------------------------------------------------------------------------------- |
@@ -314,10 +316,9 @@ export type PuzzleSubmitResponse = {
    - Read post from `sub:ladder:{sub}:{page}` at offset.
    - If no post exists → return `{ status: 'exhausted' }`.
    - Fast-filter via `LadderPostSummary` (NSFW, spoiler, title/body, commentCount).
-   - If invalid → increment progress pointer (Redis if logged-in), `itemsChecked++`, continue.
-   - If `itemsChecked >= 20` → return `{ status: 'unplayable' }`.
+   - If invalid → increment progress pointer (Redis if logged-in), `itemsChecked++`, then return `{ status: 'unplayable' }` if `itemsChecked >= 20`; otherwise continue.
    - Load or create `PuzzleSnapshot` (comment validation).
-   - If comment extraction fails → treat as invalid (skip + increment).
+   - If comment extraction fails → treat as invalid using the same skip-cap behavior.
 4. Mint `puzzle:attempt:{attemptId}` with shuffled `commentOrder`.
 5. Return `{ status: 'ready', attemptId, rankIndex, post, comments }` (no scores).
 
@@ -343,15 +344,3 @@ hiveIQ = (correctSlots / totalSlots) * 100
 ```
 
 Submit validates `slots` is a permutation of `[0, 1, 2]`.
-
----
-
-## Build Order (from `001-specs.md`, updated)
-
-1. **Shared types** — `src/shared/api.ts`, `src/shared/subreddits.ts`
-2. **Redis schema** — helpers for progress, stats, ladder, snapshot, attempt keys
-3. **`POST /api/puzzle/next`** — ladder cache + validation loop + snapshot pipeline
-4. **Ranking UI** — drag-and-drop slots, shuffled comment pool
-5. **`POST /api/puzzle/submit`** — scoring, reveal, Hive IQ + leaderboard writes
-6. **Main menu + hub routing** — init dashboard, session/sub picker, community bypass
-7. **Splash polish**

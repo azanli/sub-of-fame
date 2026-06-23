@@ -1,12 +1,12 @@
-# Sub of Fame — Locked Design Spec
+# Sub of Fame - Product & System Spec
 
 ## Core Loop
 
-A text-based social-psychology puzzle mapping a linear progression campaign.
+A text-based social-psychology puzzle built around a linear subreddit campaign.
 
 1. Player sees a viral Reddit post (title/body) pulled sequentially from the subreddit's all-time top list.
 2. Player drags three real top-level comment roots into popularity order (`#1` = most upvotes).
-3. Slot-by-slot reveal $\rightarrow$ Next Ladder Milestone $\rightarrow$ Repeat until the ladder is conquered.
+3. Slot-by-slot reveal -> Next ladder milestone -> Repeat until the ladder is conquered.
 
 ---
 
@@ -14,52 +14,48 @@ A text-based social-psychology puzzle mapping a linear progression campaign.
 
 Behavior is determined by `context.subredditName`:
 
-- **App Hub (`r/SubOfFame`):** Dashboard main menu $\rightarrow$ player views stats/level badges $\rightarrow$ picks a subreddit campaign.
-- **Any other subreddit (Community Post):** Skip dashboard $\rightarrow$ lock to host sub campaign $\rightarrow$ launch player's current sequential puzzle immediately.
+- **App Hub (`r/SubOfFame`):** Dashboard main menu -> player views stats/level badges -> picks a subreddit campaign.
+- **Any other subreddit (Community Post):** Skip dashboard -> lock to host sub campaign -> launch player's current sequential puzzle immediately.
 
-> 📌 **Note:** `context.subredditName` always reflects the host subreddit, even when accessed from the Home Feed.
+Note: `context.subredditName` always reflects the host subreddit, even when accessed from the Home Feed.
 
 ---
 
 ## Content Pipeline & Caching
 
 - **Curation:** No manual curation, no decoys.
-- **The Ladder Cache:** Cached in 100-item chunks via Redis lists at `sub:ladder:{subredditName}:{page}` with a 24-hour TTL. To prevent real-time bottlenecks, pages store lightweight metadata objects (`LadderPostSummary`) rather than just raw IDs:
-  ```typescript
-  type LadderPostSummary = {
-    id: string;
-    title: string;
-    hasBody: boolean;
-    isNSFW: boolean;
-    isSpoiler: boolean;
-    commentCount: number;
-  };
-  ```
-- **Post Filters (Validation Loop):** No NSFW; no spoiler; usable title ($\ge 10$ chars) OR body ($\ge 50$ chars); must have $10+$ top-level comments.
-- **The Loop Ceiling / Skip Cap:** If a post fails filters, the loop automatically increments the user's progress index and evaluates the next sequential post. To prevent execution timeouts, the loop checks a **maximum of 20 posts** before returning an unplayable state.
-- **Comment Extraction:** `getComments({ sort: 'top', depth: 1 })` $\rightarrow$ first 3 valid roots. Skip stickied/deleted/empty. Tie-break strictly by `createdAt` on the backend snapshot.
+- **Campaign Source:** Each subreddit campaign is a deterministic ladder based on all-time top posts.
+- **Ladder Cache:** Reddit post metadata is cached in paged chunks so gameplay does not depend on repeated live top-list fetches.
+- **Post Filters:** No NSFW; no spoiler; usable title or body; enough top-level comments to build a puzzle.
+- **Skip Behavior:** Invalid posts are skipped by advancing the player's linear progress pointer. A bounded validation loop prevents serverless timeouts.
+- **Comment Extraction:** Use the top-level comment roots sorted by popularity. The backend freezes the true answer order in a snapshot before returning a shuffled presentation order.
+
+Canonical cache keys, TTLs, snapshot shapes, attempt shapes, and exact validation contracts live in `002-dataTypes.md`.
 
 ---
 
 ## Scoring & Global Analytics
 
-- **Slot Accuracy:** 0–3 points per round ($1$ point per correct position).
-- **Hive IQ Metric:** Programmatically derived at read-time via $\left(\frac{\text{correctSlots}}{\text{totalSlots}}\right) \times 100$. Updated atomically via Redis hashes.
-- **Global Leaderboards:** Subreddit-specific standings sorted natively via a Redis Sorted Set (`leaderboard:{subredditName}`). The score stored is the user's highest cleared integer `rankIndex`.
-- **Reveal Mechanics:** Green/red indicators per slot. Show frozen historical scores. _No client-side answers or correct IDs are exposed before submission._
+- **Slot Accuracy:** 0-3 points per round, with 1 point per correctly placed comment.
+- **Hive IQ Metric:** Long-term slot accuracy shown globally and per subreddit.
+- **Global Leaderboards:** Subreddit-specific standings based on highest cleared ladder milestone.
+- **Reveal Mechanics:** Green/red indicators per slot. Show frozen historical scores. No client-side answers or correct IDs are exposed before submission.
+
+The scoring formula, statistics counters, and leaderboard storage contract are defined in `002-dataTypes.md`.
 
 ---
 
 ## Session & State
 
-| Feature                 | Logged-in                                       | Logged-out                                   |
-| :---------------------- | :---------------------------------------------- | :------------------------------------------- |
-| **Progression Map**     | Redis Campaign Index (`user:{userId}:progress`) | Client State / Context (Reset on fresh boot) |
-| **Hive IQ Stats**       | Redis Profile Hash (`user:{userId}:stats`)      | ❌                                           |
-| **Global Leaderboards** | Redis Sorted Set (`leaderboard:{sub}`)          | ❌                                           |
-| **Active Hub Session**  | Ephemeral Client State (Defaults to Dashboard)  | Ephemeral Client State                       |
+| Feature                 | Logged-in                      | Logged-out                     |
+| :---------------------- | :----------------------------- | :----------------------------- |
+| **Progression Map**     | Persisted per subreddit        | Client state / request context |
+| **Hive IQ Stats**       | Persisted profile stats        | Not persisted                  |
+| **Global Leaderboards** | Eligible for subreddit ranking | Not eligible                   |
+| **Active Hub Session**  | Ephemeral client state         | Ephemeral client state         |
 
 - **Hub Session Behavior:** Subreddit locks on select for active runtime loop. Exiting to the Dashboard resets active selection.
+- **Community Session Behavior:** The active campaign is the host subreddit and bypasses Hub selection.
 
 ---
 
@@ -69,7 +65,7 @@ Behavior is determined by `context.subredditName`:
 
 - Displays user's **Global Hive IQ**, per-subreddit level badges derived from `currentRankIndex`, and leaderboard rank badges.
 - Scrollable grid of curated subreddits + text input bar for **Custom Subreddit Requests**.
-- Custom requests execute a serialization and live check lookup (`context.reddit.getSubredditByName`) on submit before initialization.
+- Custom requests validate the subreddit before initializing the campaign.
 
 ### Game Space (`game.html`)
 
@@ -82,68 +78,16 @@ Behavior is determined by `context.subredditName`:
 
 ## API (Hono REST)
 
-All types located in `src/shared/api.ts`. Auth via Devvit context.
+Auth is handled via Devvit context. This section describes endpoint purpose only; exact request/response contracts live in `002-dataTypes.md` and `src/shared/api.ts`.
 
-- `GET  /api/init` $\rightarrow$ Hydrates the entry state (host sub, `isHub`, global Hive IQ, and Hub dashboard summaries). Enforces a clean menu state on Hub launch by defaulting `activeSubreddit` to `null`.
-- `POST /api/session/sub` $\rightarrow$ Sanitizes and validates a target campaign request. Triggers lazy-loading of the ladder cache page if missing.
-- `POST /api/puzzle/next` $\rightarrow$ Resolves target index from the request body against the filter loop. Returns an ephemeral `attemptId` bound to a localized scrambled array of comment strings.
-- `POST /api/puzzle/submit` $\rightarrow$ Receives array indices payload `{ attemptId, slots: [number, number, number] }`. Evaluates, logs profile stats, updates leaderboard position, and issues an atomic `INCR` to progress.
-
----
-
-## Finalized API Types (`src/shared/api.ts`)
-
-```typescript
-export type HiveIQMetrics = {
-  subredditHiveIQ: number;
-  currentRankIndex: number;
-};
-
-export type GlobalHiveIQMetrics = {
-  globalHiveIQ: number;
-  totalCorrectSlots: number;
-  totalSlots: number;
-};
-
-export type SubredditDashboardSummary = {
-  subreddit: string;
-  currentRankIndex: number;
-  subredditHiveIQ: number | null;
-  leaderboardRank: number | null;
-};
-
-export type InitResponse = {
-  hostSubreddit: string;
-  isHub: boolean;
-  activeSubreddit: string | null;
-  globalHiveIQ: GlobalHiveIQMetrics | null;
-  dashboardSubreddits: SubredditDashboardSummary[] | null;
-  activeSubredditMetrics: HiveIQMetrics | null;
-};
-
-export type PuzzleNextResponse =
-  | {
-      status: 'ready';
-      attemptId: string;
-      rankIndex: number;
-      post: { title: string; body?: string };
-      comments: Array<{ id: string; body: string }>;
-    }
-  | {
-      status: 'exhausted';
-      rankIndex: number;
-      message: string;
-    }
-  | {
-      status: 'unplayable';
-      rankIndex: number;
-      message: string;
-    };
-```
+- `GET /api/init` -> Hydrates entry state for Hub or Community launch.
+- `POST /api/session/sub` -> Validates a Hub campaign selection and prepares the campaign.
+- `POST /api/puzzle/next` -> Resolves the player's current ladder position and returns the next playable puzzle.
+- `POST /api/puzzle/submit` -> Scores a guess, reveals the frozen answer data, updates progression, and refreshes metrics.
 
 ---
 
-### Revised Build Order
+## Build Order
 
 1. **Shared Types (`src/shared/api.ts` + `subreddits.ts` allowlist array)**
 2. **Redis Layer Schema Configuration (Progress hash, Profile Stats hash, Leaderboard ZSET)**
