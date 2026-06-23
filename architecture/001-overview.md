@@ -91,7 +91,7 @@ Auth is handled via Devvit context. This section describes endpoint purpose only
 - `GET /api/init` -> Hydrates entry state for Hub or Community launch.
 - `POST /api/session/sub` -> Validates a Hub campaign selection and prepares the campaign.
 - `POST /api/puzzle/next` -> Resolves the player's current ladder position and returns the next playable puzzle.
-- `POST /api/puzzle/submit` -> Scores a guess, reveals the frozen answer data, updates progression, and refreshes metrics.
+- `POST /api/puzzle/submit` -> Validates an active attempt, scores a guess, reveals the frozen answer data, updates progression, and refreshes metrics. Expired, stale, duplicate, invalid, and cross-user submissions fail without changing progress or stats.
 
 ---
 
