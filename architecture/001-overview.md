@@ -29,7 +29,9 @@ Note: `context.subredditName` always reflects the host subreddit, even when acce
 - **Ladder Cache:** Reddit post metadata is cached in paged chunks with a short TTL so gameplay avoids repeated live top-list fetches while keeping implementation simple.
 - **Post Filters:** No NSFW; no spoiler; usable title or body; enough top-level comments to build a puzzle.
 - **Skip Behavior:** Invalid posts are skipped by advancing the player's linear progress pointer. A bounded validation loop prevents serverless timeouts.
-- **Comment Extraction:** Use the top-level comment roots sorted by popularity. The backend freezes the true answer order in a short-lived snapshot before returning a shuffled presentation order.
+- **Comment Extraction:** Use the first three valid top-level comment roots sorted by public score. The backend freezes the true answer order in a short-lived snapshot before returning a shuffled presentation order.
+- **Comment Validity:** A playable comment must be a real, visible user comment with meaningful text and an available numeric score. Deleted/removed comments, AutoModerator/system-style comments, stickied/mod-distinguished comments, empty bodies, and very short bodies are excluded.
+- **Ambiguous Rankings:** If score data is unavailable, or if the selected top three comments would contain tied scores, the post is treated as invalid and skipped. This keeps the puzzle about social prediction rather than hidden backend tie-breakers.
 
 Canonical cache keys, TTLs, snapshot shapes, attempt shapes, and exact validation contracts live in `002-api.md`.
 
