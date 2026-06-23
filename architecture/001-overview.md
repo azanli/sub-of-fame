@@ -6,7 +6,7 @@ A text-based social-psychology puzzle built around a linear subreddit campaign.
 
 1. Player sees a viral Reddit post (title/body) pulled sequentially from the subreddit's live all-time top ladder cache.
 2. Player drags three real top-level comment roots into popularity order (`#1` = most upvotes).
-3. Slot-by-slot reveal -> Next ladder milestone -> Repeat until the ladder is conquered.
+3. Slot-by-slot reveal -> Next reachable ladder rank -> Repeat until the ladder is conquered.
 
 ---
 
@@ -25,7 +25,7 @@ Note: `context.subredditName` always reflects the host subreddit, even when acce
 
 - **Curation:** No manual curation, no decoys.
 - **Campaign Source:** Each subreddit campaign is a live ladder sourced from the subreddit's all-time top posts.
-- **MVP Ladder Semantics:** `rankIndex` means the player's current/next playable milestone in the current cached ladder, not a permanent canonical post identity. A player who clears rank 1 advances to `rankIndex = 2`; rounds completed is `rankIndex - 1`.
+- **MVP Ladder Semantics:** `rankIndex` means the player's current/next playable rank in the current cached ladder, not a permanent canonical post identity. Because invalid posts are skipped, `rankIndex` is a reachability pointer, not a count of puzzles solved.
 - **Ladder Cache:** Reddit post metadata is cached in paged chunks with a short TTL so gameplay avoids repeated live top-list fetches while keeping implementation simple.
 - **Post Filters:** No NSFW; no spoiler; usable title or body; enough top-level comments to build a puzzle.
 - **Skip Behavior:** Invalid posts are skipped by advancing the player's linear progress pointer. A bounded validation loop prevents serverless timeouts.
@@ -41,7 +41,7 @@ Canonical cache keys, TTLs, snapshot shapes, attempt shapes, and exact validatio
 
 - **Slot Accuracy:** 0-3 points per round, with 1 point per correctly placed comment.
 - **Hive IQ Metric:** Long-term slot accuracy shown globally and per subreddit.
-- **Global Leaderboards:** Subreddit-specific standings based on highest reached `rankIndex` / next playable milestone. For MVP, these are casual social rankings because cached ladder pages may refresh over time.
+- **Global Leaderboards:** Subreddit-specific standings based on furthest reachable `rankIndex` / next playable rank. For MVP, these are casual social progress rankings because invalid-post skips and cached ladder refreshes mean the score is not a strict count of cleared puzzles.
 - **Reveal Mechanics:** Green/red indicators per slot. Show frozen historical scores after submission. For hackathon MVP, pre-submit comment cards may include real Reddit comment IDs for drag-and-drop identity, but not the true answer order or frozen scores; the game accepts casual trust rather than preventing external lookup.
 
 The scoring formula, statistics counters, and leaderboard storage contract are defined in `002-api.md`.
