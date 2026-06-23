@@ -71,6 +71,7 @@ The scoring formula, statistics counters, and leaderboard storage contract are d
   - level badges derived from each summary's `currentRankIndex`
   - per-subreddit Hive IQ when the user has played that subreddit
   - leaderboard rank badges when the user is ranked for that subreddit
+- Leaderboard rank badges can open a full subreddit leaderboard view showing top players and, when applicable, the current player's own row.
 - Hub cold boot has no active campaign; dashboard data must not depend on active-subreddit metrics.
 - Scrollable grid of curated subreddits + text input bar for **Custom Subreddit Requests**.
 - Custom requests validate the subreddit before initializing the campaign.
@@ -89,6 +90,7 @@ The scoring formula, statistics counters, and leaderboard storage contract are d
 Auth is handled via Devvit context. This section describes endpoint purpose only; exact request/response contracts live in `002-api.md`.
 
 - `GET /api/init` -> Hydrates entry state for Hub or Community launch.
+- `GET /api/leaderboard/:subreddit` -> Returns a full subreddit leaderboard, including top ranked players and the current user's ranked row when outside the top window.
 - `POST /api/session/sub` -> Validates a Hub campaign selection and prepares the campaign.
 - `POST /api/puzzle/next` -> Resolves the player's current ladder position and returns the next playable puzzle.
 - `POST /api/puzzle/submit` -> Validates an active attempt, scores a guess, reveals the frozen answer data, updates progression, and refreshes metrics. Expired, stale, duplicate, invalid, and cross-user submissions fail without changing progress or stats.
