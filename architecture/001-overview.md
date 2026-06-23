@@ -41,8 +41,8 @@ Canonical cache keys, TTLs, snapshot shapes, attempt shapes, and exact validatio
 
 - **Slot Accuracy:** 0-3 points per round, with 1 point per correctly placed comment.
 - **Hive IQ Metric:** Long-term slot accuracy shown globally and per subreddit.
-- **Global Leaderboards:** Subreddit-specific standings based on furthest reachable ladder rank, not strictly puzzles cleared. Invalid-post skips may advance this rank because they are server-side validation cleanup, while Hive IQ remains the skill metric for rounds actually played. For MVP, these are casual social rankings because cached ladder pages may refresh over time.
-- **Reveal Mechanics:** Green/red indicators per slot. Show frozen historical scores. No client-side answers or correct IDs are exposed before submission.
+- **Global Leaderboards:** Subreddit-specific standings based on highest cleared ladder milestone. For MVP, these are casual social rankings because cached ladder pages may refresh over time.
+- **Reveal Mechanics:** Green/red indicators per slot. Show frozen historical scores after submission. For hackathon MVP, pre-submit comment cards may include real Reddit comment IDs for drag-and-drop identity, but not the true answer order or frozen scores; the game accepts casual trust rather than preventing external lookup.
 
 The scoring formula, statistics counters, and leaderboard storage contract are defined in `002-api.md`.
 
