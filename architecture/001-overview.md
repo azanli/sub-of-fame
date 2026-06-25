@@ -62,6 +62,7 @@ The MVP does not define a collective all-player Hive IQ. If crowd aggregate stat
 | **Active Hub Session**     | Ephemeral client state         | Ephemeral client state         |
 
 - **Hub Session Behavior:** Subreddit locks on select for active runtime loop. Exiting to the Dashboard resets active selection.
+- **Custom Subreddit Sync Window (intentional MVP):** `session.selectSubreddit` validates a custom request, warms page 1, and returns metadata, but **does not** write dashboard membership to Redis. A custom subreddit appears on the Hub dashboard only after persisted progress or stats exist—typically from a submitted round or a backend validation skip during `puzzle.next`. If a logged-in player validates a custom subreddit, enters gameplay, then closes the app or loses connection **before** submit (and before any backend skip advances their progress), that subreddit **will not** reappear on the dashboard on the next `init`. This is expected hackathon behavior, not a bug. Do **not** implement a persisted "recently searched" or "recent custom subreddits" list to paper over this gap.
 - **Community Session Behavior:** The active campaign is the host subreddit and bypasses Hub selection. The server re-derives this lock from Devvit context on `init`, `puzzle.next`, and `puzzle.submit`; the client cannot switch campaigns from a Community launch.
 - **Attempt Ownership:** A round's auth mode is frozen when the puzzle is served. Logged-in rounds belong to that user and can only be submitted by that same user. Logged-out rounds are guest rounds, even if the player signs in before pressing submit.
 - **Auth-State Changes:** For MVP, a guest round submitted after sign-in still reveals and returns guest-only next progress, but does not update profile stats, persisted progress, or leaderboards. Continuing while signed in requests the account's authoritative next puzzle. A logged-in round submitted after logout or account switch is rejected and the client refreshes to the current authoritative puzzle.
@@ -80,9 +81,9 @@ The MVP does not define a collective all-player Hive IQ. If crowd aggregate stat
   - completed puzzle count in the bottom-right (# Puzzles Solved)
 - Hub cold boot has no active campaign; dashboard data must not depend on active-subreddit metrics.
 - Scrollable grid of curated subreddit cards plus logged-in custom subreddit cards that have persisted player progress or stats. Custom cards appear after the player has submitted a round or a validation skip has advanced their persisted progress in that subreddit; a validated custom request with no persisted progress or stats does not need to remain as a dashboard card for MVP.
-- When logged-out Hub `init` returns `dashboardSubreddits: null`, the client renders the curated grid from the static `CURATED_SUBREDDITS` catalog with no user badges, progress, Hive IQ, or leaderboard rank.
 - Text input bar for **Custom Subreddit Requests**.
-- Custom requests validate the subreddit before initializing the campaign. The server returns enough display metadata for any custom subreddit card (`displayName`, and avatar/fallback icon) so the dashboard does not depend on `CURATED_SUBREDDITS` for custom rendering.
+- Custom requests call `session.selectSubreddit`, which validates the subreddit and returns display metadata for the active gameplay session. The text bar is a launch path, not a save action: abandoning gameplay before submit leaves no Redis footprint, so the custom subreddit disappears from the dashboard on return. See **Custom Subreddit Sync Window** under Session & State.
+- When logged-out Hub `init` returns `dashboardSubreddits: null`, the client renders the curated grid from the static `CURATED_SUBREDDITS` catalog with no user badges, progress, Hive IQ, or leaderboard rank.
 
 ### Game Space (`game.html`)
 
