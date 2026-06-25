@@ -29,9 +29,9 @@ Community host locking is a backend invariant, not a UI convention. In the App H
 - **Campaign Source:** Each subreddit campaign is a live ladder sourced from the subreddit's all-time top posts.
 - **MVP Ladder Semantics:** `rankIndex` means the player's current/next playable rank in the current cached ladder, not a permanent canonical post identity. Because invalid posts are skipped, `rankIndex` is a reachability pointer, not a count of puzzles solved or leaderboard credit earned.
 - **Ladder Cache:** Reddit post metadata is cached in cursor-linked chunks with a short TTL so gameplay avoids repeated live top-list fetches while keeping implementation simple. Ranks beyond the first 100 are reached by following cached Reddit listing cursors, not by random-access page fetches.
-- **Post Filters:** No NSFW; no spoiler; usable title or body; enough top-level comments to build a puzzle.
+- **Post Prefilters:** No NSFW; no spoiler; usable title or body; minimum Reddit total comment count as a cheap discussion-volume hint. This hint is not proof of playability because Reddit's public comment count includes replies and unavailable comments.
 - **Skip Behavior:** Invalid posts are skipped by advancing the player's linear progress pointer. A bounded validation loop prevents serverless timeouts.
-- **Comment Extraction:** Use the first three valid top-level comment roots sorted by public score. The backend freezes the true answer order in a short-lived snapshot before returning a shuffled presentation order.
+- **Authoritative Comment Gate:** A post is playable only if a `depth: 1` top-comment fetch can produce three valid top-level comment roots with distinct scores, without deep pagination. The backend freezes the true answer order in a short-lived snapshot before returning a shuffled presentation order.
 - **Comment Validity:** A playable comment must be a real, visible user comment with meaningful text and an available numeric score. Deleted/removed comments, AutoModerator/system-style comments, stickied/mod-distinguished comments, empty bodies, and very short bodies are excluded.
 - **Ambiguous Rankings:** If score data is unavailable, or if the selected top three comments would contain tied scores, the post is treated as invalid and skipped. This keeps the puzzle about social prediction rather than hidden backend tie-breakers.
 
