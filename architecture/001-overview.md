@@ -75,11 +75,12 @@ The MVP does not define a collective all-player Hive IQ. If crowd aggregate stat
 - Displays per-subreddit dashboard rows as the buttons to enter campaigns. Each row contains:
   - subreddit avatar on the left
   - `r/{subredditName}` label
-  - accuracy metric in the top-right, shown as **Calibrating** until completed rounds >= 3
-  - completed puzzle count in the bottom-right
+  - accuracy metric in the top-right, shown as **Calibrating** until completed rounds >= 3 (🎯 66.7%)
+  - completed puzzle count in the bottom-right (# Puzzles Solved)
 - Hub cold boot has no active campaign; dashboard data must not depend on active-subreddit metrics.
-- Scrollable grid of curated subreddits + text input bar for **Custom Subreddit Requests**.
-- Custom requests validate the subreddit before initializing the campaign.
+- Scrollable grid of curated subreddit cards plus logged-in custom subreddit cards that have persisted player progress or stats. Custom cards appear after the player has submitted a round or a validation skip has advanced their persisted progress in that subreddit; a validated custom request with no persisted progress or stats does not need to remain as a dashboard card for MVP.
+- Text input bar for **Custom Subreddit Requests**.
+- Custom requests validate the subreddit before initializing the campaign. The server returns enough display metadata for any custom subreddit card (`displayName`, and avatar/fallback icon) so the dashboard does not depend on `CURATED_SUBREDDITS` for custom rendering.
 
 ### Game Space (`game.html`)
 
