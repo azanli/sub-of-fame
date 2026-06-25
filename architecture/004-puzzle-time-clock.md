@@ -107,7 +107,7 @@ type TapRankState = {
 
 On re-tap of rank `N`, remove every assignment where `rank >= N`, then set `nextRank = N`.
 
-Build the `puzzle.submit` `slots` tuple by placing comment IDs into ranks 1–3 from `assignments`. Unselected comments are omitted until submit or timeout handling fills them (see §4).
+Build the `puzzle.submit` `slots` tuple by placing comment IDs into ranks 1–3 from `assignments`. On timeout, use the fill-remaining strategy in §4 before submit—never send partial or empty slot arrays.
 
 ### Visual badges
 
@@ -119,17 +119,49 @@ Display circled numerals (`①`, `②`, `③`) or equivalent rank badges promine
 
 Show a clear visual countdown (**`M:SS`**) in the comments modal, visible only **after** **Start Puzzle** is pressed. The timer counts down from the client-calculated limit to `0:00`.
 
-### Timeout handler
+### Timeout handler (fill-remaining)
 
-When the timer reaches zero before a normal submit:
+When the timer reaches zero before a normal submit, the client **always** builds a complete `slots: [string, string, string]` permutation and fires a standard `puzzle.submit`. The backend never accepts partial arrays, empty slots, or a separate timeout payload.
 
-| Selection state               | Client behavior                                                                                                                                                                             |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| All three ranks filled        | Force-submit the current permutation immediately (same as auto-submit).                                                                                                                     |
-| Partial selection (1–2 ranks) | Force-submit: place assigned IDs into their rank slots; fill any remaining slots with unassigned comment IDs in stable presentation-array order so the payload remains a valid permutation. |
-| No selections                 | Submit an **empty guess**—treat the round as failed (score `0`). Implementation must not block on validation UX; advance through the submit lifecycle.                                      |
+**Fill-remaining algorithm:**
 
-After any timeout submit, disable further taps and follow the normal post-submit reveal flow.
+1. Start with three rank slots. Copy any player-assigned comment IDs into their chosen ranks (`①` → index 0, etc.).
+2. Collect comment IDs not yet placed, preserving **presentation-array order** (the order of `comments` on the `puzzle.next` `ready` response—the same order as `attempt.commentOrder`).
+3. Walk rank slots left to right (`#1`, `#2`, `#3`) and assign the next unplaced ID from that list into each empty slot.
+4. Submit the resulting tuple immediately.
+
+| Player state at `0:00` | Resulting payload |
+| ---------------------- | ----------------- |
+| 0 ranks assigned       | All three slots filled from presentation-array order (ranks 1→3). Likely score `0`; still a valid submit. |
+| 1–2 ranks assigned     | Player picks kept; empty slots filled from remaining IDs in presentation-array order. |
+| 3 ranks assigned       | Submit the player's permutation as-is (same as auto-submit). |
+
+```typescript
+function buildTimeoutSlots(
+  comments: { id: string }[],
+  assignments: Map<string, 1 | 2 | 3>,
+): [string, string, string] {
+  const slots: Array<string | null> = [null, null, null];
+
+  for (const [commentId, rank] of assignments) {
+    slots[rank - 1] = commentId;
+  }
+
+  const placed = new Set(slots.filter(Boolean));
+  const remaining = comments.map((c) => c.id).filter((id) => !placed.has(id));
+
+  let next = 0;
+  for (let i = 0; i < 3; i++) {
+    if (slots[i] === null) {
+      slots[i] = remaining[next++]!;
+    }
+  }
+
+  return slots as [string, string, string];
+}
+```
+
+After timeout submit, disable further taps and follow the normal post-submit reveal flow.
 
 ### Timer lifecycle
 

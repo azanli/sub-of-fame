@@ -100,7 +100,7 @@ See `004-puzzle-time-clock.md` for the full interaction contract.
 - Client-side countdown timer (`M:SS`), started at gate open from comment-length calculation (30s–120s clamp).
 - Tap-to-Rank with circled rank badges (`①` `②` `③`) inside the modal.
 - Tapping a selected comment clears that rank and all higher ranks; lower ranks stay in place (e.g. tap `②` → only `②` clears, `①` stays).
-- Auto-submit when all three ranks are filled; timeout force-submits partial or empty guesses.
+- Auto-submit when all three ranks are filled; on timeout, force-submit via the client fill-remaining strategy (see `004-puzzle-time-clock.md`).
 
 **Post-submit**
 
