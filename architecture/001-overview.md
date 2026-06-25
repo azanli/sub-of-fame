@@ -30,7 +30,7 @@ Community host locking is a backend invariant, not a UI convention. In the App H
 - **MVP Ladder Semantics:** `rankIndex` means the player's current/next playable rank in the current cached ladder, not a permanent canonical post identity. Because invalid posts are skipped, `rankIndex` is a reachability pointer, not a count of puzzles solved or leaderboard credit earned.
 - **Ladder Cache:** Reddit post metadata is cached in cursor-linked chunks so gameplay avoids repeated live top-list fetches. Because all-time top posts are near-static historical data, page content is cached for several days and the cursor chain that links pages is persisted durably and separately, so reaching a deep rank on a cold content cache re-fetches a single page directly instead of re-walking from page 1. Ranks beyond the first 100 are reached by following cached Reddit listing cursors, not by random-access page fetches.
 - **Post Prefilters:** No NSFW; no spoiler; usable title or body; minimum Reddit total comment count as a cheap discussion-volume hint. This hint is not proof of playability because Reddit's public comment count includes replies and unavailable comments.
-- **Skip Behavior:** Invalid posts are skipped by advancing the player's linear progress pointer. A single shared work budget governs both ladder page warming and comment validation within one `puzzle.next` call, so the procedure provably stays under the serverless time limit; when the budget is spent before a playable post is found, the call returns a retryable result, and persisted pages and progress let the next call resume forward.
+- **Skip Behavior:** Invalid posts are skipped by advancing the player's linear progress pointer. A single shared work budget governs both ladder page warming and comment validation within one `puzzle.next` call, so the procedure provably stays under the serverless time limit; when the budget is spent before a playable post is found, the call returns `{ status: 'unplayable', rankIndex }`. Persisted pages and progress let the next call resume forward. See **Unplayable retry** under Game Space for required client handling—never tight-loop `puzzle.next` on this status.
 - **Authoritative Comment Gate:** A post is playable only if a `depth: 1` top-comment fetch can produce three valid top-level comment roots with distinct scores, without deep pagination. The backend freezes the true answer order in a short-lived snapshot before returning a shuffled presentation order.
 - **Comment Validity:** A playable comment must be a real, visible user comment with meaningful text and an available numeric score. Deleted/removed comments, AutoModerator/system-style comments, stickied/mod-distinguished comments, empty bodies, and very short bodies are excluded.
 - **Ambiguous Rankings:** If score data is unavailable, or if the selected top three comments would contain tied scores, the post is treated as invalid and skipped. This keeps the puzzle about social prediction rather than hidden backend tie-breakers.
@@ -106,6 +106,18 @@ See `004-puzzle-time-clock.md` for the full interaction contract.
 
 - Slot reveal (green/red) with frozen scores.
 - Actions: **Dashboard/Menu** / **Next Level**.
+
+**Unplayable retry (`puzzle.next`)**
+
+When `puzzle.next` returns `{ status: 'unplayable', rankIndex }`, the server ran out of work budget while hunting for a playable post. The response is a continuation point, not an error—but the client must **not** immediately auto-retry in the same tick. A zero-delay loop would hammer the backend and serverless bill on subreddits with long runs of deleted, tied, or otherwise invalid top posts.
+
+Required client behavior:
+
+1. Show a brief native loading state, e.g. **"Searching deeper for a worthy puzzle..."**
+2. Wait **500ms–1000ms** before calling `puzzle.next` again (use the returned `rankIndex`; logged-in clients omit it and let Redis progress drive the next call).
+3. Repeat until the response is `ready` or `exhausted`.
+
+The delay gives persisted ladder warming and skip progress from the prior invocation time to catch up before the next serverless run.
 
 **Removed from MVP**
 
