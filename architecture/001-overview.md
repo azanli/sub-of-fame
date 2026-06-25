@@ -79,6 +79,7 @@ The MVP does not define a collective all-player Hive IQ. If crowd aggregate stat
   - completed puzzle count in the bottom-right (# Puzzles Solved)
 - Hub cold boot has no active campaign; dashboard data must not depend on active-subreddit metrics.
 - Scrollable grid of curated subreddit cards plus logged-in custom subreddit cards that have persisted player progress or stats. Custom cards appear after the player has submitted a round or a validation skip has advanced their persisted progress in that subreddit; a validated custom request with no persisted progress or stats does not need to remain as a dashboard card for MVP.
+- When logged-out Hub `init` returns `dashboardSubreddits: null`, the client renders the curated grid from the static `CURATED_SUBREDDITS` catalog with no user badges, progress, Hive IQ, or leaderboard rank.
 - Text input bar for **Custom Subreddit Requests**.
 - Custom requests validate the subreddit before initializing the campaign. The server returns enough display metadata for any custom subreddit card (`displayName`, and avatar/fallback icon) so the dashboard does not depend on `CURATED_SUBREDDITS` for custom rendering.
 
