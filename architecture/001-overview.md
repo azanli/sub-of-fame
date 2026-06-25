@@ -4,9 +4,9 @@
 
 A text-based social-psychology puzzle built around a linear subreddit campaign.
 
-1. Player sees a viral Reddit post (title/body) pulled sequentially from the subreddit's live all-time top ladder cache.
-2. Player drags three real top-level comment roots into popularity order (`#1` = most upvotes).
-3. Slot-by-slot reveal -> Next reachable ladder rank -> Repeat until the ladder is conquered.
+1. Player sees a viral Reddit post (title/body) pulled sequentially from the subreddit's live all-time top ladder cache. Comments stay hidden until the player commits.
+2. Player taps **Start Puzzle**, reads three real top-level comment roots under a client-calculated countdown, and Tap-to-Ranks them into popularity order (`#1` = most upvotes).
+3. Auto-submit (or timeout force-submit) -> slot-by-slot reveal -> next reachable ladder rank -> repeat until the ladder is conquered.
 
 ---
 
@@ -45,7 +45,8 @@ Canonical cache keys, TTLs, snapshot shapes, attempt shapes, and exact validatio
 - **Personal Hive IQ Metric:** A logged-in player's long-term slot accuracy, shown across all subreddits and per subreddit after at least one submitted round in that scope. In product copy, always label this as personal: **Your Global Hive IQ** means the player's all-time accuracy across every subreddit they have played, while **Your r/{subreddit} Hive IQ** means that player's accuracy in one subreddit. Before any submitted round in a scope, Hive IQ is not yet measured.
 - **Accuracy Warm-Up:** Dashboard accuracy strings are suppressed until the player has completed at least 3 rounds in that scope. During this warm-up state, display **Calibrating** instead of a percentage.
 - **Global Leaderboards:** Subreddit-specific standings based on the furthest playable ladder rank a logged-in player has cleared by submitting a valid puzzle. Leaderboard scores store the cleared playable rank itself, not the player's next-playable progress pointer. Invalid-post skips may advance the player's current `rankIndex`, but they do not create or advance leaderboard credit by themselves. For MVP, these remain casual social progress rankings because cached ladder refreshes mean the source ladder is not a permanent competitive archive.
-- **Reveal Mechanics:** Green/red indicators per slot. Show frozen historical scores after submission. For hackathon MVP, pre-submit comment cards may include real Reddit comment IDs for drag-and-drop identity, but not the true answer order or frozen scores; the game accepts casual trust rather than preventing external lookup.
+- **Reveal Mechanics:** Green/red indicators per slot. Show frozen historical scores after submission. For hackathon MVP, pre-submit comment cards may include real Reddit comment IDs for Tap-to-Rank identity, but not the true answer order or frozen scores; the game accepts casual trust rather than preventing external lookup.
+- **Puzzle Timer:** Allotted time is calculated on the client from comment body length when the puzzle loads; it is not returned by the API. See `004-puzzle-time-clock.md`.
 
 The MVP does not define a collective all-player Hive IQ. If crowd aggregate stats are added later, they should use separate aggregate counters and distinct copy such as **Crowd Accuracy** or **The Hive's Read**, not the personal `user:{userId}:stats` counters. The scoring formula, statistics counters, and leaderboard storage contract are defined in `002-api.md`.
 
@@ -85,10 +86,31 @@ The MVP does not define a collective all-player Hive IQ. If crowd aggregate stat
 
 ### Game Space (`game.html`)
 
-- Vertical 1st/2nd/3rd slots.
-- Draggable comment pool card objects.
-- Collapsible post text body.
-- Actions: **Dashboard/Menu** / **Submit Guess** / **Next Level**.
+See `004-puzzle-time-clock.md` for the full interaction contract.
+
+**Pre-start (commitment gate)**
+
+- Source post title, body, and optional image only (full read window; not collapsible).
+- Three comments hidden.
+- Primary action: **Start Puzzle**.
+
+**Active puzzle (after Start Puzzle)**
+
+- Post remains visible underneath; a **comments modal** overlays it with the three comment cards and Tap-to-Rank UI. The player does not re-read or collapse the post body during the timed phase.
+- Client-side countdown timer (`M:SS`), started at gate open from comment-length calculation (30s–120s clamp).
+- Tap-to-Rank with circled rank badges (`①` `②` `③`) inside the modal.
+- Tapping a selected comment clears that rank and all higher ranks; lower ranks stay in place (e.g. tap `②` → only `②` clears, `①` stays).
+- Auto-submit when all three ranks are filled; timeout force-submits partial or empty guesses.
+
+**Post-submit**
+
+- Slot reveal (green/red) with frozen scores.
+- Actions: **Dashboard/Menu** / **Next Level**.
+
+**Removed from MVP**
+
+- Drag-and-drop ranking UI.
+- Manual **Skip Level** controls (ladder progression is strictly sequential).
 
 ---
 
@@ -109,6 +131,6 @@ Auth is handled via Devvit context. Hono hosts the Devvit web server, but gamepl
 2. **Redis Layer Schema Configuration (Progress hash, Profile Stats hash, Leaderboard ZSET)**
 3. **The Cursor-Linked Live Ladder Cache Pipeline (`session.selectSubreddit` validation + page warming loop)**
 4. **The Safe `puzzle.next` Loop (Validation checks, skip limits, and attempt emission)**
-5. **Drag-and-Drop Rank Frontend UI**
+5. **Tap-to-Rank Frontend UI, Start Puzzle Gate & Client Timer** (`004-puzzle-time-clock.md`)
 6. **Submission Verification Procedure (`puzzle.submit`)**
 7. **Hub Statistics Dashboard Construction & Polishing**
