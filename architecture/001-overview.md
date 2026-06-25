@@ -42,7 +42,7 @@ Canonical cache keys, TTLs, snapshot shapes, attempt shapes, and exact validatio
 ## Scoring & Player Metrics
 
 - **Slot Accuracy:** 0-3 points per round, with 1 point per correctly placed comment.
-- **Personal Hive IQ Metric:** A logged-in player's long-term slot accuracy, shown across all subreddits and per subreddit. In product copy, always label this as personal: **Your Global Hive IQ** means the player's all-time accuracy across every subreddit they have played, while **Your r/{subreddit} Hive IQ** means that player's accuracy in one subreddit.
+- **Personal Hive IQ Metric:** A logged-in player's long-term slot accuracy, shown across all subreddits and per subreddit after at least one submitted round in that scope. In product copy, always label this as personal: **Your Global Hive IQ** means the player's all-time accuracy across every subreddit they have played, while **Your r/{subreddit} Hive IQ** means that player's accuracy in one subreddit. Before any submitted round in a scope, Hive IQ is not yet measured.
 - **Global Leaderboards:** Subreddit-specific standings based on the furthest playable ladder rank a logged-in player has cleared by submitting a valid puzzle. Leaderboard scores store the cleared playable rank itself, not the player's next-playable progress pointer. Invalid-post skips may advance the player's current `rankIndex`, but they do not create or advance leaderboard credit by themselves. For MVP, these remain casual social progress rankings because cached ladder refreshes mean the source ladder is not a permanent competitive archive.
 - **Reveal Mechanics:** Green/red indicators per slot. Show frozen historical scores after submission. For hackathon MVP, pre-submit comment cards may include real Reddit comment IDs for drag-and-drop identity, but not the true answer order or frozen scores; the game accepts casual trust rather than preventing external lookup.
 
@@ -70,7 +70,7 @@ The MVP does not define a collective all-player Hive IQ. If crowd aggregate stat
 
 ### Dashboard Hub Menu (`splash.html` / Dashboard)
 
-- Displays **Your Global Hive IQ** from the logged-in user's submitted rounds across all subreddits.
+- Displays **Your Global Hive IQ** from the logged-in user's submitted rounds across all subreddits when available, otherwise an unplayed empty state.
 - Displays per-subreddit dashboard cards by merging curated subreddit metadata with dashboard summaries:
   - level badges derived from each summary's `currentRankIndex`
   - **Your r/{subreddit} Hive IQ** when the user has played that subreddit
