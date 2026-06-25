@@ -39,25 +39,25 @@ Canonical cache keys, TTLs, snapshot shapes, attempt shapes, and exact validatio
 
 ---
 
-## Scoring & Global Analytics
+## Scoring & Player Metrics
 
 - **Slot Accuracy:** 0-3 points per round, with 1 point per correctly placed comment.
-- **Hive IQ Metric:** Long-term slot accuracy shown globally and per subreddit.
+- **Personal Hive IQ Metric:** A logged-in player's long-term slot accuracy, shown across all subreddits and per subreddit. In product copy, always label this as personal: **Your Global Hive IQ** means the player's all-time accuracy across every subreddit they have played, while **Your r/{subreddit} Hive IQ** means that player's accuracy in one subreddit.
 - **Global Leaderboards:** Subreddit-specific standings based on the furthest playable ladder rank a logged-in player has cleared by submitting a valid puzzle. Invalid-post skips may advance the player's current `rankIndex`, but they do not create or advance leaderboard credit by themselves. For MVP, these remain casual social progress rankings because cached ladder refreshes mean the source ladder is not a permanent competitive archive.
 - **Reveal Mechanics:** Green/red indicators per slot. Show frozen historical scores after submission. For hackathon MVP, pre-submit comment cards may include real Reddit comment IDs for drag-and-drop identity, but not the true answer order or frozen scores; the game accepts casual trust rather than preventing external lookup.
 
-The scoring formula, statistics counters, and leaderboard storage contract are defined in `002-api.md`.
+The MVP does not define a collective all-player Hive IQ. If crowd aggregate stats are added later, they should use separate aggregate counters and distinct copy such as **Crowd Accuracy** or **The Hive's Read**, not the personal `user:{userId}:stats` counters. The scoring formula, statistics counters, and leaderboard storage contract are defined in `002-api.md`.
 
 ---
 
 ## Session & State
 
-| Feature                 | Logged-in                      | Logged-out                     |
-| :---------------------- | :----------------------------- | :----------------------------- |
-| **Progression Map**     | Persisted per subreddit        | Client state / request context |
-| **Hive IQ Stats**       | Persisted profile stats        | Not persisted                  |
-| **Global Leaderboards** | Eligible for subreddit ranking | Not eligible                   |
-| **Active Hub Session**  | Ephemeral client state         | Ephemeral client state         |
+| Feature                    | Logged-in                      | Logged-out                     |
+| :------------------------- | :----------------------------- | :----------------------------- |
+| **Progression Map**        | Persisted per subreddit        | Client state / request context |
+| **Personal Hive IQ Stats** | Persisted profile stats        | Not persisted                  |
+| **Global Leaderboards**    | Eligible for subreddit ranking | Not eligible                   |
+| **Active Hub Session**     | Ephemeral client state         | Ephemeral client state         |
 
 - **Hub Session Behavior:** Subreddit locks on select for active runtime loop. Exiting to the Dashboard resets active selection.
 - **Community Session Behavior:** The active campaign is the host subreddit and bypasses Hub selection. The server re-derives this lock from Devvit context on `init`, `puzzle.next`, and `puzzle.submit`; the client cannot switch campaigns from a Community launch.
@@ -70,10 +70,10 @@ The scoring formula, statistics counters, and leaderboard storage contract are d
 
 ### Dashboard Hub Menu (`splash.html` / Dashboard)
 
-- Displays user's **Global Hive IQ** from all submitted rounds.
+- Displays **Your Global Hive IQ** from the logged-in user's submitted rounds across all subreddits.
 - Displays per-subreddit dashboard cards by merging curated subreddit metadata with dashboard summaries:
   - level badges derived from each summary's `currentRankIndex`
-  - per-subreddit Hive IQ when the user has played that subreddit
+  - **Your r/{subreddit} Hive IQ** when the user has played that subreddit
   - leaderboard rank badges when the user is ranked for that subreddit
 - Hub cold boot has no active campaign; dashboard data must not depend on active-subreddit metrics.
 - Scrollable grid of curated subreddits + text input bar for **Custom Subreddit Requests**.
