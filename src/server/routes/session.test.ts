@@ -57,6 +57,7 @@ const makeCtx = (overrides: Partial<TRPCContext> = {}): TRPCContext => ({
     getSubredditInfoByName: vi.fn(),
     getSubredditStyles: vi.fn(),
     getTopPosts: vi.fn(),
+    getComments: vi.fn(),
   },
   userId: undefined,
   subredditName: 'suboffame',

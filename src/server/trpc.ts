@@ -4,7 +4,10 @@ import { context as devvitContext, reddit } from '@devvit/web/server';
 import { resolveRedditSurface } from './launchContext';
 
 export type TRPCContext = {
-  reddit: Pick<RedditClient, 'getSubredditInfoByName' | 'getSubredditStyles' | 'getTopPosts'>;
+  reddit: Pick<
+    RedditClient,
+    'getSubredditInfoByName' | 'getSubredditStyles' | 'getTopPosts' | 'getComments'
+  >;
   userId: string | undefined;
   subredditName: string;
   surface: string;
