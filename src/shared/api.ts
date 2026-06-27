@@ -137,6 +137,7 @@ export type PuzzleSubmitResponse = PuzzleSubmitSuccess | PuzzleSubmitError;
 
 export const MAX_REDDIT_CALLS = 12;
 export const MAX_ITEMS_CHECKED = 20;
+export const SOFT_DEADLINE_MS = 4500;
 
 export type NextWorkBudget = {
   redditCallsRemaining: number;

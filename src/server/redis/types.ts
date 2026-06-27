@@ -17,6 +17,7 @@ export type LadderPostSummary = {
   isNSFW: boolean;
   isSpoiler: boolean;
   commentCount: number;
+  imageUrl?: string;
 };
 
 export type LadderCachePage = {
