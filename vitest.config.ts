@@ -8,6 +8,10 @@ export default defineConfig({
         import.meta.dirname,
         'node_modules/@devvit/reddit/models/Post.js'
       ),
+      '@devvit/reddit/models/Comment.js': path.resolve(
+        import.meta.dirname,
+        'node_modules/@devvit/reddit/models/Comment.js'
+      ),
     },
   },
   test: {
