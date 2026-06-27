@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   deriveLaunchContext,
   normalizeSubredditName,
+  resolveRedditSurface,
   resolveRequestedSubreddit,
 } from './launchContext';
 
@@ -65,6 +66,44 @@ describe('deriveLaunchContext', () => {
       surface: 'community',
       hostSubreddit: 'suboffame_extra',
     });
+  });
+
+  it('non-community surface (profile) with foreign sub resolves to hub', () => {
+    expect(deriveLaunchContext('gaming', 'profile')).toEqual({
+      surface: 'hub',
+      hostSubreddit: 'suboffame',
+    });
+  });
+
+  it('non-community surface (inbox) with foreign sub resolves to hub', () => {
+    expect(deriveLaunchContext('askreddit', 'inbox')).toEqual({
+      surface: 'hub',
+      hostSubreddit: 'suboffame',
+    });
+  });
+
+  it('community surface with suboffame still resolves to hub', () => {
+    expect(deriveLaunchContext('suboffame', 'community')).toEqual({
+      surface: 'hub',
+      hostSubreddit: 'suboffame',
+    });
+  });
+
+  it('community surface with foreign sub remains community', () => {
+    expect(deriveLaunchContext('gaming', 'community')).toEqual({
+      surface: 'community',
+      hostSubreddit: 'gaming',
+    });
+  });
+});
+
+describe('resolveRedditSurface', () => {
+  it('returns community when postId is present', () => {
+    expect(resolveRedditSurface({ postId: 't3_abc123' })).toBe('community');
+  });
+
+  it('returns profile when postId is absent', () => {
+    expect(resolveRedditSurface({})).toBe('profile');
   });
 });
 

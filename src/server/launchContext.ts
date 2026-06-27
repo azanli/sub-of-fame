@@ -5,8 +5,22 @@ export const HUB_SUBREDDIT = 'suboffame' as const;
 export const normalizeSubredditName = (value: string): string =>
   value.trim().replace(/^r\//i, '').toLowerCase();
 
-export const deriveLaunchContext = (rawHostSubreddit: string): LaunchContext => {
+/**
+ * Derive Reddit launch surface from Devvit context when the SDK does not expose it
+ * directly. Community-feed embeds carry a postId; profile/inbox/DM launches do not.
+ */
+export const resolveRedditSurface = (ctx: { postId?: string | undefined }): string =>
+  ctx.postId ? 'community' : 'profile';
+
+export const deriveLaunchContext = (
+  rawHostSubreddit: string,
+  redditSurface: string = 'community'
+): LaunchContext => {
   const hostSubreddit = normalizeSubredditName(rawHostSubreddit);
+
+  if (redditSurface !== 'community') {
+    return { surface: 'hub', hostSubreddit: HUB_SUBREDDIT };
+  }
 
   if (hostSubreddit === HUB_SUBREDDIT) {
     return { surface: 'hub', hostSubreddit: HUB_SUBREDDIT };

@@ -1,0 +1,216 @@
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { TRPCError } from '@trpc/server';
+import type { TRPCContext } from '../trpc';
+
+const {
+  mockResolveSubredditMetadata,
+  mockResolveLadderPage,
+  mockGetProgress,
+  mockSetMetadata,
+  mockSetProgress,
+  mockIncrementProgress,
+} = vi.hoisted(() => ({
+  mockResolveSubredditMetadata: vi.fn(),
+  mockResolveLadderPage: vi.fn(),
+  mockGetProgress: vi.fn(),
+  mockSetMetadata: vi.fn(),
+  mockSetProgress: vi.fn(),
+  mockIncrementProgress: vi.fn(),
+}));
+
+vi.mock('../reddit/resolveSubredditMetadata.js', () => ({
+  resolveSubredditMetadata: mockResolveSubredditMetadata,
+}));
+
+vi.mock('../reddit/ladderPipeline.js', () => ({
+  resolveLadderPage: mockResolveLadderPage,
+}));
+
+vi.mock('../redis/progressStore.js', () => ({
+  getProgress: mockGetProgress,
+  setProgress: mockSetProgress,
+  incrementProgress: mockIncrementProgress,
+  getAllProgress: vi.fn(),
+}));
+
+const { appRouter } = await import('../appRouter.js');
+const { createCallerFactory } = await import('../trpc.js');
+
+const createCaller = createCallerFactory(appRouter);
+
+const curatedMetadata = {
+  subreddit: 'askreddit',
+  displayName: 'AskReddit',
+  iconUrl: 'https://example.com/askreddit.png',
+  metadataSource: 'curated' as const,
+};
+
+const customMetadata = {
+  subreddit: 'customsub',
+  displayName: 'Custom Sub',
+  iconUrl: 'https://example.com/custom.png',
+  metadataSource: 'reddit' as const,
+};
+
+const makeCtx = (overrides: Partial<TRPCContext> = {}): TRPCContext => ({
+  reddit: {
+    getSubredditInfoByName: vi.fn(),
+    getSubredditStyles: vi.fn(),
+    getTopPosts: vi.fn(),
+  },
+  userId: undefined,
+  subredditName: 'suboffame',
+  surface: 'community',
+  ...overrides,
+});
+
+const makeLadderHit = () => ({
+  kind: 'hit' as const,
+  page: {
+    page: 1,
+    startsAfter: null,
+    nextAfter: 'cursor-1',
+    posts: [],
+    fetchedAt: Date.now(),
+  },
+  offset: 0,
+});
+
+describe('session.selectSubreddit', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockResolveSubredditMetadata.mockResolvedValue(curatedMetadata);
+    mockResolveLadderPage.mockResolvedValue(makeLadderHit());
+    mockGetProgress.mockResolvedValue(1);
+  });
+
+  it('rejects community surface launches with HOST_SUBREDDIT_LOCKED', async () => {
+    const caller = createCaller(makeCtx({ subredditName: 'gaming', surface: 'community' }));
+
+    await expect(caller.session.selectSubreddit({ subreddit: 'gaming' })).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof TRPCError &&
+        error.code === 'FORBIDDEN' &&
+        error.message === 'HOST_SUBREDDIT_LOCKED'
+    );
+
+    expect(mockResolveSubredditMetadata).not.toHaveBeenCalled();
+    expect(mockResolveLadderPage).not.toHaveBeenCalled();
+  });
+
+  it('allows non-community surface even when host subreddit is foreign', async () => {
+    const caller = createCaller(makeCtx({ subredditName: 'gaming', surface: 'profile' }));
+
+    const result = await caller.session.selectSubreddit({ subreddit: 'askreddit' });
+
+    expect(result).toEqual({
+      activeSubreddit: 'askreddit',
+      currentRankIndex: 1,
+      subredditMetadata: curatedMetadata,
+    });
+  });
+
+  it('returns SUBREDDIT_UNAVAILABLE for empty normalized input', async () => {
+    const caller = createCaller(makeCtx());
+
+    await expect(caller.session.selectSubreddit({ subreddit: '   ' })).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof TRPCError &&
+        error.code === 'BAD_REQUEST' &&
+        error.message === 'SUBREDDIT_UNAVAILABLE'
+    );
+  });
+
+  it('normalizes r/ prefix and casing before resolving metadata', async () => {
+    const caller = createCaller(makeCtx());
+
+    await caller.session.selectSubreddit({ subreddit: ' R/AskReddit ' });
+
+    expect(mockResolveSubredditMetadata).toHaveBeenCalledWith('askreddit', expect.any(Object));
+  });
+
+  it('returns curated metadata without progress writes', async () => {
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+    mockGetProgress.mockResolvedValue(4);
+
+    const result = await caller.session.selectSubreddit({ subreddit: 'askreddit' });
+
+    expect(result).toEqual({
+      activeSubreddit: 'askreddit',
+      currentRankIndex: 4,
+      subredditMetadata: curatedMetadata,
+    });
+    expect(mockGetProgress).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockSetProgress).not.toHaveBeenCalled();
+    expect(mockIncrementProgress).not.toHaveBeenCalled();
+  });
+
+  it('returns custom metadata from cache path', async () => {
+    mockResolveSubredditMetadata.mockResolvedValue(customMetadata);
+    const caller = createCaller(makeCtx());
+
+    const result = await caller.session.selectSubreddit({ subreddit: 'customsub' });
+
+    expect(result.subredditMetadata).toEqual(customMetadata);
+  });
+
+  it('returns SUBREDDIT_UNAVAILABLE when metadata resolution fails', async () => {
+    mockResolveSubredditMetadata.mockResolvedValue(null);
+    const caller = createCaller(makeCtx());
+
+    await expect(caller.session.selectSubreddit({ subreddit: 'missing' })).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof TRPCError &&
+        error.code === 'BAD_REQUEST' &&
+        error.message === 'SUBREDDIT_UNAVAILABLE'
+    );
+
+    expect(mockResolveLadderPage).not.toHaveBeenCalled();
+  });
+
+  it('warms page 1 with a one-call budget', async () => {
+    const caller = createCaller(makeCtx());
+
+    await caller.session.selectSubreddit({ subreddit: 'askreddit' });
+
+    expect(mockResolveLadderPage).toHaveBeenCalledWith(
+      'askreddit',
+      1,
+      expect.objectContaining({
+        redditCallsRemaining: 1,
+        itemsCheckedRemaining: 0,
+      }),
+      expect.any(Object)
+    );
+  });
+
+  it('returns SUBREDDIT_UNAVAILABLE when page-1 warm fails', async () => {
+    mockResolveLadderPage.mockResolvedValue({ kind: 'unplayable', continuationRankIndex: 1 });
+    const caller = createCaller(makeCtx());
+
+    await expect(caller.session.selectSubreddit({ subreddit: 'askreddit' })).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof TRPCError &&
+        error.code === 'INTERNAL_SERVER_ERROR' &&
+        error.message === 'SUBREDDIT_UNAVAILABLE'
+    );
+  });
+
+  it('defaults currentRankIndex to 1 for logged-out users', async () => {
+    const caller = createCaller(makeCtx({ userId: undefined }));
+
+    const result = await caller.session.selectSubreddit({ subreddit: 'askreddit' });
+
+    expect(result.currentRankIndex).toBe(1);
+    expect(mockGetProgress).not.toHaveBeenCalled();
+  });
+
+  it('defaults currentRankIndex to 1 when logged-in user has no progress', async () => {
+    mockGetProgress.mockResolvedValue(1);
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.session.selectSubreddit({ subreddit: 'askreddit' });
+
+    expect(result.currentRankIndex).toBe(1);
+  });
+});
