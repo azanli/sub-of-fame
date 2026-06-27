@@ -140,10 +140,4 @@ Auth is handled via Devvit context. Hono hosts the Devvit web server, but gamepl
 
 ## Build Order
 
-1. **Shared Types (`src/shared/api.ts` + `subreddits.ts` allowlist array)**
-2. **Redis Layer Schema Configuration (Progress hash, Profile Stats hash, Leaderboard ZSET)**
-3. **The Cursor-Linked Live Ladder Cache Pipeline (`session.selectSubreddit` validation + page warming loop)**
-4. **The Safe `puzzle.next` Loop (Validation checks, skip limits, and attempt emission)**
-5. **Tap-to-Rank Frontend UI, Start Puzzle Gate & Client Timer** (`004-puzzle-time-clock.md`)
-6. **Submission Verification Procedure (`puzzle.submit`)**
-7. **Hub Statistics Dashboard Construction & Polishing**
+The canonical implementation sequence lives in its own document: `005-build-order.md`. It is backend-first and dependency-layered—shared contracts and the launch-context invariant first, then the Redis topology, then the backend services and four tRPC procedures, then the React webview—so the research and task agents build each step on top of already-completed prerequisites. Update `005-build-order.md` whenever the contracts in `002-api.md` change.
