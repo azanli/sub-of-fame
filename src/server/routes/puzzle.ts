@@ -6,7 +6,11 @@ import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
 import { fastFilterEligible, resolveLadderPage } from '../reddit/ladderPipeline';
 import { validateComments } from '../reddit/commentValidation';
 import { getProgress, incrementProgress } from '../redis/progressStore';
-import { setAttempt } from '../redis/attemptStore';
+import { getAttempt, markAttemptSubmitted, setAttempt } from '../redis/attemptStore';
+import { getSnapshot } from '../redis/snapshotStore';
+import { acquireSubmitLock } from '../redis/submitLockStore';
+import { computeHiveIQ, getStats, incrementStats } from '../redis/statsStore';
+import { updateLeaderboard } from '../redis/leaderboardStore';
 import { ATTEMPT_TTL_S } from '../redis/keys';
 import type { PuzzleAttemptOwner, PuzzleSnapshot } from '../redis/types';
 import {
@@ -15,6 +19,10 @@ import {
   SOFT_DEADLINE_MS,
   type NextWorkBudget,
   type PuzzleNextResponse,
+  type PuzzleSubmitError,
+  type PuzzleSubmitErrorCode,
+  type PuzzleSubmitResponse,
+  type UserActiveSubredditMetrics,
 } from '../../shared/api';
 
 const UNPLAYABLE_MESSAGE =
@@ -45,6 +53,46 @@ const advanceSkip = async (
   }
   return currentRankIndex + 1;
 };
+
+const submitError = (
+  code: PuzzleSubmitErrorCode,
+  message: string,
+  nextAction: PuzzleSubmitError['nextAction'],
+  currentRankIndex?: number
+): PuzzleSubmitError => ({
+  status: 'error',
+  code,
+  message,
+  nextAction,
+  ...(currentRankIndex !== undefined ? { currentRankIndex } : {}),
+});
+
+const isIssuedCommentPermutation = (
+  slots: [string, string, string],
+  commentOrder: [string, string, string]
+): boolean => {
+  const slotSet = new Set(slots);
+  if (slotSet.size !== 3) return false;
+  return commentOrder.every((commentId) => slotSet.has(commentId));
+};
+
+const buildRevealSlots = (
+  slots: [string, string, string],
+  snapshot: PuzzleSnapshot
+): Array<{ commentId: string; body: string; score: number; correct: boolean }> =>
+  slots.map((commentId, index) => {
+    const truth = snapshot.comments[index];
+    if (truth === undefined) {
+      throw new Error(`Missing snapshot comment at index ${index}`);
+    }
+    const comment = snapshot.comments.find((entry) => entry.id === commentId);
+    return {
+      commentId,
+      body: comment?.body ?? '',
+      score: comment?.score ?? 0,
+      correct: commentId === truth.id,
+    };
+  });
 
 const buildReadyResponse = (
   attemptId: string,
@@ -239,6 +287,130 @@ export const puzzleRouter = router({
         status: 'unplayable',
         rankIndex,
         message: UNPLAYABLE_MESSAGE,
+      };
+    }),
+
+  submit: publicProcedure
+    .input(
+      z.object({
+        attemptId: z.string().min(1),
+        slots: z.tuple([z.string().min(1), z.string().min(1), z.string().min(1)]),
+      })
+    )
+    .mutation(async ({ input, ctx }): Promise<PuzzleSubmitResponse> => {
+      const attempt = await getAttempt(input.attemptId);
+      if (attempt === null) {
+        return submitError(
+          'ATTEMPT_EXPIRED',
+          'This puzzle attempt has expired.',
+          'request_next_puzzle'
+        );
+      }
+
+      if (!isIssuedCommentPermutation(input.slots, attempt.commentOrder)) {
+        return submitError(
+          'INVALID_SLOT_PERMUTATION',
+          'Submitted slots must be a permutation of the issued comment IDs.',
+          'resubmit_valid_slots'
+        );
+      }
+
+      if (attempt.submitted) {
+        return submitError(
+          'ATTEMPT_ALREADY_SUBMITTED',
+          'This puzzle round has already been submitted.',
+          'request_next_puzzle'
+        );
+      }
+
+      const launchContext = deriveLaunchContext(ctx.subredditName, ctx.surface);
+      if (
+        launchContext.surface === 'community' &&
+        attempt.subreddit !== launchContext.hostSubreddit
+      ) {
+        return submitError(
+          'HOST_SUBREDDIT_LOCKED',
+          'Submit rejected: attempt subreddit does not match host.',
+          'refresh_game'
+        );
+      }
+
+      if (attempt.owner.kind === 'user') {
+        if (ctx.userId === undefined || ctx.userId !== attempt.owner.userId) {
+          return submitError(
+            'WRONG_USER',
+            'Submit rejected: user does not match attempt owner.',
+            'refresh_game'
+          );
+        }
+
+        const currentRankIndex = await getProgress(attempt.owner.userId, attempt.subreddit);
+        if (currentRankIndex !== attempt.rankIndex) {
+          return submitError(
+            'STALE_PROGRESS',
+            'Your progress has moved on; request a fresh puzzle.',
+            'request_next_puzzle',
+            currentRankIndex
+          );
+        }
+      }
+
+      const snapshot = await getSnapshot(attempt.sourcePostId);
+      if (snapshot === null) {
+        return submitError(
+          'SNAPSHOT_MISSING',
+          'Puzzle snapshot is unavailable; request a fresh puzzle.',
+          'request_next_puzzle'
+        );
+      }
+
+      const lockAcquired = await acquireSubmitLock(input.attemptId);
+      if (!lockAcquired) {
+        return submitError(
+          'ATTEMPT_ALREADY_SUBMITTED',
+          'A duplicate submit was detected.',
+          'request_next_puzzle'
+        );
+      }
+
+      const score = input.slots.reduce<number>((total, commentId, index) => {
+        const truthComment = snapshot.comments[index];
+        if (truthComment === undefined) {
+          return total;
+        }
+        return total + (commentId === truthComment.id ? 1 : 0);
+      }, 0);
+
+      await markAttemptSubmitted(attempt);
+
+      let nextRankIndex: number;
+      let userHiveIQ: UserActiveSubredditMetrics | null;
+
+      if (attempt.owner.kind === 'user') {
+        await incrementStats(attempt.owner.userId, attempt.subreddit, score);
+        nextRankIndex = await incrementProgress(attempt.owner.userId, attempt.subreddit);
+        await updateLeaderboard(attempt.subreddit, attempt.owner.userId, attempt.rankIndex);
+
+        const stats = await getStats(attempt.owner.userId);
+        const subStats = stats.bySubreddit[attempt.subreddit] ?? {
+          correctSlots: 0,
+          totalSlots: 0,
+        };
+        userHiveIQ = {
+          userSubredditHiveIQ: computeHiveIQ(subStats.correctSlots, subStats.totalSlots),
+          currentRankIndex: nextRankIndex,
+        };
+      } else {
+        nextRankIndex = attempt.rankIndex + 1;
+        userHiveIQ = null;
+      }
+
+      return {
+        status: 'submitted',
+        score,
+        slots: buildRevealSlots(input.slots, snapshot),
+        userHiveIQ,
+        nextRankIndex,
       };
     }),
 });

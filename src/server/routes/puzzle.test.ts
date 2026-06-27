@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { TRPCContext } from '../trpc';
-import type { PuzzleSnapshot } from '../redis/types';
+import type { PuzzleAttempt, PuzzleSnapshot } from '../redis/types';
 
 const {
   mockResolveSubredditMetadata,
@@ -10,6 +10,13 @@ const {
   mockGetProgress,
   mockIncrementProgress,
   mockSetAttempt,
+  mockGetAttempt,
+  mockMarkAttemptSubmitted,
+  mockGetSnapshot,
+  mockAcquireSubmitLock,
+  mockIncrementStats,
+  mockGetStats,
+  mockUpdateLeaderboard,
 } = vi.hoisted(() => ({
   mockResolveSubredditMetadata: vi.fn(),
   mockResolveLadderPage: vi.fn(),
@@ -18,6 +25,13 @@ const {
   mockGetProgress: vi.fn(),
   mockIncrementProgress: vi.fn(),
   mockSetAttempt: vi.fn(),
+  mockGetAttempt: vi.fn(),
+  mockMarkAttemptSubmitted: vi.fn(),
+  mockGetSnapshot: vi.fn(),
+  mockAcquireSubmitLock: vi.fn(),
+  mockIncrementStats: vi.fn(),
+  mockGetStats: vi.fn(),
+  mockUpdateLeaderboard: vi.fn(),
 }));
 
 vi.mock('../reddit/resolveSubredditMetadata.js', () => ({
@@ -46,6 +60,29 @@ vi.mock('../redis/progressStore.js', () => ({
 
 vi.mock('../redis/attemptStore.js', () => ({
   setAttempt: mockSetAttempt,
+  getAttempt: mockGetAttempt,
+  markAttemptSubmitted: mockMarkAttemptSubmitted,
+}));
+
+vi.mock('../redis/snapshotStore.js', () => ({
+  getSnapshot: mockGetSnapshot,
+}));
+
+vi.mock('../redis/submitLockStore.js', () => ({
+  acquireSubmitLock: mockAcquireSubmitLock,
+}));
+
+vi.mock('../redis/statsStore.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../redis/statsStore.js')>();
+  return {
+    ...original,
+    incrementStats: mockIncrementStats,
+    getStats: mockGetStats,
+  };
+});
+
+vi.mock('../redis/leaderboardStore.js', () => ({
+  updateLeaderboard: mockUpdateLeaderboard,
 }));
 
 const { appRouter } = await import('../appRouter.js');
@@ -124,6 +161,31 @@ const makeSnapshot = (): PuzzleSnapshot => ({
   createdAt: 1000,
   expiresAt: 2000,
 });
+
+const makeAttempt = (overrides: Partial<PuzzleAttempt> = {}): PuzzleAttempt => ({
+  attemptId: 'attempt-1',
+  sourcePostId: 't3_abc123',
+  subreddit: 'askreddit',
+  rankIndex: 3,
+  owner: { kind: 'user', userId: 'user-1' },
+  commentOrder: ['t1_c1', 't1_c2', 't1_c3'],
+  submitted: false,
+  createdAt: 1000,
+  expiresAt: 9000,
+  ...overrides,
+});
+
+const makeSubmitInput = (slots: [string, string, string] = ['t1_c1', 't1_c2', 't1_c3']) => ({
+  attemptId: 'attempt-1',
+  slots,
+});
+
+const expectNoSubmitMutations = () => {
+  expect(mockMarkAttemptSubmitted).not.toHaveBeenCalled();
+  expect(mockIncrementStats).not.toHaveBeenCalled();
+  expect(mockIncrementProgress).not.toHaveBeenCalled();
+  expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
+};
 
 describe('puzzle.next', () => {
   beforeEach(() => {
@@ -352,5 +414,246 @@ describe('puzzle.next', () => {
         owner: { kind: 'guest' },
       })
     );
+  });
+});
+
+describe('puzzle.submit', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAttempt.mockResolvedValue(makeAttempt());
+    mockGetSnapshot.mockResolvedValue(makeSnapshot());
+    mockAcquireSubmitLock.mockResolvedValue(true);
+    mockMarkAttemptSubmitted.mockResolvedValue(undefined);
+    mockGetProgress.mockResolvedValue(3);
+    mockIncrementProgress.mockResolvedValue(4);
+    mockIncrementStats.mockResolvedValue(undefined);
+    mockGetStats.mockResolvedValue({
+      global: { correctSlots: 3, totalSlots: 6 },
+      bySubreddit: {
+        askreddit: { correctSlots: 3, totalSlots: 6 },
+      },
+    });
+    mockUpdateLeaderboard.mockResolvedValue(undefined);
+  });
+
+  it('returns ATTEMPT_EXPIRED when attempt is missing', async () => {
+    mockGetAttempt.mockResolvedValue(null);
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(makeSubmitInput());
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'ATTEMPT_EXPIRED',
+        nextAction: 'request_next_puzzle',
+      })
+    );
+    expectNoSubmitMutations();
+  });
+
+  it('returns INVALID_SLOT_PERMUTATION for duplicate slot IDs', async () => {
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(makeSubmitInput(['t1_c1', 't1_c1', 't1_c2']));
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'INVALID_SLOT_PERMUTATION',
+        nextAction: 'resubmit_valid_slots',
+      })
+    );
+    expectNoSubmitMutations();
+  });
+
+  it('returns ATTEMPT_ALREADY_SUBMITTED when attempt is already submitted', async () => {
+    mockGetAttempt.mockResolvedValue(makeAttempt({ submitted: true }));
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(makeSubmitInput());
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'ATTEMPT_ALREADY_SUBMITTED',
+        nextAction: 'request_next_puzzle',
+      })
+    );
+    expectNoSubmitMutations();
+  });
+
+  it('returns HOST_SUBREDDIT_LOCKED on Community host mismatch', async () => {
+    mockGetAttempt.mockResolvedValue(makeAttempt({ subreddit: 'askreddit' }));
+    const caller = createCaller(
+      makeCtx({ subredditName: 'gaming', surface: 'community', userId: 'user-1' })
+    );
+
+    const result = await caller.puzzle.submit(makeSubmitInput());
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'HOST_SUBREDDIT_LOCKED',
+        nextAction: 'refresh_game',
+      })
+    );
+    expectNoSubmitMutations();
+  });
+
+  it('returns WRONG_USER when current user does not match attempt owner', async () => {
+    mockGetAttempt.mockResolvedValue(makeAttempt({ owner: { kind: 'user', userId: 'user-1' } }));
+    const caller = createCaller(makeCtx({ userId: 'user-2' }));
+
+    const result = await caller.puzzle.submit(makeSubmitInput());
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'WRONG_USER',
+        nextAction: 'refresh_game',
+      })
+    );
+    expectNoSubmitMutations();
+  });
+
+  it('returns STALE_PROGRESS with currentRankIndex when progress moved on', async () => {
+    mockGetProgress.mockResolvedValue(5);
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(makeSubmitInput());
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'STALE_PROGRESS',
+        nextAction: 'request_next_puzzle',
+        currentRankIndex: 5,
+      })
+    );
+    expectNoSubmitMutations();
+  });
+
+  it('returns SNAPSHOT_MISSING when snapshot is unavailable', async () => {
+    mockGetSnapshot.mockResolvedValue(null);
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(makeSubmitInput());
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'SNAPSHOT_MISSING',
+        nextAction: 'request_next_puzzle',
+      })
+    );
+    expectNoSubmitMutations();
+  });
+
+  it('returns ATTEMPT_ALREADY_SUBMITTED when submit lock acquisition fails', async () => {
+    mockAcquireSubmitLock.mockResolvedValue(false);
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(makeSubmitInput());
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'ATTEMPT_ALREADY_SUBMITTED',
+        nextAction: 'request_next_puzzle',
+      })
+    );
+    expectNoSubmitMutations();
+  });
+
+  it('returns score 3 and correct reveal slots for a perfect submission', async () => {
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(makeSubmitInput(['t1_c1', 't1_c2', 't1_c3']));
+
+    expect(result.status).toBe('submitted');
+    if (result.status !== 'submitted') {
+      return;
+    }
+
+    expect(result.score).toBe(3);
+    expect(result.slots).toEqual([
+      {
+        commentId: 't1_c1',
+        body: 'First valid comment body with enough visible characters.',
+        score: 100,
+        correct: true,
+      },
+      {
+        commentId: 't1_c2',
+        body: 'Second valid comment body with enough visible characters.',
+        score: 50,
+        correct: true,
+      },
+      {
+        commentId: 't1_c3',
+        body: 'Third valid comment body with enough visible characters.',
+        score: 25,
+        correct: true,
+      },
+    ]);
+  });
+
+  it('returns score 0 when all slots are wrong', async () => {
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(makeSubmitInput(['t1_c2', 't1_c3', 't1_c1']));
+
+    expect(result.status).toBe('submitted');
+    if (result.status !== 'submitted') {
+      return;
+    }
+
+    expect(result.score).toBe(0);
+    expect(result.slots.every((slot) => slot.correct === false)).toBe(true);
+  });
+
+  it('updates user-owned stats, progress, and leaderboard on success', async () => {
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(makeSubmitInput());
+
+    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', 'askreddit', 3);
+    expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockUpdateLeaderboard).toHaveBeenCalledWith('askreddit', 'user-1', 3);
+    expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
+
+    expect(result.status).toBe('submitted');
+    if (result.status !== 'submitted') {
+      return;
+    }
+
+    expect(result.nextRankIndex).toBe(4);
+    expect(result.userHiveIQ).toEqual({
+      userSubredditHiveIQ: 50,
+      currentRankIndex: 4,
+    });
+  });
+
+  it('does not write user stats or leaderboard for guest attempts', async () => {
+    mockGetAttempt.mockResolvedValue(
+      makeAttempt({ owner: { kind: 'guest' }, rankIndex: 2 })
+    );
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(makeSubmitInput());
+
+    expect(mockIncrementStats).not.toHaveBeenCalled();
+    expect(mockIncrementProgress).not.toHaveBeenCalled();
+    expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
+    expect(mockGetProgress).not.toHaveBeenCalled();
+
+    expect(result.status).toBe('submitted');
+    if (result.status !== 'submitted') {
+      return;
+    }
+
+    expect(result.userHiveIQ).toBeNull();
+    expect(result.nextRankIndex).toBe(3);
   });
 });
