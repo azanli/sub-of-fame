@@ -1,7 +1,6 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
   "name": "sub-of-fame",
-  "title": "Sub of Fame",
   "post": {
     "dir": "dist/client",
     "entrypoints": {
