@@ -1,15 +1,28 @@
 import { useCallback, useEffect, useState } from 'react';
-import type {
-  InitResponse,
-  IncrementResponse,
-  DecrementResponse,
-} from '../../shared/api';
+type InitResponse = {
+  type: 'init';
+  postId: string;
+  count: number;
+  username: string;
+};
 
-interface CounterState {
+type IncrementResponse = {
+  type: 'increment';
+  postId: string;
+  count: number;
+};
+
+type DecrementResponse = {
+  type: 'decrement';
+  postId: string;
+  count: number;
+};
+
+type CounterState = {
   count: number;
   username: string | null;
   loading: boolean;
-}
+};
 
 export const useCounter = () => {
   const [state, setState] = useState<CounterState>({
