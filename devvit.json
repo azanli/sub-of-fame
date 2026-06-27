@@ -45,6 +45,9 @@
     "dev": "vite build --watch",
     "build": "vite build"
   },
+  "permissions": {
+    "redis": true
+  },
   "dev": {
     "subreddit": "sub_of_fame_dev"
   }
