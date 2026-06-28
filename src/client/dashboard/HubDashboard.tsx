@@ -32,7 +32,9 @@ export const HubDashboard = ({
   return (
     <div className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 p-4">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Sub of Fame</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Sub of Fame
+        </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Pick a subreddit campaign to start ranking comments.
         </p>
@@ -41,7 +43,7 @@ export const HubDashboard = ({
       {initData.userGlobalHiveIQ !== null && (
         <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
           <p className="text-xs font-medium uppercase tracking-widest text-gray-400">
-            Your Global Hive IQ
+            Your Karma Accuracy
           </p>
           <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
             {initData.userGlobalHiveIQ.userGlobalHiveIQ !== null
@@ -52,7 +54,9 @@ export const HubDashboard = ({
       )}
 
       <div className="flex flex-col gap-2">
-        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Campaigns</p>
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          Campaigns
+        </p>
         <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto pr-1">
           {isLoggedIn && initData.dashboardSubreddits !== null
             ? initData.dashboardSubreddits.map((card) => (
@@ -107,7 +111,9 @@ export const HubDashboard = ({
             </button>
           </div>
           {selectionError !== null && (
-            <p className="text-sm text-red-600 dark:text-red-400">{selectionError}</p>
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {selectionError}
+            </p>
           )}
         </form>
       )}
