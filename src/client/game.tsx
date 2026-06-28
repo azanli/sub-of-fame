@@ -383,6 +383,7 @@ export const App = () => {
             void handleSubmit(slots);
           }}
           isSubmitting={state.phase === 'submitting'}
+          onDashboard={handleDashboard}
         />
       </div>
     );

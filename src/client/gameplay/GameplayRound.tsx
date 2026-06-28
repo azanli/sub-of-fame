@@ -13,6 +13,7 @@ type GameplayRoundProps = {
   puzzle: ReadyPuzzle;
   onSubmit: (slots: [string, string, string]) => void;
   isSubmitting: boolean;
+  onDashboard: () => void;
 };
 
 type GameplayRoundInnerProps = GameplayRoundProps;
@@ -21,6 +22,7 @@ const GameplayRoundInner = ({
   puzzle,
   onSubmit,
   isSubmitting,
+  onDashboard,
 }: GameplayRoundInnerProps) => {
   const allottedSeconds = useMemo(
     () => calculatePuzzleTimer(puzzle.comments),
@@ -99,6 +101,7 @@ const GameplayRoundInner = ({
         subredditDisplayName={puzzle.subredditDisplayName}
         post={puzzle.post}
         onStart={() => setHasStarted(true)}
+        onExit={onDashboard}
       />
     );
   }
@@ -113,11 +116,17 @@ const GameplayRoundInner = ({
   );
 };
 
-export const GameplayRound = ({ puzzle, onSubmit, isSubmitting }: GameplayRoundProps) => (
+export const GameplayRound = ({
+  puzzle,
+  onSubmit,
+  isSubmitting,
+  onDashboard,
+}: GameplayRoundProps) => (
   <GameplayRoundInner
     key={puzzle.attemptId}
     puzzle={puzzle}
     onSubmit={onSubmit}
     isSubmitting={isSubmitting}
+    onDashboard={onDashboard}
   />
 );
