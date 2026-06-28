@@ -1,4 +1,5 @@
 import type { LaunchContext } from '../shared/api';
+import { HUB_SUBREDDITS } from './config';
 
 export const HUB_SUBREDDIT = 'suboffame' as const;
 
@@ -22,7 +23,7 @@ export const deriveLaunchContext = (
     return { surface: 'hub', hostSubreddit: HUB_SUBREDDIT };
   }
 
-  if (hostSubreddit === HUB_SUBREDDIT) {
+  if (HUB_SUBREDDITS.has(hostSubreddit)) {
     return { surface: 'hub', hostSubreddit: HUB_SUBREDDIT };
   }
 

@@ -68,6 +68,13 @@ describe('deriveLaunchContext', () => {
     });
   });
 
+  it('returns hub surface for sub_of_fame_dev (dev subreddit)', () => {
+    expect(deriveLaunchContext('sub_of_fame_dev')).toEqual({
+      surface: 'hub',
+      hostSubreddit: 'suboffame',
+    });
+  });
+
   it('non-community surface (profile) with foreign sub resolves to hub', () => {
     expect(deriveLaunchContext('gaming', 'profile')).toEqual({
       surface: 'hub',
