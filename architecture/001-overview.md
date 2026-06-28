@@ -43,7 +43,7 @@ Canonical cache keys, TTLs, snapshot shapes, attempt shapes, and exact validatio
 
 - **Slot Accuracy:** 0-3 points per round, with 1 point per correctly placed comment.
 - **Personal Hive IQ Metric:** A logged-in player's long-term slot accuracy, shown across all subreddits and per subreddit after at least one submitted round in that scope. In product copy, always label this as personal: **Your Global Hive IQ** means the player's all-time accuracy across every subreddit they have played, while **Your r/{subreddit} Hive IQ** means that player's accuracy in one subreddit. Before any submitted round in a scope, Hive IQ is not yet measured.
-- **Accuracy Warm-Up:** Dashboard accuracy strings are suppressed until the player has completed at least 3 rounds in that scope. During this warm-up state, display **Calibrating** instead of a percentage.
+- **Accuracy Warm-Up:** Dashboard accuracy strings are suppressed until the player has completed at least 4 rounds in that scope. During this warm-up state, display **—** if it's 0 or otherwise **Calibrating** instead of a percentage.
 - **Global Leaderboards:** Subreddit-specific standings based on the furthest playable ladder rank a logged-in player has cleared by submitting a valid puzzle. Leaderboard scores store the cleared playable rank itself, not the player's next-playable progress pointer. Invalid-post skips may advance the player's current `rankIndex`, but they do not create or advance leaderboard credit by themselves. For MVP, these remain casual social progress rankings because cached ladder refreshes mean the source ladder is not a permanent competitive archive.
 - **Reveal Mechanics:** Green/red indicators per slot. Show frozen historical scores after submission. For hackathon MVP, pre-submit comment cards may include real Reddit comment IDs for Tap-to-Rank identity, but not the true answer order or frozen scores; the game accepts casual trust rather than preventing external lookup.
 - **Puzzle Timer:** Allotted time is calculated on the client from comment body length when the puzzle loads; it is not returned by the API. See `004-puzzle-time-clock.md`.
@@ -77,7 +77,7 @@ The MVP does not define a collective all-player Hive IQ. If crowd aggregate stat
 - Displays per-subreddit dashboard rows as the buttons to enter campaigns. Each row contains:
   - subreddit avatar on the left
   - `r/{subredditName}` label
-  - accuracy metric in the top-right, shown as **Calibrating** until completed rounds >= 3 (🎯 66.7%)
+  - accuracy metric in the top-right, shown as **—** or **Calibrating** until completed rounds >= 3 (🎯 66.7%)
   - completed puzzle count in the bottom-right (# Puzzles Solved)
 - Hub cold boot has no active campaign; dashboard data must not depend on active-subreddit metrics.
 - Scrollable grid of curated subreddit cards plus logged-in custom subreddit cards that have persisted player progress or stats. Custom cards appear after the player has submitted a round or a validation skip has advanced their persisted progress in that subreddit; a validated custom request with no persisted progress or stats does not need to remain as a dashboard card for MVP.
