@@ -140,6 +140,7 @@ const fetchAndPersistPage = async (
   chain: MutableCursorChain
 ): Promise<FetchPageResult> => {
   const listing = reddit.getTopPosts({
+    subredditName,
     after: after ?? undefined,
     limit: 100,
   });
@@ -204,14 +205,22 @@ export const resolveLadderPage = async (
     }
 
     const after = chain.startsAfter[targetPage] ?? null;
-    const fetchResult = await fetchAndPersistPage(
-      subredditName,
-      targetPage,
-      after,
-      budget,
-      reddit,
-      chain
-    );
+    let fetchResult: FetchPageResult;
+    try {
+      fetchResult = await fetchAndPersistPage(
+        subredditName,
+        targetPage,
+        after,
+        budget,
+        reddit,
+        chain
+      );
+    } catch (error) {
+      return {
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'failed to fetch ladder page',
+      };
+    }
 
     if (fetchResult.kind === 'terminal') {
       return { kind: 'hit', page: fetchResult.page, offset };
@@ -227,14 +236,15 @@ export const resolveLadderPage = async (
     }
 
     const after = await resolveAfterCursor(subredditName, page, chain, lastNextAfter);
-    const fetchResult = await fetchAndPersistPage(
-      subredditName,
-      page,
-      after,
-      budget,
-      reddit,
-      chain
-    );
+    let fetchResult: FetchPageResult;
+    try {
+      fetchResult = await fetchAndPersistPage(subredditName, page, after, budget, reddit, chain);
+    } catch (error) {
+      return {
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'failed to fetch ladder page',
+      };
+    }
 
     if (fetchResult.kind === 'terminal') {
       if (page < targetPage) {

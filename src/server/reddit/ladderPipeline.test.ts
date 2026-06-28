@@ -290,7 +290,11 @@ describe('resolveLadderPage – direct cursor fetch', () => {
     const result = await resolveLadderPage('gaming', 150, budget, reddit);
 
     expect(mockGetTopPosts).toHaveBeenCalledTimes(1);
-    expect(mockGetTopPosts).toHaveBeenCalledWith({ after: 'cursor_page1', limit: 100 });
+    expect(mockGetTopPosts).toHaveBeenCalledWith({
+      subredditName: 'gaming',
+      after: 'cursor_page1',
+      limit: 100,
+    });
     expect(mockSetLadderPage).toHaveBeenCalledTimes(1);
     expect(mockSetCursorChain).toHaveBeenCalledTimes(1);
     expect(budget.redditCallsRemaining).toBe(11);
@@ -410,12 +414,33 @@ describe('resolveLadderPage – cold start page 1', () => {
     const reddit = { getTopPosts: mockGetTopPosts };
     const result = await resolveLadderPage('gaming', 1, makeBudget(), reddit);
 
-    expect(mockGetTopPosts).toHaveBeenCalledWith({ after: undefined, limit: 100 });
+    expect(mockGetTopPosts).toHaveBeenCalledWith({
+      subredditName: 'gaming',
+      after: undefined,
+      limit: 100,
+    });
     expect(result.kind).toBe('hit');
     if (result.kind === 'hit') {
       expect(result.page.page).toBe(1);
       expect(result.offset).toBe(0);
     }
+  });
+});
+
+describe('resolveLadderPage – reddit fetch failure', () => {
+  it('returns error when the reddit listing fetch throws', async () => {
+    mockGetLadderPage.mockResolvedValue(null);
+    mockGetCursorChain.mockResolvedValue(null);
+    mockGetTopPosts.mockReturnValue({
+      get: vi.fn().mockRejectedValue(new Error('403 Forbidden: private')),
+      hasMore: false,
+      after: null,
+    });
+
+    const reddit = { getTopPosts: mockGetTopPosts };
+    const result = await resolveLadderPage('gaming', 1, makeBudget(), reddit);
+
+    expect(result).toEqual({ kind: 'error', message: '403 Forbidden: private' });
   });
 });
 
