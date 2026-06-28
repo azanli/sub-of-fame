@@ -34,18 +34,17 @@ export const RevealScreen = ({
               : 'border-red-400 bg-red-50 dark:bg-red-950'
           }`}
         >
-          <span className="shrink-0 text-sm font-bold text-gray-500">
+          <span className="shrink-0 text-sm font-bold text-gray-400 select-none [*{-webkit-touch-callout:none}]">
             #{index + 1}
           </span>
           <div className="flex flex-col gap-1 flex-1">
-            <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">
+            <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap select-none [*{-webkit-touch-callout:none}]">
               {slot.body}
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-400 select-none [*{-webkit-touch-callout:none}]">
               {slot.score.toLocaleString()} upvotes
             </p>
           </div>
-          <span className="shrink-0 text-lg">{slot.correct ? '✓' : '✗'}</span>
         </div>
       ))}
     </div>

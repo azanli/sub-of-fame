@@ -6,11 +6,17 @@ type PuzzlePostProps = {
 
 export const PuzzlePost = ({ post }: PuzzlePostProps) => (
   <div className="flex flex-col gap-3">
-    <h2 className="text-lg font-semibold text-gray-900 dark:text-white leading-snug">
+    <h2
+      onContextMenu={(e) => e.preventDefault()}
+      className="text-lg font-semibold text-gray-900 dark:text-white leading-snug select-none [*{-webkit-touch-callout:none}]"
+    >
       {post.title}
     </h2>
     {post.body && (
-      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+      <p
+        onContextMenu={(e) => e.preventDefault()}
+        className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap select-none [*{-webkit-touch-callout:none}]"
+      >
         {post.body}
       </p>
     )}
