@@ -1,16 +1,21 @@
 import { PuzzlePost } from './PuzzlePost';
+import { formatSubredditLabel } from '../../shared/subreddits';
 import type { ReadyPuzzle } from './types';
 
 type StartPuzzleGateProps = {
-  rankIndex: number;
+  subredditDisplayName: ReadyPuzzle['subredditDisplayName'];
   post: ReadyPuzzle['post'];
   onStart: () => void;
 };
 
-export const StartPuzzleGate = ({ rankIndex, post, onStart }: StartPuzzleGateProps) => (
+export const StartPuzzleGate = ({
+  subredditDisplayName,
+  post,
+  onStart,
+}: StartPuzzleGateProps) => (
   <div className="flex flex-col gap-6 p-4">
-    <p className="text-xs font-medium text-gray-400 uppercase tracking-widest">
-      Rank #{rankIndex}
+    <p className="text-sm font-medium text-gray-400 tracking-widest">
+      {formatSubredditLabel(subredditDisplayName)}
     </p>
     <PuzzlePost post={post} />
     <button

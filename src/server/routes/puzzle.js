@@ -13,6 +13,7 @@ import { computeHiveIQ, getStats, incrementStats } from '../redis/statsStore';
 import { updateLeaderboard } from '../redis/leaderboardStore';
 import { ATTEMPT_TTL_S } from '../redis/keys';
 import { MAX_ITEMS_CHECKED, MAX_REDDIT_CALLS, SOFT_DEADLINE_MS, } from '../../shared/api';
+import { CURATED_SUBREDDITS } from '../../shared/subreddits';
 const UNPLAYABLE_MESSAGE = 'Could not find a playable puzzle within the current request budget. Retry to continue.';
 const EXHAUSTED_MESSAGE = 'No more playable posts remain on this subreddit ladder.';
 const shuffleCommentIds = (ids) => {
@@ -60,7 +61,7 @@ const buildRevealSlots = (slots, snapshot) => slots.map((commentId, index) => {
         correct: commentId === truth.id,
     };
 });
-const buildReadyResponse = (attemptId, rankIndex, snapshot, commentOrder) => {
+const buildReadyResponse = (attemptId, rankIndex, subredditDisplayName, snapshot, commentOrder) => {
     const commentById = new Map(snapshot.comments.map((comment) => [comment.id, comment]));
     const post = {
         title: snapshot.post.title,
@@ -75,6 +76,7 @@ const buildReadyResponse = (attemptId, rankIndex, snapshot, commentOrder) => {
         status: 'ready',
         attemptId,
         rankIndex,
+        subredditDisplayName,
         post,
         comments: commentOrder.map((commentId) => {
             const comment = commentById.get(commentId);
@@ -104,16 +106,17 @@ export const puzzleRouter = router({
             };
         }
         const subreddit = subredditResult.subreddit;
-        if (launchContext.surface === 'hub') {
-            const metadata = await resolveSubredditMetadata(subreddit, ctx.reddit);
-            if (metadata === null) {
-                return {
-                    status: 'error',
-                    code: 'SUBREDDIT_UNAVAILABLE',
-                    message: 'Subreddit does not exist or is inaccessible.',
-                };
-            }
+        const metadata = await resolveSubredditMetadata(subreddit, ctx.reddit);
+        if (launchContext.surface === 'hub' && metadata === null) {
+            return {
+                status: 'error',
+                code: 'SUBREDDIT_UNAVAILABLE',
+                message: 'Subreddit does not exist or is inaccessible.',
+            };
         }
+        const subredditDisplayName = metadata?.displayName ??
+            CURATED_SUBREDDITS.find((entry) => entry.name === subreddit)?.displayName ??
+            subreddit;
         let rankIndex = ctx.userId !== undefined
             ? await getProgress(ctx.userId, subreddit)
             : (input.rankIndex ?? 1);
@@ -209,7 +212,7 @@ export const puzzleRouter = router({
                 createdAt: now,
                 expiresAt: now + ATTEMPT_TTL_S * 1000,
             });
-            return buildReadyResponse(attemptId, rankIndex, snapshot, commentOrder);
+            return buildReadyResponse(attemptId, rankIndex, subredditDisplayName, snapshot, commentOrder);
         }
         return {
             status: 'unplayable',

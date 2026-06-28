@@ -4,6 +4,8 @@ export type SubredditOption = {
   iconUrl: string;
 };
 
+export const formatSubredditLabel = (displayName: string): string => `r/${displayName}`;
+
 export const CURATED_SUBREDDITS: SubredditOption[] = [
   {
     name: 'askreddit',

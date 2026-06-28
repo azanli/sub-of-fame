@@ -379,6 +379,7 @@ describe('puzzle.next', () => {
     }
 
     expect(result.rankIndex).toBe(3);
+    expect(result.subredditDisplayName).toBe('AskReddit');
     expect(result.post).toEqual({
       title: 'A long enough post title for the puzzle',
       imageUrl: 'https://example.com/image.jpg',

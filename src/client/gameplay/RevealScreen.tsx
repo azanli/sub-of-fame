@@ -1,4 +1,5 @@
 import type { PuzzleSubmitSuccess } from '../../shared/api';
+import { formatSubredditLabel } from '../../shared/subreddits';
 import type { ReadyPuzzle } from './types';
 
 type RevealScreenProps = {
@@ -16,8 +17,8 @@ export const RevealScreen = ({
 }: RevealScreenProps) => (
   <div className="flex flex-col gap-6 p-4">
     <div className="flex flex-col items-center gap-1">
-      <p className="text-xs font-medium text-gray-400 uppercase tracking-widest">
-        Rank #{puzzle.rankIndex}
+      <p className="text-xs font-medium text-gray-400 tracking-widest">
+        {formatSubredditLabel(puzzle.subredditDisplayName)}
       </p>
       <p className="text-4xl font-bold text-gray-900 dark:text-white">
         {result.score} / 3

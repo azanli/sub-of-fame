@@ -79,6 +79,7 @@ export type PuzzleNextResponse =
       status: 'ready';
       attemptId: string;
       rankIndex: number;
+      subredditDisplayName: string;
       post: { title: string; body?: string; imageUrl?: string };
       comments: Array<{ id: string; body: string }>;
     }

@@ -96,7 +96,7 @@ const GameplayRoundInner = ({
   if (!hasStarted) {
     return (
       <StartPuzzleGate
-        rankIndex={puzzle.rankIndex}
+        subredditDisplayName={puzzle.subredditDisplayName}
         post={puzzle.post}
         onStart={() => setHasStarted(true)}
       />
