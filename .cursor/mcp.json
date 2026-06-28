@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "devvit": {
-      "command": "npx",
-      "args": ["-y", "@devvit/mcp"]
+      "command": "node",
+      "args": ["node_modules/@devvit/mcp/dist/index.js"]
     }
   }
 }
