@@ -19,7 +19,9 @@ const formatDashboardAccuracy = (
   completedRoundCount: number,
   userSubredditHiveIQ: number | null
 ): string => {
-  if (completedRoundCount < 3 || userSubredditHiveIQ === null) {
+  if (completedRoundCount === 0 || userSubredditHiveIQ === null) {
+    return '—';
+  } else if (completedRoundCount <= 3) {
     return 'Calibrating';
   }
 
@@ -27,7 +29,8 @@ const formatDashboardAccuracy = (
 };
 
 export const DashboardCard = (props: DashboardCardProps) => {
-  const subreddit = props.kind === 'hydrated' ? props.card.subreddit : props.card.name;
+  const subreddit =
+    props.kind === 'hydrated' ? props.card.subreddit : props.card.name;
   const displayName = props.card.displayName;
   const iconUrl = props.card.iconUrl;
 
