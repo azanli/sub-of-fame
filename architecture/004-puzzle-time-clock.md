@@ -73,7 +73,7 @@ Each new level begins in a **pre-start** state. The player may read the source p
 3. Compute `calculatePuzzleTimer(comments)` and start the countdown immediately.
 4. Enable Tap-to-Rank interaction (see §3).
 
-The gate resets whenever a new `ready` puzzle is loaded (including after submit reveal → next level).
+The gate resets whenever a new `ready` puzzle is loaded (including after submit reveal → next Puzzle).
 
 ---
 
@@ -130,16 +130,16 @@ When the timer reaches zero before a normal submit, the client **always** builds
 3. Walk rank slots left to right (`#1`, `#2`, `#3`) and assign the next unplaced ID from that list into each empty slot.
 4. Submit the resulting tuple immediately.
 
-| Player state at `0:00` | Resulting payload |
-| ---------------------- | ----------------- |
+| Player state at `0:00` | Resulting payload                                                                                         |
+| ---------------------- | --------------------------------------------------------------------------------------------------------- |
 | 0 ranks assigned       | All three slots filled from presentation-array order (ranks 1→3). Likely score `0`; still a valid submit. |
-| 1–2 ranks assigned     | Player picks kept; empty slots filled from remaining IDs in presentation-array order. |
-| 3 ranks assigned       | Submit the player's permutation as-is (same as auto-submit). |
+| 1–2 ranks assigned     | Player picks kept; empty slots filled from remaining IDs in presentation-array order.                     |
+| 3 ranks assigned       | Submit the player's permutation as-is (same as auto-submit).                                              |
 
 ```typescript
 function buildTimeoutSlots(
   comments: { id: string }[],
-  assignments: Map<string, 1 | 2 | 3>,
+  assignments: Map<string, 1 | 2 | 3>
 ): [string, string, string] {
   const slots: Array<string | null> = [null, null, null];
 

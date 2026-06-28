@@ -106,7 +106,7 @@ See `004-puzzle-time-clock.md` for the full interaction contract.
 **Post-submit**
 
 - Slot reveal (green/red) with frozen scores.
-- Actions: **Dashboard/Menu** / **Next Level**.
+- Actions: **Dashboard/Menu** / **Next Puzzle**.
 
 **Unplayable retry (`puzzle.next`)**
 

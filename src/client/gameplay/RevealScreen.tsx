@@ -33,12 +33,16 @@ export const RevealScreen = ({
               : 'border-red-400 bg-red-50 dark:bg-red-950'
           }`}
         >
-          <span className="shrink-0 text-sm font-bold text-gray-500">#{index + 1}</span>
+          <span className="shrink-0 text-sm font-bold text-gray-500">
+            #{index + 1}
+          </span>
           <div className="flex flex-col gap-1 flex-1">
             <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">
               {slot.body}
             </p>
-            <p className="text-xs text-gray-500">{slot.score.toLocaleString()} upvotes</p>
+            <p className="text-xs text-gray-500">
+              {slot.score.toLocaleString()} upvotes
+            </p>
           </div>
           <span className="shrink-0 text-lg">{slot.correct ? '✓' : '✗'}</span>
         </div>
@@ -57,7 +61,7 @@ export const RevealScreen = ({
         onClick={onNextLevel}
         className="bg-[#d93900] hover:bg-[#c23300] text-white font-semibold rounded-full px-6 py-2 transition-colors"
       >
-        Next Level
+        Next Puzzle
       </button>
     </div>
   </div>
