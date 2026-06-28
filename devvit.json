@@ -1,6 +1,6 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
-  "name": "sub-of-fame",
+  "name": "sub-of-fame-game",
   "post": {
     "dir": "dist/client",
     "entrypoints": {
@@ -49,6 +49,6 @@
     "redis": true
   },
   "dev": {
-    "subreddit": "sub_of_fame_dev"
+    "subreddit": "suboffame"
   }
 }
