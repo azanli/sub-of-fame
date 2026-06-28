@@ -1,8 +1,9 @@
 import './index.css';
 
-import type { PuzzleNextRequest, PuzzleSubmitSuccess } from '../shared/api';
+import type { InitResponse, PuzzleNextRequest, PuzzleSubmitSuccess } from '../shared/api';
 import { StrictMode, useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { HubDashboard } from './dashboard/HubDashboard';
 import { GameplayRound } from './gameplay/GameplayRound';
 import { RevealScreen } from './gameplay/RevealScreen';
 import type { ReadyPuzzle } from './gameplay/types';
@@ -10,6 +11,7 @@ import { trpcClient } from './trpc';
 
 type AppState =
   | { phase: 'booting' }
+  | { phase: 'hub_dashboard' }
   | { phase: 'loading_next'; unplayableCount: number; rankIndex?: number }
   | { phase: 'ready'; puzzle: ReadyPuzzle }
   | { phase: 'submitting'; puzzle: ReadyPuzzle }
@@ -45,12 +47,20 @@ const buildNextRequest = (
 export const App = () => {
   const [state, setState] = useState<AppState>({ phase: 'booting' });
   const [session, setSession] = useState<SessionContext | null>(null);
+  const [initData, setInitData] = useState<InitResponse | null>(null);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
   const guestRankIndexRef = useRef(1);
   const retryTimeoutRef = useRef<number | undefined>(undefined);
   const activePuzzleRef = useRef<ReadyPuzzle | null>(null);
+  const sessionRef = useRef<SessionContext | null>(null);
   const loadNextPuzzleRef = useRef<
     (unplayableCount: number, rankIndex: number | undefined) => Promise<void>
   >(async () => undefined);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
 
   const handleUnplayable = useCallback((unplayableCount: number, rankIndex: number) => {
     if (unplayableCount >= 2) {
@@ -77,7 +87,8 @@ export const App = () => {
 
   const loadNextPuzzle = useCallback(
     async (unplayableCount: number, rankIndex: number | undefined) => {
-      if (session === null) {
+      const activeSession = sessionRef.current;
+      if (activeSession === null) {
         return;
       }
 
@@ -90,21 +101,18 @@ export const App = () => {
       }
       setState(loadingState);
 
-      if (session.isHub && session.campaignSubreddit === null) {
-        setState({
-          phase: 'problem',
-          message: 'Select a subreddit from the dashboard to start playing.',
-        });
+      if (activeSession.isHub && activeSession.campaignSubreddit === null) {
+        setState({ phase: 'hub_dashboard' });
         return;
       }
 
-      const effectiveRankIndex = session.isLoggedIn
+      const effectiveRankIndex = activeSession.isLoggedIn
         ? undefined
         : (rankIndex ?? guestRankIndexRef.current);
 
       try {
         const response = await trpcClient.puzzle.next.mutate(
-          buildNextRequest(session, effectiveRankIndex)
+          buildNextRequest(activeSession, effectiveRankIndex)
         );
 
         if (response.status === 'ready') {
@@ -118,7 +126,7 @@ export const App = () => {
         }
 
         if (response.status === 'unplayable') {
-          if (!session.isLoggedIn) {
+          if (!activeSession.isLoggedIn) {
             guestRankIndexRef.current = response.rankIndex;
           }
           handleUnplayable(unplayableCount, response.rankIndex);
@@ -133,7 +141,7 @@ export const App = () => {
         });
       }
     },
-    [session, handleUnplayable]
+    [handleUnplayable]
   );
 
   useEffect(() => {
@@ -162,13 +170,22 @@ export const App = () => {
           return;
         }
 
+        setInitData(init);
+
         const nextSession: SessionContext = {
           isHub: init.isHub,
           isLoggedIn: init.userGlobalHiveIQ !== null,
-          campaignSubreddit: init.isHub ? init.activeSubreddit : init.hostSubreddit,
+          campaignSubreddit: init.isHub ? null : init.hostSubreddit,
         };
+        sessionRef.current = nextSession;
         setSession(nextSession);
         guestRankIndexRef.current = 1;
+
+        if (init.isHub) {
+          setState({ phase: 'hub_dashboard' });
+          return;
+        }
+
         await loadNextPuzzleRef.current(0, undefined);
       } catch {
         if (!cancelled) {
@@ -185,6 +202,37 @@ export const App = () => {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  const handleSelectSubreddit = useCallback(async (subreddit: string) => {
+    const activeSession = sessionRef.current;
+    if (activeSession === null) {
+      return;
+    }
+
+    setIsSelecting(true);
+    setSelectionError(null);
+
+    try {
+      const result = await trpcClient.session.selectSubreddit.mutate({ subreddit });
+
+      const updatedSession: SessionContext = {
+        ...activeSession,
+        campaignSubreddit: result.activeSubreddit,
+      };
+      sessionRef.current = updatedSession;
+      setSession(updatedSession);
+
+      if (!activeSession.isLoggedIn) {
+        guestRankIndexRef.current = result.currentRankIndex;
+      }
+
+      await loadNextPuzzleRef.current(0, undefined);
+    } catch {
+      setSelectionError('Could not load that subreddit. Please try another.');
+    } finally {
+      setIsSelecting(false);
+    }
   }, []);
 
   const handleSubmit = useCallback(
@@ -233,6 +281,15 @@ export const App = () => {
   };
 
   const handleDashboard = () => {
+    if (session?.isHub) {
+      const resetSession: SessionContext = { ...session, campaignSubreddit: null };
+      sessionRef.current = resetSession;
+      setSession(resetSession);
+      setSelectionError(null);
+      setState({ phase: 'hub_dashboard' });
+      return;
+    }
+
     void loadNextPuzzle(0, undefined);
   };
 
@@ -247,6 +304,19 @@ export const App = () => {
             </p>
           )}
         </div>
+      </div>
+    );
+  }
+
+  if (state.phase === 'hub_dashboard' && initData !== null) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <HubDashboard
+          initData={initData}
+          onSelectSubreddit={handleSelectSubreddit}
+          isSelecting={isSelecting}
+          selectionError={selectionError}
+        />
       </div>
     );
   }
@@ -304,17 +374,21 @@ export const App = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <GameplayRound
-        puzzle={state.puzzle}
-        onSubmit={(slots) => {
-          void handleSubmit(slots);
-        }}
-        isSubmitting={state.phase === 'submitting'}
-      />
-    </div>
-  );
+  if (state.phase === 'ready' || state.phase === 'submitting') {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <GameplayRound
+          puzzle={state.puzzle}
+          onSubmit={(slots) => {
+            void handleSubmit(slots);
+          }}
+          isSubmitting={state.phase === 'submitting'}
+        />
+      </div>
+    );
+  }
+
+  return null;
 };
 
 createRoot(document.getElementById('root')!).render(
