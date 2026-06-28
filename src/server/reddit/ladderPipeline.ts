@@ -8,7 +8,11 @@ import {
   setCursorChain,
   setLadderPage,
 } from '../redis/ladderStore.js';
-import type { LadderCachePage, LadderCursorChain, LadderPostSummary } from '../redis/types.js';
+import type {
+  LadderCachePage,
+  LadderCursorChain,
+  LadderPostSummary,
+} from '../redis/types.js';
 
 type Reddit = Pick<RedditClient, 'getTopPosts'>;
 
@@ -34,13 +38,20 @@ export const normalizeImageUrl = (post: Post): string | undefined => {
   if (
     !isSelfPost(post) &&
     post.url &&
-    (post.url.endsWith('.jpg') || post.url.endsWith('.png') || post.url.endsWith('.gif'))
+    (post.url.endsWith('.jpg') ||
+      post.url.endsWith('.png') ||
+      post.url.endsWith('.gif'))
   ) {
     return post.url;
   }
 
   const thumbnail = getThumbnailUrl(post);
-  if (!isSelfPost(post) && thumbnail && thumbnail !== 'default' && thumbnail !== 'self') {
+  if (
+    !isSelfPost(post) &&
+    thumbnail &&
+    thumbnail !== 'default' &&
+    thumbnail !== 'self'
+  ) {
     return thumbnail;
   }
 
@@ -95,7 +106,10 @@ const normalizeChain = (
 const hasStartsAfter = (chain: MutableCursorChain, page: number): boolean =>
   Object.hasOwn(chain.startsAfter, page);
 
-const extractListingAfter = (listing: Listing<Post>, posts: Post[]): string | null => {
+const extractListingAfter = (
+  listing: Listing<Post>,
+  posts: Post[]
+): string | null => {
   if ('after' in listing) {
     const listingAfter = listing.after;
     if (typeof listingAfter === 'string') {
@@ -128,7 +142,12 @@ const resolveAfterCursor = async (
 };
 
 type FetchPageResult =
-  | { kind: 'ok'; page: LadderCachePage; nextAfter: string | null; isTerminal: boolean }
+  | {
+      kind: 'ok';
+      page: LadderCachePage;
+      nextAfter: string | null;
+      isTerminal: boolean;
+    }
   | { kind: 'terminal'; page: LadderCachePage };
 
 const fetchAndPersistPage = async (
@@ -143,6 +162,7 @@ const fetchAndPersistPage = async (
     subredditName,
     after: after ?? undefined,
     limit: 100,
+    timeframe: 'all',
   });
   const posts = await listing.get(100);
   spendRedditCall(budget);
@@ -218,7 +238,10 @@ export const resolveLadderPage = async (
     } catch (error) {
       return {
         kind: 'error',
-        message: error instanceof Error ? error.message : 'failed to fetch ladder page',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'failed to fetch ladder page',
       };
     }
 
@@ -235,14 +258,29 @@ export const resolveLadderPage = async (
       return { kind: 'unplayable', continuationRankIndex: rankIndex };
     }
 
-    const after = await resolveAfterCursor(subredditName, page, chain, lastNextAfter);
+    const after = await resolveAfterCursor(
+      subredditName,
+      page,
+      chain,
+      lastNextAfter
+    );
     let fetchResult: FetchPageResult;
     try {
-      fetchResult = await fetchAndPersistPage(subredditName, page, after, budget, reddit, chain);
+      fetchResult = await fetchAndPersistPage(
+        subredditName,
+        page,
+        after,
+        budget,
+        reddit,
+        chain
+      );
     } catch (error) {
       return {
         kind: 'error',
-        message: error instanceof Error ? error.message : 'failed to fetch ladder page',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'failed to fetch ladder page',
       };
     }
 
