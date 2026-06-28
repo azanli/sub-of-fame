@@ -346,18 +346,38 @@ export const App = ({ preloadedInit }: AppProps) => {
     void loadNextPuzzle(0, session?.isLoggedIn ? undefined : guestRankIndexRef.current);
   };
 
-  const handleDashboard = () => {
+  const refreshHubDashboard = useCallback(async () => {
+    setSelectionError(null);
+    setState({ phase: 'booting' });
+
+    try {
+      const init = await trpcClient.init.query();
+      applyInit(init);
+    } catch {
+      const activeSession = sessionRef.current;
+      if (activeSession?.isHub) {
+        const resetSession: SessionContext = { ...activeSession, campaignSubreddit: null };
+        sessionRef.current = resetSession;
+        setSession(resetSession);
+        setState({ phase: 'hub_dashboard' });
+        return;
+      }
+
+      setState({
+        phase: 'problem',
+        message: 'Failed to refresh dashboard. Please try again.',
+      });
+    }
+  }, [applyInit]);
+
+  const handleDashboard = useCallback(() => {
     if (session?.isHub) {
-      const resetSession: SessionContext = { ...session, campaignSubreddit: null };
-      sessionRef.current = resetSession;
-      setSession(resetSession);
-      setSelectionError(null);
-      setState({ phase: 'hub_dashboard' });
+      void refreshHubDashboard();
       return;
     }
 
     void loadNextPuzzle(0, undefined);
-  };
+  }, [session, refreshHubDashboard, loadNextPuzzle]);
 
   if (state.phase === 'booting' || state.phase === 'loading_next') {
     return (
