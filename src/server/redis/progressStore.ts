@@ -35,7 +35,14 @@ export const incrementProgress = async (
   userId: string,
   subredditName: string
 ): Promise<number> => {
-  return redis.hIncrBy(progressKey(userId), subredditName, 1);
+  const key = progressKey(userId);
+  const raw = await redis.hGet(key, subredditName);
+  if (raw === undefined) {
+    const next = PROGRESS_DEFAULT + 1;
+    await redis.hSet(key, { [subredditName]: String(next) });
+    return next;
+  }
+  return redis.hIncrBy(key, subredditName, 1);
 };
 
 /**

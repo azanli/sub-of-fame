@@ -57,10 +57,23 @@ describe('setProgress', () => {
 });
 
 describe('incrementProgress', () => {
-  it('calls hIncrBy with +1 and returns the new value', async () => {
+  it('writes rank 2 when the hash field is missing (first advance from default rank 1)', async () => {
+    mockHGet.mockResolvedValue(undefined);
+    mockHSet.mockResolvedValue(1);
+
+    const result = await incrementProgress('u1', 'gaming');
+
+    expect(mockHSet).toHaveBeenCalledWith('user:u1:progress', { gaming: '2' });
+    expect(mockHIncrBy).not.toHaveBeenCalled();
+    expect(result).toBe(2);
+  });
+
+  it('calls hIncrBy with +1 and returns the new value when progress exists', async () => {
+    mockHGet.mockResolvedValue('3');
     mockHIncrBy.mockResolvedValue(4);
     const result = await incrementProgress('u1', 'gaming');
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:progress', 'gaming', 1);
+    expect(mockHSet).not.toHaveBeenCalled();
     expect(result).toBe(4);
   });
 });
