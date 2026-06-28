@@ -66,6 +66,7 @@ export const App = ({ preloadedInit }: AppProps) => {
   );
   const [initData, setInitData] = useState<InitResponse | null>(preloadedInit ?? null);
   const [isSelecting, setIsSelecting] = useState(false);
+  const [selectingSubreddit, setSelectingSubreddit] = useState<string | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const guestRankIndexRef = useRef(1);
   const retryTimeoutRef = useRef<number | undefined>(undefined);
@@ -237,6 +238,7 @@ export const App = ({ preloadedInit }: AppProps) => {
     }
 
     setIsSelecting(true);
+    setSelectingSubreddit(subreddit);
     setSelectionError(null);
 
     try {
@@ -258,6 +260,7 @@ export const App = ({ preloadedInit }: AppProps) => {
       setSelectionError('Could not load that subreddit. Please try another.');
     } finally {
       setIsSelecting(false);
+      setSelectingSubreddit(null);
     }
   }, []);
 
@@ -401,6 +404,7 @@ export const App = ({ preloadedInit }: AppProps) => {
           initData={initData}
           onSelectSubreddit={handleSelectSubreddit}
           isSelecting={isSelecting}
+          selectingSubreddit={selectingSubreddit}
           selectionError={selectionError}
         />
       </div>

@@ -7,6 +7,7 @@ type HubDashboardProps = {
   initData: InitResponse;
   onSelectSubreddit: (subreddit: string) => Promise<void>;
   isSelecting: boolean;
+  selectingSubreddit: string | null;
   selectionError: string | null;
 };
 
@@ -14,6 +15,7 @@ export const HubDashboard = ({
   initData,
   onSelectSubreddit,
   isSelecting,
+  selectingSubreddit,
   selectionError,
 }: HubDashboardProps) => {
   const [customSubreddit, setCustomSubreddit] = useState('');
@@ -64,6 +66,8 @@ export const HubDashboard = ({
                   key={card.subreddit}
                   kind="hydrated"
                   card={card}
+                  isLoading={selectingSubreddit === card.subreddit}
+                  disabled={isSelecting}
                   onSelect={(subreddit) => {
                     void onSelectSubreddit(subreddit);
                   }}
@@ -74,6 +78,8 @@ export const HubDashboard = ({
                   key={card.name}
                   kind="static"
                   card={card}
+                  isLoading={selectingSubreddit === card.name}
+                  disabled={isSelecting}
                   onSelect={(subreddit) => {
                     void onSelectSubreddit(subreddit);
                   }}

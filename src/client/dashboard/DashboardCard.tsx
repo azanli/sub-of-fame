@@ -1,16 +1,20 @@
 import type { SubredditDashboardCard } from '../../shared/api';
 import type { SubredditOption } from '../../shared/subreddits';
 
-type HydratedCardProps = {
-  kind: 'hydrated';
-  card: SubredditDashboardCard;
+type DashboardCardBaseProps = {
   onSelect: (subreddit: string) => void;
+  isLoading?: boolean;
+  disabled?: boolean;
 };
 
-type StaticCardProps = {
+type HydratedCardProps = DashboardCardBaseProps & {
+  kind: 'hydrated';
+  card: SubredditDashboardCard;
+};
+
+type StaticCardProps = DashboardCardBaseProps & {
   kind: 'static';
   card: SubredditOption;
-  onSelect: (subreddit: string) => void;
 };
 
 type DashboardCardProps = HydratedCardProps | StaticCardProps;
@@ -28,20 +32,25 @@ const formatDashboardAccuracy = (
   return `${userSubredditHiveIQ.toFixed(1)}%`;
 };
 
+const cardButtonClasses =
+  'flex w-full items-center gap-3 p-3 text-left transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60';
+
+const idleCardClasses =
+  'rounded-xl border border-gray-200 bg-white hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-700 dark:hover:bg-gray-700/50';
+
+const loadingCardInnerClasses =
+  'relative z-10 rounded-[10px] border-0 bg-white dark:bg-gray-800';
+
 export const DashboardCard = (props: DashboardCardProps) => {
   const subreddit =
     props.kind === 'hydrated' ? props.card.subreddit : props.card.name;
   const displayName = props.card.displayName;
   const iconUrl = props.card.iconUrl;
+  const isLoading = props.isLoading ?? false;
+  const disabled = props.disabled ?? false;
 
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        props.onSelect(subreddit);
-      }}
-      className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left transition-colors hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-700 dark:hover:bg-gray-700/50 cursor-pointer"
-    >
+  const cardContent = (
+    <>
       <img
         src={iconUrl}
         alt=""
@@ -74,6 +83,37 @@ export const DashboardCard = (props: DashboardCardProps) => {
           </div>
         )}
       </div>
+    </>
+  );
+
+  if (isLoading) {
+    return (
+      <div className="relative overflow-hidden rounded-xl p-[2px]">
+        <div
+          aria-hidden
+          className="absolute inset-[-100%] animate-spin bg-[conic-gradient(from_0deg,transparent_0deg,transparent_250deg,#fb923c_285deg,#d93900_360deg)]"
+        />
+        <button
+          type="button"
+          disabled
+          className={`${cardButtonClasses} ${loadingCardInnerClasses}`}
+        >
+          {cardContent}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        props.onSelect(subreddit);
+      }}
+      disabled={disabled}
+      className={`${cardButtonClasses} ${idleCardClasses}`}
+    >
+      {cardContent}
     </button>
   );
 };
