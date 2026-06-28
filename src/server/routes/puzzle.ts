@@ -19,6 +19,8 @@ import {
   SOFT_DEADLINE_MS,
   type NextWorkBudget,
   type PuzzleNextResponse,
+  type PuzzleSkipError,
+  type PuzzleSkipResponse,
   type PuzzleSubmitError,
   type PuzzleSubmitErrorCode,
   type PuzzleSubmitResponse,
@@ -61,6 +63,19 @@ const submitError = (
   nextAction: PuzzleSubmitError['nextAction'],
   currentRankIndex?: number
 ): PuzzleSubmitError => ({
+  status: 'error',
+  code,
+  message,
+  nextAction,
+  ...(currentRankIndex !== undefined ? { currentRankIndex } : {}),
+});
+
+const skipError = (
+  code: PuzzleSkipError['code'],
+  message: string,
+  nextAction: PuzzleSkipError['nextAction'],
+  currentRankIndex?: number
+): PuzzleSkipError => ({
   status: 'error',
   code,
   message,
@@ -422,6 +437,84 @@ export const puzzleRouter = router({
         score,
         slots: buildRevealSlots(input.slots, snapshot),
         userHiveIQ,
+        nextRankIndex,
+      };
+    }),
+
+  skip: publicProcedure
+    .input(
+      z.object({
+        attemptId: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input, ctx }): Promise<PuzzleSkipResponse> => {
+      const attempt = await getAttempt(input.attemptId);
+      if (attempt === null) {
+        return skipError(
+          'ATTEMPT_EXPIRED',
+          'This puzzle attempt has expired.',
+          'request_next_puzzle'
+        );
+      }
+
+      if (attempt.submitted) {
+        return skipError(
+          'ATTEMPT_ALREADY_SUBMITTED',
+          'This puzzle round has already been submitted.',
+          'request_next_puzzle'
+        );
+      }
+
+      const launchContext = deriveLaunchContext(ctx.subredditName, ctx.surface);
+      if (
+        launchContext.surface === 'community' &&
+        attempt.subreddit !== launchContext.hostSubreddit
+      ) {
+        return skipError(
+          'HOST_SUBREDDIT_LOCKED',
+          'Skip rejected: attempt subreddit does not match host.',
+          'refresh_game'
+        );
+      }
+
+      if (attempt.owner.kind === 'user') {
+        if (ctx.userId === undefined || ctx.userId !== attempt.owner.userId) {
+          return skipError(
+            'WRONG_USER',
+            'Skip rejected: user does not match attempt owner.',
+            'refresh_game'
+          );
+        }
+
+        const currentRankIndex = await getProgress(attempt.owner.userId, attempt.subreddit);
+        if (currentRankIndex !== attempt.rankIndex) {
+          return skipError(
+            'STALE_PROGRESS',
+            'Your progress has moved on; request a fresh puzzle.',
+            'request_next_puzzle',
+            currentRankIndex
+          );
+        }
+      }
+
+      const lockAcquired = await acquireSubmitLock(input.attemptId);
+      if (!lockAcquired) {
+        return skipError(
+          'ATTEMPT_ALREADY_SUBMITTED',
+          'A duplicate skip was detected.',
+          'request_next_puzzle'
+        );
+      }
+
+      await markAttemptSubmitted(attempt);
+
+      const nextRankIndex =
+        attempt.owner.kind === 'user'
+          ? await incrementProgress(attempt.owner.userId, attempt.subreddit)
+          : attempt.rankIndex + 1;
+
+      return {
+        status: 'skipped',
         nextRankIndex,
       };
     }),

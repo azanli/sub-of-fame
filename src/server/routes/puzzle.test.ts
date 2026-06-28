@@ -180,6 +180,10 @@ const makeSubmitInput = (slots: [string, string, string] = ['t1_c1', 't1_c2', 't
   slots,
 });
 
+const makeSkipInput = () => ({
+  attemptId: 'attempt-1',
+});
+
 const expectNoSubmitMutations = () => {
   expect(mockMarkAttemptSubmitted).not.toHaveBeenCalled();
   expect(mockIncrementStats).not.toHaveBeenCalled();
@@ -656,5 +660,66 @@ describe('puzzle.submit', () => {
 
     expect(result.userHiveIQ).toBeNull();
     expect(result.nextRankIndex).toBe(3);
+  });
+});
+
+describe('puzzle.skip', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAttempt.mockResolvedValue(makeAttempt());
+    mockGetProgress.mockResolvedValue(3);
+    mockIncrementProgress.mockResolvedValue(4);
+    mockAcquireSubmitLock.mockResolvedValue(true);
+    mockMarkAttemptSubmitted.mockResolvedValue(undefined);
+  });
+
+  it('returns ATTEMPT_EXPIRED when attempt is missing', async () => {
+    mockGetAttempt.mockResolvedValue(null);
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.skip(makeSkipInput());
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'ATTEMPT_EXPIRED',
+        nextAction: 'request_next_puzzle',
+      })
+    );
+    expectNoSubmitMutations();
+  });
+
+  it('advances logged-in progress without updating stats or leaderboard', async () => {
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.skip(makeSkipInput());
+
+    expect(result).toEqual({
+      status: 'skipped',
+      nextRankIndex: 4,
+    });
+    expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
+    expect(mockIncrementStats).not.toHaveBeenCalled();
+    expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
+    expect(mockGetSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('returns next rank for guest attempts without writing user stats', async () => {
+    mockGetAttempt.mockResolvedValue(
+      makeAttempt({ owner: { kind: 'guest' }, rankIndex: 2 })
+    );
+    const caller = createCaller(makeCtx({ userId: undefined }));
+
+    const result = await caller.puzzle.skip(makeSkipInput());
+
+    expect(result).toEqual({
+      status: 'skipped',
+      nextRankIndex: 3,
+    });
+    expect(mockIncrementProgress).not.toHaveBeenCalled();
+    expect(mockIncrementStats).not.toHaveBeenCalled();
+    expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
+    expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
   });
 });

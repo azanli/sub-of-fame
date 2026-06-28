@@ -136,6 +136,25 @@ export type PuzzleSubmitError = {
 
 export type PuzzleSubmitResponse = PuzzleSubmitSuccess | PuzzleSubmitError;
 
+export type PuzzleSkipRequest = {
+  attemptId: string;
+};
+
+export type PuzzleSkipSuccess = {
+  status: 'skipped';
+  nextRankIndex: number;
+};
+
+export type PuzzleSkipError = {
+  status: 'error';
+  code: Exclude<PuzzleSubmitErrorCode, 'INVALID_SLOT_PERMUTATION'>;
+  message: string;
+  nextAction: PuzzleSubmitError['nextAction'];
+  currentRankIndex?: number;
+};
+
+export type PuzzleSkipResponse = PuzzleSkipSuccess | PuzzleSkipError;
+
 export const MAX_REDDIT_CALLS = 12;
 export const MAX_ITEMS_CHECKED = 20;
 export const SOFT_DEADLINE_MS = 4500;

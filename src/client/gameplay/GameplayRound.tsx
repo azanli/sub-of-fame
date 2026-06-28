@@ -12,7 +12,9 @@ import type { RankAssignments, ReadyPuzzle } from './types';
 type GameplayRoundProps = {
   puzzle: ReadyPuzzle;
   onSubmit: (slots: [string, string, string]) => void;
+  onSkip: () => void;
   isSubmitting: boolean;
+  isSkipping: boolean;
   onDashboard: () => void;
 };
 
@@ -21,7 +23,9 @@ type GameplayRoundInnerProps = GameplayRoundProps;
 const GameplayRoundInner = ({
   puzzle,
   onSubmit,
+  onSkip,
   isSubmitting,
+  isSkipping,
   onDashboard,
 }: GameplayRoundInnerProps) => {
   const allottedSeconds = useMemo(
@@ -39,7 +43,7 @@ const GameplayRoundInner = ({
   }, [puzzle.attemptId]);
 
   useEffect(() => {
-    if (!hasStarted || secondsRemaining <= 0 || isSubmitting) {
+    if (!hasStarted || secondsRemaining <= 0 || isSubmitting || isSkipping) {
       return;
     }
 
@@ -48,10 +52,10 @@ const GameplayRoundInner = ({
     }, 1000);
 
     return () => window.clearInterval(intervalId);
-  }, [hasStarted, secondsRemaining, isSubmitting]);
+  }, [hasStarted, secondsRemaining, isSubmitting, isSkipping]);
 
   useEffect(() => {
-    if (isSubmitting || hasSubmittedRef.current) {
+    if (isSubmitting || isSkipping || hasSubmittedRef.current) {
       return;
     }
     if (!isAllRanksAssigned(assignments)) {
@@ -65,7 +69,7 @@ const GameplayRoundInner = ({
 
     hasSubmittedRef.current = true;
     onSubmit(slots);
-  }, [assignments, isSubmitting, onSubmit, puzzle.comments]);
+  }, [assignments, isSubmitting, isSkipping, onSubmit, puzzle.comments]);
 
   useEffect(() => {
     if (isSubmitting || hasSubmittedRef.current) {
@@ -85,6 +89,7 @@ const GameplayRoundInner = ({
   }, [
     secondsRemaining,
     isSubmitting,
+    isSkipping,
     hasStarted,
     onSubmit,
     puzzle.comments,
@@ -93,6 +98,15 @@ const GameplayRoundInner = ({
 
   const handleTap = (commentId: string) => {
     setAssignments((current) => applyTapRank(current, commentId));
+  };
+
+  const handleSkip = () => {
+    if (isSubmitting || isSkipping || hasSubmittedRef.current) {
+      return;
+    }
+
+    hasSubmittedRef.current = true;
+    onSkip();
   };
 
   if (!hasStarted) {
@@ -111,7 +125,9 @@ const GameplayRoundInner = ({
       comments={puzzle.comments}
       secondsRemaining={secondsRemaining}
       assignments={assignments}
-      onTap={isSubmitting ? () => undefined : handleTap}
+      onTap={isSubmitting || isSkipping ? () => undefined : handleTap}
+      onSkip={handleSkip}
+      isSkipping={isSubmitting || isSkipping}
     />
   );
 };
@@ -119,14 +135,18 @@ const GameplayRoundInner = ({
 export const GameplayRound = ({
   puzzle,
   onSubmit,
+  onSkip,
   isSubmitting,
+  isSkipping,
   onDashboard,
 }: GameplayRoundProps) => (
   <GameplayRoundInner
     key={puzzle.attemptId}
     puzzle={puzzle}
     onSubmit={onSubmit}
+    onSkip={onSkip}
     isSubmitting={isSubmitting}
+    isSkipping={isSkipping}
     onDashboard={onDashboard}
   />
 );

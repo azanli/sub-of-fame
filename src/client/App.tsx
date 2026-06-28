@@ -12,6 +12,7 @@ type AppState =
   | { phase: 'loading_next'; unplayableCount: number; rankIndex?: number }
   | { phase: 'ready'; puzzle: ReadyPuzzle }
   | { phase: 'submitting'; puzzle: ReadyPuzzle }
+  | { phase: 'skipping'; puzzle: ReadyPuzzle }
   | { phase: 'revealed'; result: PuzzleSubmitSuccess; puzzle: ReadyPuzzle }
   | { phase: 'exhausted'; message: string }
   | { phase: 'problem'; message: string };
@@ -167,7 +168,7 @@ export const App = ({ preloadedInit }: AppProps) => {
   }, [loadNextPuzzle]);
 
   useEffect(() => {
-    if (state.phase === 'ready' || state.phase === 'submitting') {
+    if (state.phase === 'ready' || state.phase === 'submitting' || state.phase === 'skipping') {
       activePuzzleRef.current = state.puzzle;
     }
   }, [state]);
@@ -301,6 +302,46 @@ export const App = ({ preloadedInit }: AppProps) => {
     [session]
   );
 
+  const handleSkip = useCallback(async () => {
+    const puzzle = activePuzzleRef.current;
+    if (puzzle === null) {
+      return;
+    }
+
+    setState({ phase: 'skipping', puzzle });
+
+    try {
+      const result = await trpcClient.puzzle.skip.mutate({
+        attemptId: puzzle.attemptId,
+      });
+
+      if (result.status === 'skipped') {
+        if (session !== null && !session.isLoggedIn) {
+          guestRankIndexRef.current = result.nextRankIndex;
+        }
+        void loadNextPuzzleRef.current(
+          0,
+          session?.isLoggedIn ? undefined : result.nextRankIndex
+        );
+        return;
+      }
+
+      if (result.nextAction === 'request_next_puzzle') {
+        void loadNextPuzzleRef.current(0, result.currentRankIndex);
+        return;
+      }
+
+      if (result.nextAction === 'refresh_game') {
+        void loadNextPuzzleRef.current(0, undefined);
+        return;
+      }
+
+      setState({ phase: 'problem', message: result.message });
+    } catch {
+      setState({ phase: 'problem', message: 'Skip failed. Please try again.' });
+    }
+  }, [session]);
+
   const handleNextLevel = () => {
     void loadNextPuzzle(0, session?.isLoggedIn ? undefined : guestRankIndexRef.current);
   };
@@ -399,7 +440,7 @@ export const App = ({ preloadedInit }: AppProps) => {
     );
   }
 
-  if (state.phase === 'ready' || state.phase === 'submitting') {
+  if (state.phase === 'ready' || state.phase === 'submitting' || state.phase === 'skipping') {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <GameplayRound
@@ -407,7 +448,11 @@ export const App = ({ preloadedInit }: AppProps) => {
           onSubmit={(slots) => {
             void handleSubmit(slots);
           }}
+          onSkip={() => {
+            void handleSkip();
+          }}
           isSubmitting={state.phase === 'submitting'}
+          isSkipping={state.phase === 'skipping'}
           onDashboard={handleDashboard}
         />
       </div>
