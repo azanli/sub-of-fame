@@ -48,3 +48,34 @@ export const applyTapRank = (
 
 export const isAllRanksAssigned = (assignments: RankAssignments): boolean =>
   assignments.size === 3;
+
+export const buildSubmitSlots = (
+  comments: ReadyPuzzle['comments'],
+  assignments: RankAssignments
+): [string, string, string] | null => {
+  const slots: Array<string | undefined> = [undefined, undefined, undefined];
+
+  for (const [commentId, rank] of assignments) {
+    slots[rank - 1] = commentId;
+  }
+
+  const placed = new Set(slots.filter((slot) => slot !== undefined));
+  const remaining = comments
+    .map((comment) => comment.id)
+    .filter((commentId) => !placed.has(commentId));
+
+  let nextRemainingIndex = 0;
+  for (let index = 0; index < slots.length; index += 1) {
+    if (slots[index] === undefined) {
+      slots[index] = remaining[nextRemainingIndex];
+      nextRemainingIndex += 1;
+    }
+  }
+
+  const [first, second, third] = slots;
+  if (first === undefined || second === undefined || third === undefined) {
+    return null;
+  }
+
+  return [first, second, third];
+};

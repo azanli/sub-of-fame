@@ -1,5 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
-import { applyTapRank, calculatePuzzleTimer } from './helpers';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  applyTapRank,
+  buildSubmitSlots,
+  calculatePuzzleTimer,
+  isAllRanksAssigned,
+} from './helpers';
 import { CommentsModal } from './CommentsModal';
 import { StartPuzzleGate } from './StartPuzzleGate';
 import type { RankAssignments, ReadyPuzzle } from './types';
@@ -7,22 +12,32 @@ import type { RankAssignments, ReadyPuzzle } from './types';
 type GameplayRoundProps = {
   puzzle: ReadyPuzzle;
   onSubmit: (slots: [string, string, string]) => void;
+  isSubmitting: boolean;
 };
 
 type GameplayRoundInnerProps = GameplayRoundProps;
 
-const GameplayRoundInner = ({ puzzle, onSubmit: _onSubmit }: GameplayRoundInnerProps) => {
+const GameplayRoundInner = ({
+  puzzle,
+  onSubmit,
+  isSubmitting,
+}: GameplayRoundInnerProps) => {
   const allottedSeconds = useMemo(
     () => calculatePuzzleTimer(puzzle.comments),
     [puzzle.comments]
   );
 
+  const hasSubmittedRef = useRef(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [assignments, setAssignments] = useState<RankAssignments>(new Map());
   const [secondsRemaining, setSecondsRemaining] = useState(allottedSeconds);
 
   useEffect(() => {
-    if (!hasStarted || secondsRemaining <= 0) {
+    hasSubmittedRef.current = false;
+  }, [puzzle.attemptId]);
+
+  useEffect(() => {
+    if (!hasStarted || secondsRemaining <= 0 || isSubmitting) {
       return;
     }
 
@@ -31,7 +46,48 @@ const GameplayRoundInner = ({ puzzle, onSubmit: _onSubmit }: GameplayRoundInnerP
     }, 1000);
 
     return () => window.clearInterval(intervalId);
-  }, [hasStarted, secondsRemaining]);
+  }, [hasStarted, secondsRemaining, isSubmitting]);
+
+  useEffect(() => {
+    if (isSubmitting || hasSubmittedRef.current) {
+      return;
+    }
+    if (!isAllRanksAssigned(assignments)) {
+      return;
+    }
+
+    const slots = buildSubmitSlots(puzzle.comments, assignments);
+    if (slots === null) {
+      return;
+    }
+
+    hasSubmittedRef.current = true;
+    onSubmit(slots);
+  }, [assignments, isSubmitting, onSubmit, puzzle.comments]);
+
+  useEffect(() => {
+    if (isSubmitting || hasSubmittedRef.current) {
+      return;
+    }
+    if (!hasStarted || secondsRemaining > 0) {
+      return;
+    }
+
+    const slots = buildSubmitSlots(puzzle.comments, assignments);
+    if (slots === null) {
+      return;
+    }
+
+    hasSubmittedRef.current = true;
+    onSubmit(slots);
+  }, [
+    secondsRemaining,
+    isSubmitting,
+    hasStarted,
+    onSubmit,
+    puzzle.comments,
+    assignments,
+  ]);
 
   const handleTap = (commentId: string) => {
     setAssignments((current) => applyTapRank(current, commentId));
@@ -52,11 +108,16 @@ const GameplayRoundInner = ({ puzzle, onSubmit: _onSubmit }: GameplayRoundInnerP
       comments={puzzle.comments}
       secondsRemaining={secondsRemaining}
       assignments={assignments}
-      onTap={handleTap}
+      onTap={isSubmitting ? () => undefined : handleTap}
     />
   );
 };
 
-export const GameplayRound = ({ puzzle, onSubmit }: GameplayRoundProps) => (
-  <GameplayRoundInner key={puzzle.attemptId} puzzle={puzzle} onSubmit={onSubmit} />
+export const GameplayRound = ({ puzzle, onSubmit, isSubmitting }: GameplayRoundProps) => (
+  <GameplayRoundInner
+    key={puzzle.attemptId}
+    puzzle={puzzle}
+    onSubmit={onSubmit}
+    isSubmitting={isSubmitting}
+  />
 );
