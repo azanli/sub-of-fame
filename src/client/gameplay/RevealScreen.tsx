@@ -48,18 +48,18 @@ export const RevealScreen = ({
         </div>
       ))}
     </div>
-    <div className="flex gap-3 justify-center">
+    <div className="fixed inset-x-0 bottom-0 z-10 flex gap-3 justify-center border-t border-gray-200 bg-gray-50/95 p-4 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/95">
       <button
         type="button"
         onClick={onDashboard}
-        className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold rounded-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold rounded-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
       >
         Dashboard
       </button>
       <button
         type="button"
         onClick={onNextLevel}
-        className="bg-[#d93900] hover:bg-[#c23300] text-white font-semibold rounded-full px-6 py-2 transition-colors"
+        className="bg-[#d93900] hover:bg-[#c23300] text-white font-semibold rounded-full px-6 py-2 transition-colors cursor-pointer"
       >
         Next Puzzle
       </button>
