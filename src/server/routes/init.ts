@@ -19,6 +19,11 @@ const buildGlobalHiveIQ = (stats: UserStatsProfile): UserGlobalHiveIQMetrics => 
   totalSlots: stats.global.totalSlots,
 });
 
+const getCompletedRoundCount = (
+  stats: UserStatsProfile,
+  subreddit: string
+): number => Math.floor((stats.bySubreddit[subreddit]?.totalSlots ?? 0) / 3);
+
 const buildDashboardSubreddits = async (
   userId: string,
   progress: Record<string, number>,
@@ -32,11 +37,13 @@ const buildDashboardSubreddits = async (
     ...new Set(
       [...Object.keys(progress), ...Object.keys(stats.bySubreddit)].map(normalizeSubredditName)
     ),
-  ]
-    .filter((name) => name.length > 0 && !curatedSet.has(name))
-    .sort((a, b) => (progress[b] ?? 1) - (progress[a] ?? 1));
+  ].filter((name) => name.length > 0 && !curatedSet.has(name));
 
-  const orderedSubreddits = [...curatedNames, ...customNames];
+  const orderedSubreddits = [...curatedNames, ...customNames].sort(
+    (a, b) =>
+      getCompletedRoundCount(stats, b) - getCompletedRoundCount(stats, a) ||
+      a.localeCompare(b)
+  );
 
   const cards = await Promise.all(
     orderedSubreddits.map(async (subreddit) => {

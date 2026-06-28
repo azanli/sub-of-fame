@@ -234,6 +234,26 @@ describe('init — logged-in Hub', () => {
     expect(askredditCard?.userSubredditHiveIQ).toBe((6 / 9) * 100);
   });
 
+  it('sorts dashboardSubreddits by completedRoundCount descending', async () => {
+    mockGetStats.mockResolvedValue(
+      makeStats({
+        bySubreddit: {
+          askreddit: { correctSlots: 3, totalSlots: 3 },
+          cats: { correctSlots: 6, totalSlots: 9 },
+          sports: { correctSlots: 9, totalSlots: 15 },
+          customsub: { correctSlots: 3, totalSlots: 6 },
+        },
+      })
+    );
+    mockGetAllProgress.mockResolvedValue({ customsub: 3 });
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.init();
+
+    const cardNames = result.dashboardSubreddits?.map((card) => card.subreddit) ?? [];
+    expect(cardNames).toEqual(['sports', 'cats', 'customsub', 'askreddit']);
+  });
+
   it('computes completedRoundCount as Math.floor(totalSlots / 3)', async () => {
     mockGetStats.mockResolvedValue(
       makeStats({

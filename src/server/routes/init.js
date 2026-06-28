@@ -10,15 +10,15 @@ const buildGlobalHiveIQ = (stats) => ({
     totalCorrectSlots: stats.global.correctSlots,
     totalSlots: stats.global.totalSlots,
 });
+const getCompletedRoundCount = (stats, subreddit) => Math.floor((stats.bySubreddit[subreddit]?.totalSlots ?? 0) / 3);
 const buildDashboardSubreddits = async (userId, progress, stats, reddit) => {
     const curatedNames = CURATED_SUBREDDITS.map((entry) => entry.name);
     const curatedSet = new Set(curatedNames);
     const customNames = [
         ...new Set([...Object.keys(progress), ...Object.keys(stats.bySubreddit)].map(normalizeSubredditName)),
-    ]
-        .filter((name) => name.length > 0 && !curatedSet.has(name))
-        .sort((a, b) => (progress[b] ?? 1) - (progress[a] ?? 1));
-    const orderedSubreddits = [...curatedNames, ...customNames];
+    ].filter((name) => name.length > 0 && !curatedSet.has(name));
+    const orderedSubreddits = [...curatedNames, ...customNames].sort((a, b) => getCompletedRoundCount(stats, b) - getCompletedRoundCount(stats, a) ||
+        a.localeCompare(b));
     const cards = await Promise.all(orderedSubreddits.map(async (subreddit) => {
         const metadata = await resolveSubredditMetadata(subreddit, reddit);
         if (metadata === null) {
