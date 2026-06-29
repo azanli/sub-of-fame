@@ -135,6 +135,7 @@ const buildReadyResponse = (
     rankIndex,
     subredditDisplayName,
     post,
+    numberOfComments: snapshot.numberOfComments ?? 0,
     comments: commentOrder.map((commentId) => {
       const comment = commentById.get(commentId);
       if (comment === undefined) {
@@ -255,7 +256,11 @@ export const puzzleRouter = router({
         }
 
         const validation = await validateComments(
-          { sourcePostId: post.id, post: postPayload },
+          {
+            sourcePostId: post.id,
+            post: postPayload,
+            numberOfComments: post.commentCount ?? 0,
+          },
           ctx.reddit,
           budget
         );

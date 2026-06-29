@@ -54,6 +54,7 @@ describe('parseJson', () => {
     const snap: PuzzleSnapshot = {
       sourcePostId: 't3_abc',
       post: { title: 'Test post' },
+      numberOfComments: 25,
       comments: [
         { id: 't1_1', body: 'First', score: 100, createdAt: 1 },
         { id: 't1_2', body: 'Second', score: 50, createdAt: 2 },

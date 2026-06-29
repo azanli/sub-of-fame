@@ -66,7 +66,7 @@ export const buildPostSummary = (post: Post): LadderPostSummary => {
     hasBody: body !== undefined && body.length >= 50,
     isNSFW: post.nsfw,
     isSpoiler: post.spoiler,
-    commentCount: post.numberOfComments,
+    commentCount: post.numberOfComments ?? 0,
   };
   const imageUrl = normalizeImageUrl(post);
   if (imageUrl !== undefined) {

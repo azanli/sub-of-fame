@@ -138,6 +138,7 @@ const makeSnapshot = (): PuzzleSnapshot => ({
     title: 'A long enough post title for the puzzle',
     imageUrl: 'https://example.com/image.jpg',
   },
+  numberOfComments: 42,
   comments: [
     {
       id: 't1_c1',
@@ -388,6 +389,7 @@ describe('puzzle.next', () => {
       title: 'A long enough post title for the puzzle',
       imageUrl: 'https://example.com/image.jpg',
     });
+    expect(result.numberOfComments).toBe(42);
     expect(result.comments).toHaveLength(3);
     for (const comment of result.comments) {
       expect(Object.keys(comment).sort()).toEqual(['body', 'id']);

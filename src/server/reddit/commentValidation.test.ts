@@ -70,7 +70,9 @@ const makeListing = (comments: Comment[]) => ({
   get: vi.fn().mockResolvedValue(comments),
 });
 
-const validateParams = (overrides: Partial<{ title: string; body?: string; imageUrl?: string }> = {}) => ({
+const validateParams = (
+  overrides: Partial<{ title: string; body?: string; imageUrl?: string; numberOfComments: number }> = {}
+) => ({
   sourcePostId: SOURCE_POST_ID,
   post: {
     title: 'Test post title',
@@ -78,6 +80,7 @@ const validateParams = (overrides: Partial<{ title: string; body?: string; image
     imageUrl: 'https://example.com/image.jpg',
     ...overrides,
   },
+  numberOfComments: overrides.numberOfComments ?? 42,
 });
 
 const toClientComments = (snapshot: PuzzleSnapshot) =>
@@ -202,6 +205,7 @@ describe('validateComments – cached snapshot', () => {
     const cached: PuzzleSnapshot = {
       sourcePostId: SOURCE_POST_ID,
       post: { title: 'Cached post' },
+      numberOfComments: 30,
       comments: [
         { id: 't1_1', body: 'First cached comment body text.', score: 100, createdAt: 1 },
         { id: 't1_2', body: 'Second cached comment body text.', score: 50, createdAt: 2 },

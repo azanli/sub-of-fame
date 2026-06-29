@@ -114,6 +114,7 @@ const GameplayRoundInner = ({
       <StartPuzzleGate
         subredditDisplayName={puzzle.subredditDisplayName}
         post={puzzle.post}
+        numberOfComments={puzzle.numberOfComments}
         onStart={() => setHasStarted(true)}
         onExit={onDashboard}
       />

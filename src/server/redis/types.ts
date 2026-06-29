@@ -48,6 +48,7 @@ export type PuzzleCommentSnapshot = {
 export type PuzzleSnapshot = {
   sourcePostId: string;
   post: { title: string; body?: string; imageUrl?: string };
+  numberOfComments: number;
   // index 0 = #1 most upvotes (true rank); never scrambled
   comments: [PuzzleCommentSnapshot, PuzzleCommentSnapshot, PuzzleCommentSnapshot];
   createdAt: number;

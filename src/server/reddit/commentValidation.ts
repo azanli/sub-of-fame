@@ -15,6 +15,7 @@ export type CommentValidationResult =
 export type ValidateCommentsParams = {
   sourcePostId: string;
   post: { title: string; body?: string; imageUrl?: string };
+  numberOfComments: number;
 };
 
 type Reddit = Pick<RedditClient, 'getComments'>;
@@ -98,12 +99,18 @@ export const validateComments = async (
   reddit: Reddit,
   budget: NextWorkBudget
 ): Promise<CommentValidationResult> => {
-  const { sourcePostId, post } = params;
+  const { sourcePostId, post, numberOfComments } = params;
 
   try {
     const cached = await getSnapshot(sourcePostId);
     if (cached !== null) {
-      return { kind: 'valid', snapshot: cached };
+      return {
+        kind: 'valid',
+        snapshot: {
+          ...cached,
+          numberOfComments: cached.numberOfComments ?? numberOfComments,
+        },
+      };
     }
 
     if (!canSpendRedditCall(budget)) {
@@ -143,6 +150,7 @@ export const validateComments = async (
         ...(post.body !== undefined ? { body: post.body } : {}),
         ...(post.imageUrl !== undefined ? { imageUrl: post.imageUrl } : {}),
       },
+      numberOfComments,
       comments: [selected[0]!, selected[1]!, selected[2]!],
       createdAt: now,
       expiresAt: now + SNAPSHOT_TTL_S * 1000,

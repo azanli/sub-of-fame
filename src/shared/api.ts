@@ -81,6 +81,7 @@ export type PuzzleNextResponse =
       rankIndex: number;
       subredditDisplayName: string;
       post: { title: string; body?: string; imageUrl?: string };
+      numberOfComments: number;
       comments: Array<{ id: string; body: string }>;
     }
   | {
