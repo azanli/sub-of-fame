@@ -1,1 +1,8 @@
 @import 'tailwindcss';
+
+@layer base {
+  body {
+    margin: 0;
+    overscroll-behavior-y: contain;
+  }
+}

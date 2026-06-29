@@ -1,9 +1,9 @@
 import './index.css';
+import './splash.css';
 
-import type { InitResponse } from '../shared/api';
-import { StrictMode, useEffect, useRef, useState } from 'react';
+import { requestExpandedMode } from '@devvit/web/client';
+import { StrictMode, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './App';
 import { trpcClient } from './trpc';
 
 const FADE_DURATION_MS = 300;
@@ -15,6 +15,12 @@ const LOADING_MESSAGES = [
 
 type SplashPhase = 'loading' | 'fading' | 'ready' | 'error';
 
+const SplashFooter = () => (
+  <footer className="absolute bottom-3 left-0 right-0 px-4 text-center text-[0.65rem] leading-relaxed text-gray-600">
+    α Build v0.1.0-alpha • Environment: Sandbox • Report bugs to r/SubOfFame
+  </footer>
+);
+
 const SplashLoadingScreen = ({
   message,
   isFading,
@@ -23,7 +29,7 @@ const SplashLoadingScreen = ({
   isFading: boolean;
 }) => (
   <div
-    className={`relative flex min-h-screen flex-col items-center justify-center gap-6 bg-gray-900 px-6 transition-opacity duration-300 ${
+    className={`relative flex h-full flex-col items-center justify-center gap-6 bg-gray-900 px-6 transition-opacity duration-300 ${
       isFading ? 'opacity-0' : 'opacity-100'
     }`}
   >
@@ -49,14 +55,44 @@ const SplashLoadingScreen = ({
         {message}
       </p>
     </div>
-    <footer className="absolute bottom-3 left-0 right-0 px-4 text-center text-[0.65rem] leading-relaxed text-gray-600">
-      α Build v0.1.0-alpha • Environment: Sandbox • Report bugs to r/SubOfFame
-    </footer>
+    <SplashFooter />
   </div>
 );
 
+const SplashReadyScreen = () => {
+  const handleLaunch = (event: MouseEvent<HTMLButtonElement>) => {
+    requestExpandedMode(event.nativeEvent, 'game');
+  };
+
+  return (
+    <div className="relative flex h-full flex-col items-center justify-center gap-6 bg-gray-900 px-6">
+      <img
+        className="mx-auto w-1/2 max-w-[220px] object-contain"
+        src="/snoo.png"
+        alt="Snoo"
+      />
+      <div className="flex flex-col items-center gap-2 text-center">
+        <h1 className="text-3xl font-bold tracking-wide text-white">
+          Sub <span className="text-[#ff4500]">of</span> Fame
+        </h1>
+        <p className="max-w-xs text-sm text-gray-400">
+          A social psychology game for witty Redditors.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={handleLaunch}
+        className="rounded-full bg-[#d93900] px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#c23300]"
+      >
+        Play
+      </button>
+      <SplashFooter />
+    </div>
+  );
+};
+
 const SplashErrorScreen = ({ onRetry }: { onRetry: () => void }) => (
-  <div className="relative flex min-h-screen flex-col items-center justify-center gap-6 bg-gray-900 px-6">
+  <div className="relative flex h-full flex-col items-center justify-center gap-6 bg-gray-900 px-6">
     <img
       className="mx-auto w-1/2 max-w-[220px] object-contain"
       src="/snoo.png"
@@ -76,22 +112,18 @@ const SplashErrorScreen = ({ onRetry }: { onRetry: () => void }) => (
     >
       Retry Connection
     </button>
-    <footer className="absolute bottom-3 left-0 right-0 px-4 text-center text-[0.65rem] leading-relaxed text-gray-600">
-      α Build v0.1.0-alpha • Environment: Sandbox • Report bugs to r/SubOfFame
-    </footer>
+    <SplashFooter />
   </div>
 );
 
 export const Splash = () => {
   const [phase, setPhase] = useState<SplashPhase>('loading');
-  const [initData, setInitData] = useState<InitResponse | null>(null);
   const [messageIndex, setMessageIndex] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
   const fadeTimeoutRef = useRef<number | undefined>(undefined);
 
   const handleRetry = () => {
     setPhase('loading');
-    setInitData(null);
     setRetryCount((count) => count + 1);
   };
 
@@ -100,12 +132,11 @@ export const Splash = () => {
 
     const bootstrap = async () => {
       try {
-        const init = await trpcClient.init.query();
+        await trpcClient.init.query();
         if (cancelled) {
           return;
         }
 
-        setInitData(init);
         setPhase('fading');
 
         fadeTimeoutRef.current = window.setTimeout(() => {
@@ -142,8 +173,8 @@ export const Splash = () => {
     };
   }, [phase]);
 
-  if (phase === 'ready' && initData !== null) {
-    return <App preloadedInit={initData} />;
+  if (phase === 'ready') {
+    return <SplashReadyScreen />;
   }
 
   if (phase === 'error') {
