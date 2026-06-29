@@ -2,7 +2,13 @@ import './index.css';
 import './splash.css';
 
 import { requestExpandedMode } from '@devvit/web/client';
-import { StrictMode, useEffect, useRef, useState, type MouseEvent } from 'react';
+import {
+  StrictMode,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+} from 'react';
 import { createRoot } from 'react-dom/client';
 import { trpcClient } from './trpc';
 
@@ -82,7 +88,7 @@ const SplashReadyScreen = () => {
       <button
         type="button"
         onClick={handleLaunch}
-        className="rounded-full bg-[#d93900] px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#c23300]"
+        className="rounded-full bg-[#d93900] px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#c23300] cursor-pointer"
       >
         Play
       </button>
