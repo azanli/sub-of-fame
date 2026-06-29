@@ -38,9 +38,6 @@ const cardButtonClasses =
 const idleCardClasses =
   'rounded-xl border border-gray-200 bg-white hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-700 dark:hover:bg-gray-700/50';
 
-const loadingCardInnerClasses =
-  'relative z-10 rounded-[10px] border-0 bg-white dark:bg-gray-800';
-
 export const DashboardCard = (props: DashboardCardProps) => {
   const subreddit =
     props.kind === 'hydrated' ? props.card.subreddit : props.card.name;
@@ -48,6 +45,10 @@ export const DashboardCard = (props: DashboardCardProps) => {
   const iconUrl = props.card.iconUrl;
   const isLoading = props.isLoading ?? false;
   const disabled = props.disabled ?? false;
+  const accuracy = formatDashboardAccuracy(
+    props.kind === 'hydrated' ? props.card.completedRoundCount : 0,
+    props.kind === 'hydrated' ? props.card.userSubredditHiveIQ : null
+  );
 
   const cardContent = (
     <>
@@ -63,10 +64,8 @@ export const DashboardCard = (props: DashboardCardProps) => {
           </p>
           {props.kind === 'hydrated' && (
             <p className="shrink-0 text-sm text-gray-500 dark:text-gray-400">
-              {formatDashboardAccuracy(
-                props.card.completedRoundCount,
-                props.card.userSubredditHiveIQ
-              )}
+              {accuracy}
+              {accuracy.includes('%') ? ' 🎯' : ''}
             </p>
           )}
         </div>
