@@ -24,7 +24,10 @@ export const StartPuzzleGate = ({
           aria-label="Back to dashboard"
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200 cursor-pointer"
         >
-          <span aria-hidden="true" className="text-md leading-none">
+          <span
+            aria-hidden="true"
+            className="text-md text-gray-400 leading-none"
+          >
             ×
           </span>
         </button>
