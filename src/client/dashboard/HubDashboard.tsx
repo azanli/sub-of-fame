@@ -62,7 +62,7 @@ export const HubDashboard = ({
         <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
           Campaigns
         </p>
-        <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto pr-1">
+        <div className="flex flex-col gap-2 pr-1">
           {isLoggedIn && initData.dashboardSubreddits !== null
             ? initData.dashboardSubreddits.map((card) => (
                 <DashboardCard
