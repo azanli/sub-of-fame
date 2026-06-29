@@ -23,12 +23,15 @@ export const HubDashboard = ({
 
   const handleCustomSubmit = (event: FormEvent) => {
     event.preventDefault();
-    const trimmed = customSubreddit.trim();
-    if (trimmed.length === 0 || isSelecting) {
+
+    // Strip leading 'r/', 'R/', '/r/', or '/R/', then trim whitespace
+    const sanitized = customSubreddit.replace(/^\/?r\//i, '').trim();
+
+    if (sanitized.length === 0 || isSelecting) {
       return;
     }
 
-    void onSelectSubreddit(trimmed);
+    void onSelectSubreddit(sanitized);
   };
 
   return (
@@ -104,7 +107,7 @@ export const HubDashboard = ({
               onChange={(event) => {
                 setCustomSubreddit(event.target.value);
               }}
-              placeholder="e.g. r/AskReddit"
+              placeholder="e.g. r/dadjokes"
               disabled={isSelecting}
               className="min-w-0 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 outline-none focus:border-orange-500 disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             />
