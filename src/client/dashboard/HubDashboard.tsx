@@ -36,16 +36,20 @@ export const HubDashboard = ({
 
   return (
     <div className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 p-4">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Sub of Fame
-        </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+      <div className="flex flex-col gap-2">
+        <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 border-gray-200 dark:border-gray-600">
+          <img
+            src="/fame-icon.png"
+            alt="Sub of Fame"
+            className="h-full w-full object-cover"
+          />
+        </div>
+        {/* <p className="text-center text-sm text-gray-500 dark:text-gray-400">
           Pick a subreddit campaign to start ranking comments.
-        </p>
+        </p> */}
       </div>
 
-      {initData.userGlobalHiveIQ !== null && (
+      {/* {initData.userGlobalHiveIQ !== null && (
         <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
           <p className="text-xs font-medium uppercase tracking-widest text-gray-400">
             Your Karma Accuracy
@@ -56,7 +60,7 @@ export const HubDashboard = ({
               : 'No rounds played yet'}
           </p>
         </div>
-      )}
+      )} */}
 
       <div className="flex flex-col gap-2">
         <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
