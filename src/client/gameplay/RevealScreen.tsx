@@ -65,7 +65,7 @@ export const RevealScreen = ({
         onClick={onNextLevel}
         className="bg-[#d93900] hover:bg-[#c23300] text-white font-semibold rounded-full px-6 py-2 transition-colors cursor-pointer"
       >
-        Next Puzzle
+        Next Challenge
       </button>
     </div>
   </div>
