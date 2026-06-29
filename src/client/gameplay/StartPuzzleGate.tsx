@@ -43,7 +43,7 @@ export const StartPuzzleGate = ({
         onClick={onStart}
         className="bg-[#d93900] hover:bg-[#c23300] text-white font-semibold rounded-full px-8 py-3 transition-colors cursor-pointer"
       >
-        Start Puzzle
+        Start Ranking
       </button>
     </div>
   </>

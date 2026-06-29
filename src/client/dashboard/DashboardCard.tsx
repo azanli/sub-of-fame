@@ -72,7 +72,7 @@ export const DashboardCard = (props: DashboardCardProps) => {
         {props.kind === 'hydrated' && (
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {props.card.completedRoundCount} Puzzles Solved
+              {props.card.completedRoundCount} Completed
             </p>
             {props.card.leaderboardRank !== null && (
               <p className="text-xs font-medium text-orange-600 dark:text-orange-400">
