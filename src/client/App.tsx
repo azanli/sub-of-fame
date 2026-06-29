@@ -1,4 +1,8 @@
-import type { InitResponse, PuzzleNextRequest, PuzzleSubmitSuccess } from '../shared/api';
+import type {
+  InitResponse,
+  PuzzleNextRequest,
+  PuzzleSubmitSuccess,
+} from '../shared/api';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { HubDashboard } from './dashboard/HubDashboard';
 import { GameplayRound } from './gameplay/GameplayRound';
@@ -60,13 +64,19 @@ const initialAppState = (init: InitResponse | undefined): AppState => {
 };
 
 export const App = ({ preloadedInit }: AppProps) => {
-  const [state, setState] = useState<AppState>(() => initialAppState(preloadedInit));
+  const [state, setState] = useState<AppState>(() =>
+    initialAppState(preloadedInit)
+  );
   const [session, setSession] = useState<SessionContext | null>(() =>
     preloadedInit ? buildSessionFromInit(preloadedInit) : null
   );
-  const [initData, setInitData] = useState<InitResponse | null>(preloadedInit ?? null);
+  const [initData, setInitData] = useState<InitResponse | null>(
+    preloadedInit ?? null
+  );
   const [isSelecting, setIsSelecting] = useState(false);
-  const [selectingSubreddit, setSelectingSubreddit] = useState<string | null>(null);
+  const [selectingSubreddit, setSelectingSubreddit] = useState<string | null>(
+    null
+  );
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const guestRankIndexRef = useRef(1);
   const retryTimeoutRef = useRef<number | undefined>(undefined);
@@ -82,28 +92,31 @@ export const App = ({ preloadedInit }: AppProps) => {
     sessionRef.current = session;
   }, [session]);
 
-  const handleUnplayable = useCallback((unplayableCount: number, rankIndex: number) => {
-    if (unplayableCount >= 2) {
-      setState({
-        phase: 'problem',
-        message:
-          'We encountered a problem finding a playable puzzle. Please try again later.',
-      });
-      return;
-    }
+  const handleUnplayable = useCallback(
+    (unplayableCount: number, rankIndex: number) => {
+      if (unplayableCount >= 2) {
+        setState({
+          phase: 'problem',
+          message:
+            'We encountered a problem finding a playable puzzle. Please try again later.',
+        });
+        return;
+      }
 
-    const delay = 500 + Math.floor(Math.random() * 500);
-    const nextState: Extract<AppState, { phase: 'loading_next' }> = {
-      phase: 'loading_next',
-      unplayableCount: unplayableCount + 1,
-      rankIndex,
-    };
-    setState(nextState);
+      const delay = 500 + Math.floor(Math.random() * 500);
+      const nextState: Extract<AppState, { phase: 'loading_next' }> = {
+        phase: 'loading_next',
+        unplayableCount: unplayableCount + 1,
+        rankIndex,
+      };
+      setState(nextState);
 
-    retryTimeoutRef.current = window.setTimeout(() => {
-      void loadNextPuzzleRef.current(unplayableCount + 1, rankIndex);
-    }, delay);
-  }, []);
+      retryTimeoutRef.current = window.setTimeout(() => {
+        void loadNextPuzzleRef.current(unplayableCount + 1, rankIndex);
+      }, delay);
+    },
+    []
+  );
 
   const loadNextPuzzle = useCallback(
     async (unplayableCount: number, rankIndex: number | undefined) => {
@@ -169,7 +182,11 @@ export const App = ({ preloadedInit }: AppProps) => {
   }, [loadNextPuzzle]);
 
   useEffect(() => {
-    if (state.phase === 'ready' || state.phase === 'submitting' || state.phase === 'skipping') {
+    if (
+      state.phase === 'ready' ||
+      state.phase === 'submitting' ||
+      state.phase === 'skipping'
+    ) {
       activePuzzleRef.current = state.puzzle;
     }
   }, [state]);
@@ -242,7 +259,9 @@ export const App = ({ preloadedInit }: AppProps) => {
     setSelectionError(null);
 
     try {
-      const result = await trpcClient.session.selectSubreddit.mutate({ subreddit });
+      const result = await trpcClient.session.selectSubreddit.mutate({
+        subreddit,
+      });
 
       const updatedSession: SessionContext = {
         ...activeSession,
@@ -299,7 +318,10 @@ export const App = ({ preloadedInit }: AppProps) => {
 
         setState({ phase: 'problem', message: result.message });
       } catch {
-        setState({ phase: 'problem', message: 'Submit failed. Please try again.' });
+        setState({
+          phase: 'problem',
+          message: 'Submit failed. Please try again.',
+        });
       }
     },
     [session]
@@ -346,7 +368,10 @@ export const App = ({ preloadedInit }: AppProps) => {
   }, [session]);
 
   const handleNextLevel = () => {
-    void loadNextPuzzle(0, session?.isLoggedIn ? undefined : guestRankIndexRef.current);
+    void loadNextPuzzle(
+      0,
+      session?.isLoggedIn ? undefined : guestRankIndexRef.current
+    );
   };
 
   const refreshHubDashboard = useCallback(async () => {
@@ -359,7 +384,10 @@ export const App = ({ preloadedInit }: AppProps) => {
     } catch {
       const activeSession = sessionRef.current;
       if (activeSession?.isHub) {
-        const resetSession: SessionContext = { ...activeSession, campaignSubreddit: null };
+        const resetSession: SessionContext = {
+          ...activeSession,
+          campaignSubreddit: null,
+        };
         sessionRef.current = resetSession;
         setSession(resetSession);
         setState({ phase: 'hub_dashboard' });
@@ -418,7 +446,9 @@ export const App = ({ preloadedInit }: AppProps) => {
           <p className="text-lg font-semibold text-gray-900 dark:text-white">
             You&apos;ve reached the end of this subreddit&apos;s top posts.
           </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{state.message}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {state.message}
+          </p>
           <button
             type="button"
             onClick={handleDashboard}
@@ -438,7 +468,9 @@ export const App = ({ preloadedInit }: AppProps) => {
           <p className="text-lg font-semibold text-gray-900 dark:text-white">
             We encountered a problem.
           </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{state.message}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {state.message}
+          </p>
           <button
             type="button"
             onClick={handleDashboard}
@@ -458,13 +490,17 @@ export const App = ({ preloadedInit }: AppProps) => {
           result={state.result}
           puzzle={state.puzzle}
           onNextLevel={handleNextLevel}
-          onDashboard={handleDashboard}
+          onExit={handleDashboard}
         />
       </div>
     );
   }
 
-  if (state.phase === 'ready' || state.phase === 'submitting' || state.phase === 'skipping') {
+  if (
+    state.phase === 'ready' ||
+    state.phase === 'submitting' ||
+    state.phase === 'skipping'
+  ) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <GameplayRound

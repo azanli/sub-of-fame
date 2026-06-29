@@ -13,6 +13,7 @@ export type SubredditMetadataCacheEntry = {
 export type LadderPostSummary = {
   id: string;
   title: string;
+  postUrl: string;
   hasBody: boolean;
   isNSFW: boolean;
   isSpoiler: boolean;

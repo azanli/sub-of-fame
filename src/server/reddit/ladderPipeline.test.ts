@@ -33,6 +33,8 @@ const {
   fastFilterEligible,
   normalizeImageUrl,
   resolveLadderPage,
+  resolveLadderPostUrl,
+  toPostUrl,
 } = await import('./ladderPipeline.js');
 
 const { rankIndexToOffset, rankIndexToPage } = await import('../redis/ladderStore.js');
@@ -158,12 +160,61 @@ describe('normalizeImageUrl – default thumbnail', () => {
   });
 });
 
+describe('toPostUrl – self post', () => {
+  it('returns the post url for a self post', () => {
+    const post = makePost({
+      url: 'https://www.reddit.com/r/gaming/comments/abc123/title/',
+    });
+    expect(toPostUrl(post)).toBe('https://www.reddit.com/r/gaming/comments/abc123/title/');
+  });
+});
+
+describe('toPostUrl – link post', () => {
+  it('returns the reddit permalink for a link post', () => {
+    const post = makePost({
+      url: 'https://example.com/video',
+    });
+    expect(toPostUrl(post)).toBe('https://www.reddit.com/r/gaming/comments/abc123/title/');
+  });
+});
+
+describe('resolveLadderPostUrl', () => {
+  it('returns the stored postUrl when present', () => {
+    expect(
+      resolveLadderPostUrl({
+        id: 't3_abc123',
+        title: 'Title',
+        postUrl: 'https://www.reddit.com/r/gaming/comments/abc123/title/',
+        hasBody: false,
+        isNSFW: false,
+        isSpoiler: false,
+        commentCount: 20,
+      })
+    ).toBe('https://www.reddit.com/r/gaming/comments/abc123/title/');
+  });
+
+  it('falls back to a comments URL when postUrl is missing', () => {
+    expect(
+      resolveLadderPostUrl({
+        id: 't3_abc123',
+        title: 'Title',
+        postUrl: '',
+        hasBody: false,
+        isNSFW: false,
+        isSpoiler: false,
+        commentCount: 20,
+      })
+    ).toBe('https://www.reddit.com/comments/abc123/');
+  });
+});
+
 describe('fastFilterEligible – NSFW', () => {
   it('returns false for NSFW posts', () => {
     expect(
       fastFilterEligible({
         id: 't3_1',
         title: 'Long enough title',
+        postUrl: 'https://www.reddit.com/r/gaming/comments/abc123/title/',
         hasBody: false,
         isNSFW: true,
         isSpoiler: false,
@@ -179,6 +230,7 @@ describe('fastFilterEligible – spoiler', () => {
       fastFilterEligible({
         id: 't3_1',
         title: 'Long enough title',
+        postUrl: 'https://www.reddit.com/r/gaming/comments/abc123/title/',
         hasBody: false,
         isNSFW: false,
         isSpoiler: true,
@@ -194,6 +246,7 @@ describe('fastFilterEligible – short title no body', () => {
       fastFilterEligible({
         id: 't3_1',
         title: 'short',
+        postUrl: 'https://www.reddit.com/r/gaming/comments/abc123/title/',
         hasBody: false,
         isNSFW: false,
         isSpoiler: false,
@@ -209,6 +262,7 @@ describe('fastFilterEligible – low comment count', () => {
       fastFilterEligible({
         id: 't3_1',
         title: 'Long enough title',
+        postUrl: 'https://www.reddit.com/r/gaming/comments/abc123/title/',
         hasBody: false,
         isNSFW: false,
         isSpoiler: false,
@@ -224,6 +278,7 @@ describe('fastFilterEligible – valid post', () => {
       fastFilterEligible({
         id: 't3_1',
         title: 'Long enough title',
+        postUrl: 'https://www.reddit.com/r/gaming/comments/abc123/title/',
         hasBody: false,
         isNSFW: false,
         isSpoiler: false,

@@ -80,6 +80,7 @@ export type PuzzleNextResponse =
       attemptId: string;
       rankIndex: number;
       subredditDisplayName: string;
+      postUrl: string;
       post: { title: string; body?: string; imageUrl?: string };
       numberOfComments: number;
       comments: Array<{ id: string; body: string }>;

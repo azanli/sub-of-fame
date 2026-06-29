@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { router, publicProcedure } from '../trpc';
 import { deriveLaunchContext, resolveRequestedSubreddit } from '../launchContext';
 import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
-import { fastFilterEligible, resolveLadderPage } from '../reddit/ladderPipeline';
+import { fastFilterEligible, resolveLadderPage, resolveLadderPostUrl } from '../reddit/ladderPipeline';
 import { validateComments } from '../reddit/commentValidation';
 import { getProgress, incrementProgress } from '../redis/progressStore';
 import { getAttempt, markAttemptSubmitted, setAttempt } from '../redis/attemptStore';
@@ -114,6 +114,7 @@ const buildReadyResponse = (
   attemptId: string,
   rankIndex: number,
   subredditDisplayName: string,
+  postUrl: string,
   snapshot: PuzzleSnapshot,
   commentOrder: [string, string, string]
 ): Extract<PuzzleNextResponse, { status: 'ready' }> => {
@@ -134,6 +135,7 @@ const buildReadyResponse = (
     attemptId,
     rankIndex,
     subredditDisplayName,
+    postUrl,
     post,
     numberOfComments: snapshot.numberOfComments ?? 0,
     comments: commentOrder.map((commentId) => {
@@ -310,6 +312,7 @@ export const puzzleRouter = router({
           attemptId,
           rankIndex,
           subredditDisplayName,
+          resolveLadderPostUrl(post),
           snapshot,
           commentOrder
         );

@@ -32,6 +32,18 @@ export const spendRedditCall = (budget: NextWorkBudget): void => {
 const isSelfPost = (post: Post): boolean =>
   post.url.includes('reddit.com') && post.url.includes('/comments/');
 
+export const toPostUrl = (post: Post): string => {
+  if (isSelfPost(post)) {
+    return post.url;
+  }
+
+  const { permalink } = post;
+  return permalink.startsWith('http') ? permalink : `https://www.reddit.com${permalink}`;
+};
+
+export const resolveLadderPostUrl = (post: LadderPostSummary): string =>
+  post.postUrl || `https://www.reddit.com/comments/${post.id.replace(/^t3_/, '')}/`;
+
 const getThumbnailUrl = (post: Post): string | undefined => post.thumbnail?.url;
 
 export const normalizeImageUrl = (post: Post): string | undefined => {
@@ -63,6 +75,7 @@ export const buildPostSummary = (post: Post): LadderPostSummary => {
   const summary: LadderPostSummary = {
     id: post.id,
     title: post.title,
+    postUrl: toPostUrl(post),
     hasBody: body !== undefined && body.length >= 50,
     isNSFW: post.nsfw,
     isSpoiler: post.spoiler,

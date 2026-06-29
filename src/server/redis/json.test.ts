@@ -33,7 +33,7 @@ describe('parseJson', () => {
       page: 1,
       startsAfter: null,
       nextAfter: 'cursor_abc',
-      posts: [{ id: 't3_1', title: 'Hello', hasBody: false, isNSFW: false, isSpoiler: false, commentCount: 42 }],
+      posts: [{ id: 't3_1', title: 'Hello', postUrl: 'https://www.reddit.com/r/test/comments/1/hello/', hasBody: false, isNSFW: false, isSpoiler: false, commentCount: 42 }],
       fetchedAt: 1000,
     };
     expect(parseJson<LadderCachePage>(stringifyJson(page))).toEqual(page);

@@ -113,6 +113,7 @@ const makeCtx = (overrides: Partial<TRPCContext> = {}): TRPCContext => ({
 const makePostSummary = () => ({
   id: 't3_abc123',
   title: 'A long enough post title for the puzzle',
+  postUrl: 'https://www.reddit.com/r/askreddit/comments/abc123/title/',
   hasBody: false,
   isNSFW: false,
   isSpoiler: false,
@@ -385,6 +386,7 @@ describe('puzzle.next', () => {
 
     expect(result.rankIndex).toBe(3);
     expect(result.subredditDisplayName).toBe('AskReddit');
+    expect(result.postUrl).toBe('https://www.reddit.com/r/askreddit/comments/abc123/title/');
     expect(result.post).toEqual({
       title: 'A long enough post title for the puzzle',
       imageUrl: 'https://example.com/image.jpg',
