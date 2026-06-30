@@ -2,17 +2,9 @@ import './index.css';
 import './splash.css';
 
 import { requestExpandedMode } from '@devvit/web/client';
-import {
-  StrictMode,
-  useEffect,
-  useRef,
-  useState,
-  type MouseEvent,
-} from 'react';
+import { StrictMode, useEffect, useState, type MouseEvent } from 'react';
 import { createRoot } from 'react-dom/client';
 import { trpcClient } from './trpc';
-
-const FADE_DURATION_MS = 300;
 
 const LOADING_MESSAGES = [
   'Consulting the hivemind...',
@@ -24,7 +16,7 @@ const LOADING_MESSAGES = [
   'Scrambling the comments...',
 ] as const;
 
-type SplashPhase = 'loading' | 'fading' | 'ready' | 'error';
+type SplashPhase = 'loading' | 'ready' | 'error';
 
 const PlayIcon = () => (
   <svg
@@ -44,45 +36,13 @@ const SplashFooter = () => (
   </footer>
 );
 
-const SplashLoadingScreen = ({
-  message,
-  isFading,
+const SplashScreen = ({
+  isLoading,
+  loadingMessage,
 }: {
-  message: string;
-  isFading: boolean;
-}) => (
-  <div
-    className={`relative flex h-full flex-col items-center justify-center gap-6 bg-gray-900 px-6 transition-opacity duration-300 ${
-      isFading ? 'opacity-0' : 'opacity-100'
-    }`}
-  >
-    <img
-      className="mx-auto w-1/2 max-w-[220px] object-contain"
-      src="/snoo.png"
-      alt="Snoo"
-    />
-    <div className="flex flex-col items-center gap-2 text-center">
-      <h1 className="text-3xl font-bold tracking-wide text-white">
-        Sub of Fame
-      </h1>
-      <p className="max-w-xs text-sm text-gray-400">
-        A social psychology game to sharpen your wits.
-      </p>
-    </div>
-    <div className="flex flex-col items-center gap-3">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#ff4500] border-t-transparent" />
-      <p
-        key={message}
-        className="min-h-[1.25rem] animate-pulse text-sm text-gray-300"
-      >
-        {message}
-      </p>
-    </div>
-    <SplashFooter />
-  </div>
-);
-
-const SplashReadyScreen = () => {
+  isLoading: boolean;
+  loadingMessage: string;
+}) => {
   const handleLaunch = (event: MouseEvent<HTMLButtonElement>) => {
     requestExpandedMode(event.nativeEvent, 'game');
   };
@@ -102,16 +62,28 @@ const SplashReadyScreen = () => {
           A social psychology game to sharpen your wits.
         </p>
       </div>
-      <button
-        type="button"
-        onClick={handleLaunch}
-        className="rounded-full bg-[#d93900] px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#c23300] cursor-pointer"
-      >
-        <div className="flex items-center justify-center gap-2">
-          Play
-          <PlayIcon />
+      {isLoading ? (
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#ff4500] border-t-transparent" />
+          <p
+            key={loadingMessage}
+            className="min-h-[1.25rem] animate-pulse text-sm text-gray-300"
+          >
+            {loadingMessage}
+          </p>
         </div>
-      </button>
+      ) : (
+        <button
+          type="button"
+          onClick={handleLaunch}
+          className="rounded-full bg-[#d93900] px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#c23300] cursor-pointer"
+        >
+          <div className="flex items-center justify-center gap-2">
+            Play
+            <PlayIcon />
+          </div>
+        </button>
+      )}
       <SplashFooter />
     </div>
   );
@@ -149,7 +121,6 @@ export const Splash = () => {
     Math.floor(Math.random() * LOADING_MESSAGES.length)
   );
   const [retryCount, setRetryCount] = useState(0);
-  const fadeTimeoutRef = useRef<number | undefined>(undefined);
 
   const handleRetry = () => {
     setPhase('loading');
@@ -162,17 +133,9 @@ export const Splash = () => {
     const bootstrap = async () => {
       try {
         await trpcClient.init.query();
-        if (cancelled) {
-          return;
+        if (!cancelled) {
+          setPhase('ready');
         }
-
-        setPhase('fading');
-
-        fadeTimeoutRef.current = window.setTimeout(() => {
-          if (!cancelled) {
-            setPhase('ready');
-          }
-        }, FADE_DURATION_MS);
       } catch {
         if (!cancelled) {
           setPhase('error');
@@ -184,12 +147,11 @@ export const Splash = () => {
 
     return () => {
       cancelled = true;
-      window.clearTimeout(fadeTimeoutRef.current);
     };
   }, [retryCount]);
 
   useEffect(() => {
-    if (phase !== 'loading' && phase !== 'fading') {
+    if (phase !== 'loading') {
       return;
     }
 
@@ -202,18 +164,14 @@ export const Splash = () => {
     };
   }, [phase]);
 
-  if (phase === 'ready') {
-    return <SplashReadyScreen />;
-  }
-
   if (phase === 'error') {
     return <SplashErrorScreen onRetry={handleRetry} />;
   }
 
   return (
-    <SplashLoadingScreen
-      message={LOADING_MESSAGES[messageIndex] ?? LOADING_MESSAGES[0]}
-      isFading={phase === 'fading'}
+    <SplashScreen
+      isLoading={phase === 'loading'}
+      loadingMessage={LOADING_MESSAGES[messageIndex] ?? LOADING_MESSAGES[0]}
     />
   );
 };
