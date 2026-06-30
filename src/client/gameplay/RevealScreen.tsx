@@ -27,6 +27,40 @@ const CommentIcon = () => (
   </svg>
 );
 
+const ExternalLinkIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-4 w-4 shrink-0"
+    aria-hidden="true"
+  >
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    <polyline points="15 3 21 3 21 9" />
+    <line x1="10" y1="14" x2="21" y2="3" />
+  </svg>
+);
+
+const RightArrowIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-4 w-4 shrink-0"
+    aria-hidden="true"
+  >
+    <path d="m9 18 6-6-6-6" />
+  </svg>
+);
+
 export const RevealScreen = ({
   result,
   puzzle,
@@ -99,7 +133,10 @@ export const RevealScreen = ({
           onClick={() => navigateTo(puzzle.postUrl)}
           className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold rounded-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
         >
-          Open Post
+          <div className="flex items-center justify-center gap-2">
+            Open Post
+            <ExternalLinkIcon />
+          </div>
         </button>
       ) : null}
       <button
@@ -107,7 +144,10 @@ export const RevealScreen = ({
         onClick={onNextLevel}
         className="bg-[#d93900] hover:bg-[#c23300] text-white font-semibold rounded-full px-6 py-2 transition-colors cursor-pointer"
       >
-        Next Challenge
+        <div className="flex items-center justify-center gap-1.5">
+          Next Challenge
+          <RightArrowIcon />
+        </div>
       </button>
     </div>
   </div>
