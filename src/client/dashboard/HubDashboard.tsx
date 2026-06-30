@@ -5,17 +5,13 @@ import { DashboardCard } from './DashboardCard';
 
 type HubDashboardProps = {
   initData: InitResponse;
-  onSelectSubreddit: (subreddit: string) => Promise<void>;
-  isSelecting: boolean;
-  selectingSubreddit: string | null;
+  onSelectSubreddit: (subreddit: string) => void;
   selectionError: string | null;
 };
 
 export const HubDashboard = ({
   initData,
   onSelectSubreddit,
-  isSelecting,
-  selectingSubreddit,
   selectionError,
 }: HubDashboardProps) => {
   const [customSubreddit, setCustomSubreddit] = useState('');
@@ -27,11 +23,11 @@ export const HubDashboard = ({
     // Strip leading 'r/', 'R/', '/r/', or '/R/', then trim whitespace
     const sanitized = customSubreddit.replace(/^\/?r\//i, '').trim();
 
-    if (sanitized.length === 0 || isSelecting) {
+    if (sanitized.length === 0) {
       return;
     }
 
-    void onSelectSubreddit(sanitized);
+    onSelectSubreddit(sanitized);
   };
 
   return (
@@ -73,11 +69,7 @@ export const HubDashboard = ({
                   key={card.subreddit}
                   kind="hydrated"
                   card={card}
-                  isLoading={selectingSubreddit === card.subreddit}
-                  disabled={isSelecting}
-                  onSelect={(subreddit) => {
-                    void onSelectSubreddit(subreddit);
-                  }}
+                  onSelect={onSelectSubreddit}
                 />
               ))
             : CURATED_SUBREDDITS.map((card) => (
@@ -85,11 +77,7 @@ export const HubDashboard = ({
                   key={card.name}
                   kind="static"
                   card={card}
-                  isLoading={selectingSubreddit === card.name}
-                  disabled={isSelecting}
-                  onSelect={(subreddit) => {
-                    void onSelectSubreddit(subreddit);
-                  }}
+                  onSelect={onSelectSubreddit}
                 />
               ))}
         </div>
@@ -112,15 +100,14 @@ export const HubDashboard = ({
                 setCustomSubreddit(event.target.value);
               }}
               placeholder="e.g. r/dadjokes"
-              disabled={isSelecting}
-              className="min-w-0 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 outline-none focus:border-orange-500 disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              className="min-w-0 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 outline-none focus:border-orange-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             />
             <button
               type="submit"
-              disabled={isSelecting || customSubreddit.trim().length === 0}
+              disabled={customSubreddit.trim().length === 0}
               className="shrink-0 rounded-full bg-[#d93900] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#c23300] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSelecting ? 'Loading…' : 'Go'}
+              Go
             </button>
           </div>
           {selectionError !== null && (

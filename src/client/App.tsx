@@ -3,17 +3,32 @@ import type {
   PuzzleNextRequest,
   PuzzleSubmitSuccess,
 } from '../shared/api';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { HubDashboard } from './dashboard/HubDashboard';
 import { GameplayRound } from './gameplay/GameplayRound';
+import { PuzzleGateFromPromise } from './gameplay/PuzzleGateFromPromise';
 import { RevealScreen } from './gameplay/RevealScreen';
+import { StartPuzzleGateSkeleton } from './gameplay/StartPuzzleGateSkeleton';
 import type { ReadyPuzzle } from './gameplay/types';
 import { trpcClient } from './trpc';
+
+type PuzzleLoadFailure =
+  | { type: 'select_failed' }
+  | { type: 'exhausted'; message: string }
+  | { type: 'unplayable'; rankIndex: number; unplayableCount: number }
+  | { type: 'problem'; message: string }
+  | { type: 'network' };
 
 type AppState =
   | { phase: 'booting' }
   | { phase: 'hub_dashboard' }
-  | { phase: 'loading_next'; unplayableCount: number; rankIndex?: number }
+  | {
+      phase: 'loading_next';
+      puzzlePromise: Promise<ReadyPuzzle>;
+      unplayableCount: number;
+      rankIndex?: number;
+      subredditDisplayName: string;
+    }
   | { phase: 'ready'; puzzle: ReadyPuzzle }
   | { phase: 'submitting'; puzzle: ReadyPuzzle }
   | { phase: 'skipping'; puzzle: ReadyPuzzle }
@@ -73,10 +88,6 @@ export const App = ({ preloadedInit }: AppProps) => {
   const [initData, setInitData] = useState<InitResponse | null>(
     preloadedInit ?? null
   );
-  const [isSelecting, setIsSelecting] = useState(false);
-  const [selectingSubreddit, setSelectingSubreddit] = useState<string | null>(
-    null
-  );
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const guestRankIndexRef = useRef(1);
   const retryTimeoutRef = useRef<number | undefined>(undefined);
@@ -85,8 +96,8 @@ export const App = ({ preloadedInit }: AppProps) => {
     preloadedInit ? buildSessionFromInit(preloadedInit) : null
   );
   const loadNextPuzzleRef = useRef<
-    (unplayableCount: number, rankIndex: number | undefined) => Promise<void>
-  >(async () => undefined);
+    (unplayableCount: number, rankIndex: number | undefined) => void
+  >(() => undefined);
 
   useEffect(() => {
     sessionRef.current = session;
@@ -103,14 +114,19 @@ export const App = ({ preloadedInit }: AppProps) => {
         return;
       }
 
-      const delay = 500 + Math.floor(Math.random() * 500);
-      const nextState: Extract<AppState, { phase: 'loading_next' }> = {
-        phase: 'loading_next',
-        unplayableCount: unplayableCount + 1,
-        rankIndex,
-      };
-      setState(nextState);
+      setState((current) => {
+        if (current.phase !== 'loading_next') {
+          return current;
+        }
 
+        return {
+          ...current,
+          unplayableCount: unplayableCount + 1,
+          rankIndex,
+        };
+      });
+
+      const delay = 500 + Math.floor(Math.random() * 500);
       retryTimeoutRef.current = window.setTimeout(() => {
         void loadNextPuzzleRef.current(unplayableCount + 1, rankIndex);
       }, delay);
@@ -118,25 +134,18 @@ export const App = ({ preloadedInit }: AppProps) => {
     []
   );
 
-  const loadNextPuzzle = useCallback(
-    async (unplayableCount: number, rankIndex: number | undefined) => {
+  const fetchNextPuzzle = useCallback(
+    async (
+      unplayableCount: number,
+      rankIndex: number | undefined
+    ): Promise<ReadyPuzzle> => {
       const activeSession = sessionRef.current;
       if (activeSession === null) {
-        return;
+        throw { type: 'network' } satisfies PuzzleLoadFailure;
       }
-
-      const loadingState: Extract<AppState, { phase: 'loading_next' }> = {
-        phase: 'loading_next',
-        unplayableCount,
-      };
-      if (rankIndex !== undefined) {
-        loadingState.rankIndex = rankIndex;
-      }
-      setState(loadingState);
 
       if (activeSession.isHub && activeSession.campaignSubreddit === null) {
-        setState({ phase: 'hub_dashboard' });
-        return;
+        throw { type: 'problem', message: 'No subreddit selected.' } satisfies PuzzleLoadFailure;
       }
 
       const effectiveRankIndex = activeSession.isLoggedIn
@@ -149,32 +158,159 @@ export const App = ({ preloadedInit }: AppProps) => {
         );
 
         if (response.status === 'ready') {
-          setState({ phase: 'ready', puzzle: response });
-          return;
+          return response;
         }
 
         if (response.status === 'exhausted') {
-          setState({ phase: 'exhausted', message: response.message });
-          return;
+          throw {
+            type: 'exhausted',
+            message: response.message,
+          } satisfies PuzzleLoadFailure;
         }
 
         if (response.status === 'unplayable') {
           if (!activeSession.isLoggedIn) {
             guestRankIndexRef.current = response.rankIndex;
           }
-          handleUnplayable(unplayableCount, response.rankIndex);
-          return;
+          throw {
+            type: 'unplayable',
+            rankIndex: response.rankIndex,
+            unplayableCount,
+          } satisfies PuzzleLoadFailure;
         }
 
-        setState({ phase: 'problem', message: response.message });
-      } catch {
+        throw {
+          type: 'problem',
+          message: response.message,
+        } satisfies PuzzleLoadFailure;
+      } catch (error) {
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          'type' in error &&
+          typeof error.type === 'string'
+        ) {
+          throw error;
+        }
+
+        throw { type: 'network' } satisfies PuzzleLoadFailure;
+      }
+    },
+    []
+  );
+
+  const handlePuzzleLoadFailure = useCallback(
+    (error: unknown) => {
+      if (
+        typeof error !== 'object' ||
+        error === null ||
+        !('type' in error) ||
+        typeof error.type !== 'string'
+      ) {
         setState({
           phase: 'problem',
           message: 'A network error occurred. Please try again.',
         });
+        return;
       }
+
+      if (error.type === 'select_failed') {
+        setState({ phase: 'hub_dashboard' });
+        setSelectionError('Could not load that subreddit. Please try another.');
+        return;
+      }
+
+      if (error.type === 'exhausted' && 'message' in error) {
+        setState({
+          phase: 'exhausted',
+          message: typeof error.message === 'string' ? error.message : '',
+        });
+        return;
+      }
+
+      if (
+        error.type === 'unplayable' &&
+        'rankIndex' in error &&
+        'unplayableCount' in error &&
+        typeof error.rankIndex === 'number' &&
+        typeof error.unplayableCount === 'number'
+      ) {
+        handleUnplayable(error.unplayableCount, error.rankIndex);
+        return;
+      }
+
+      if (error.type === 'problem' && 'message' in error) {
+        setState({
+          phase: 'problem',
+          message:
+            typeof error.message === 'string'
+              ? error.message
+              : 'We encountered a problem.',
+        });
+        return;
+      }
+
+      setState({
+        phase: 'problem',
+        message: 'A network error occurred. Please try again.',
+      });
     },
     [handleUnplayable]
+  );
+
+  const beginPuzzleLoad = useCallback(
+    (
+      fetchPromise: Promise<ReadyPuzzle>,
+      unplayableCount: number,
+      rankIndex: number | undefined,
+      subredditDisplayName: string
+    ) => {
+      const puzzlePromise = fetchPromise.then(
+        (puzzle) => {
+          setState({ phase: 'ready', puzzle });
+          return puzzle;
+        },
+        (error: unknown) => {
+          handlePuzzleLoadFailure(error);
+          return new Promise<ReadyPuzzle>(() => {});
+        }
+      );
+
+      const loadingState: Extract<AppState, { phase: 'loading_next' }> = {
+        phase: 'loading_next',
+        puzzlePromise,
+        unplayableCount,
+        subredditDisplayName,
+      };
+      if (rankIndex !== undefined) {
+        loadingState.rankIndex = rankIndex;
+      }
+      setState(loadingState);
+    },
+    [handlePuzzleLoadFailure]
+  );
+
+  const loadNextPuzzle = useCallback(
+    (unplayableCount: number, rankIndex: number | undefined) => {
+      const activeSession = sessionRef.current;
+      if (activeSession === null) {
+        return;
+      }
+
+      if (activeSession.isHub && activeSession.campaignSubreddit === null) {
+        setState({ phase: 'hub_dashboard' });
+        return;
+      }
+
+      const subredditDisplayName = activeSession.campaignSubreddit ?? '';
+      beginPuzzleLoad(
+        fetchNextPuzzle(unplayableCount, rankIndex),
+        unplayableCount,
+        rankIndex,
+        subredditDisplayName
+      );
+    },
+    [beginPuzzleLoad, fetchNextPuzzle]
   );
 
   useEffect(() => {
@@ -248,40 +384,42 @@ export const App = ({ preloadedInit }: AppProps) => {
     };
   }, [applyInit, preloadedInit]);
 
-  const handleSelectSubreddit = useCallback(async (subreddit: string) => {
-    const activeSession = sessionRef.current;
-    if (activeSession === null) {
-      return;
-    }
-
-    setIsSelecting(true);
-    setSelectingSubreddit(subreddit);
-    setSelectionError(null);
-
-    try {
-      const result = await trpcClient.session.selectSubreddit.mutate({
-        subreddit,
-      });
-
-      const updatedSession: SessionContext = {
-        ...activeSession,
-        campaignSubreddit: result.activeSubreddit,
-      };
-      sessionRef.current = updatedSession;
-      setSession(updatedSession);
-
-      if (!activeSession.isLoggedIn) {
-        guestRankIndexRef.current = result.currentRankIndex;
+  const handleSelectSubreddit = useCallback(
+    (subreddit: string) => {
+      const activeSession = sessionRef.current;
+      if (activeSession === null) {
+        return;
       }
 
-      await loadNextPuzzleRef.current(0, undefined);
-    } catch {
-      setSelectionError('Could not load that subreddit. Please try another.');
-    } finally {
-      setIsSelecting(false);
-      setSelectingSubreddit(null);
-    }
-  }, []);
+      setSelectionError(null);
+
+      const puzzlePromise = (async (): Promise<ReadyPuzzle> => {
+        try {
+          const result = await trpcClient.session.selectSubreddit.mutate({
+            subreddit,
+          });
+
+          const updatedSession: SessionContext = {
+            ...activeSession,
+            campaignSubreddit: result.activeSubreddit,
+          };
+          sessionRef.current = updatedSession;
+          setSession(updatedSession);
+
+          if (!activeSession.isLoggedIn) {
+            guestRankIndexRef.current = result.currentRankIndex;
+          }
+
+          return fetchNextPuzzle(0, undefined);
+        } catch {
+          throw { type: 'select_failed' } satisfies PuzzleLoadFailure;
+        }
+      })();
+
+      beginPuzzleLoad(puzzlePromise, 0, undefined, subreddit);
+    },
+    [beginPuzzleLoad, fetchNextPuzzle]
+  );
 
   const handleSubmit = useCallback(
     async (slots: [string, string, string]) => {
@@ -410,17 +548,45 @@ export const App = ({ preloadedInit }: AppProps) => {
     void loadNextPuzzle(0, undefined);
   }, [session, refreshHubDashboard, loadNextPuzzle]);
 
-  if (state.phase === 'booting' || state.phase === 'loading_next') {
+  if (state.phase === 'booting') {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="flex flex-col items-center justify-center min-h-screen gap-4 p-4">
-          <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-          {state.phase === 'loading_next' && state.unplayableCount > 0 && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-              Searching deeper for a worthy puzzle...
-            </p>
-          )}
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
         </div>
+      </div>
+    );
+  }
+
+  if (state.phase === 'loading_next') {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <Suspense
+          fallback={
+            <StartPuzzleGateSkeleton
+              subredditDisplayName={state.subredditDisplayName}
+              onExit={handleDashboard}
+            />
+          }
+        >
+          <PuzzleGateFromPromise
+            puzzlePromise={state.puzzlePromise}
+            onSubmit={(slots) => {
+              void handleSubmit(slots);
+            }}
+            onSkip={() => {
+              void handleSkip();
+            }}
+            isSubmitting={false}
+            isSkipping={false}
+            onDashboard={handleDashboard}
+          />
+        </Suspense>
+        {state.unplayableCount > 0 && (
+          <p className="pointer-events-none fixed inset-x-0 bottom-24 z-20 px-4 text-center text-sm text-gray-500 dark:text-gray-400">
+            Searching deeper for a worthy puzzle...
+          </p>
+        )}
       </div>
     );
   }
@@ -431,8 +597,6 @@ export const App = ({ preloadedInit }: AppProps) => {
         <HubDashboard
           initData={initData}
           onSelectSubreddit={handleSelectSubreddit}
-          isSelecting={isSelecting}
-          selectingSubreddit={selectingSubreddit}
           selectionError={selectionError}
         />
       </div>
