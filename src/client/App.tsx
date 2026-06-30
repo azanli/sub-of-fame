@@ -9,8 +9,8 @@ import { HubDashboardFromPromise } from './dashboard/HubDashboardFromPromise';
 import { HubDashboardSkeleton } from './dashboard/HubDashboardSkeleton';
 import { GameplayRound } from './gameplay/GameplayRound';
 import { PuzzleGateFromPromise } from './gameplay/PuzzleGateFromPromise';
+import { PuzzleLoadTransition } from './gameplay/PuzzleLoadTransition';
 import { RevealScreen } from './gameplay/RevealScreen';
-import { StartPuzzleGateSkeleton } from './gameplay/StartPuzzleGateSkeleton';
 import type { ReadyPuzzle } from './gameplay/types';
 import { trpcClient } from './trpc';
 
@@ -34,6 +34,7 @@ type AppState =
       unplayableCount: number;
       rankIndex?: number;
       subredditDisplayName: string;
+      fromHubSelection: boolean;
     }
   | { phase: 'ready'; puzzle: ReadyPuzzle }
   | { phase: 'submitting'; puzzle: ReadyPuzzle }
@@ -106,6 +107,7 @@ export const App = ({ preloadedInit }: AppProps) => {
   const sessionRef = useRef<SessionContext | null>(
     preloadedInit ? buildSessionFromInit(preloadedInit) : null
   );
+  const loadingFromHubRef = useRef(false);
   const loadNextPuzzleRef = useRef<
     (unplayableCount: number, rankIndex: number | undefined) => void
   >(() => undefined);
@@ -274,14 +276,19 @@ export const App = ({ preloadedInit }: AppProps) => {
       fetchPromise: Promise<ReadyPuzzle>,
       unplayableCount: number,
       rankIndex: number | undefined,
-      subredditDisplayName: string
+      subredditDisplayName: string,
+      fromHubSelection: boolean
     ) => {
+      loadingFromHubRef.current = fromHubSelection;
+
       const puzzlePromise = fetchPromise.then(
         (puzzle) => {
+          loadingFromHubRef.current = false;
           setState({ phase: 'ready', puzzle });
           return puzzle;
         },
         (error: unknown) => {
+          loadingFromHubRef.current = false;
           handlePuzzleLoadFailure(error);
           return new Promise<ReadyPuzzle>(() => {});
         }
@@ -292,6 +299,7 @@ export const App = ({ preloadedInit }: AppProps) => {
         puzzlePromise,
         unplayableCount,
         subredditDisplayName,
+        fromHubSelection,
       };
       if (rankIndex !== undefined) {
         loadingState.rankIndex = rankIndex;
@@ -318,7 +326,8 @@ export const App = ({ preloadedInit }: AppProps) => {
         fetchNextPuzzle(unplayableCount, rankIndex),
         unplayableCount,
         rankIndex,
-        subredditDisplayName
+        subredditDisplayName,
+        loadingFromHubRef.current
       );
     },
     [beginPuzzleLoad, fetchNextPuzzle]
@@ -440,7 +449,7 @@ export const App = ({ preloadedInit }: AppProps) => {
         }
       })();
 
-      beginPuzzleLoad(puzzlePromise, 0, undefined, subreddit);
+      beginPuzzleLoad(puzzlePromise, 0, undefined, subreddit, true);
     },
     [beginPuzzleLoad, fetchNextPuzzle]
   );
@@ -579,9 +588,13 @@ export const App = ({ preloadedInit }: AppProps) => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Suspense
           fallback={
-            <StartPuzzleGateSkeleton
+            <PuzzleLoadTransition
+              fromHubSelection={state.fromHubSelection}
+              initData={initData}
+              loadingSubreddit={state.subredditDisplayName}
               subredditDisplayName={state.subredditDisplayName}
               onExit={handleDashboard}
+              selectionError={selectionError}
             />
           }
         >
