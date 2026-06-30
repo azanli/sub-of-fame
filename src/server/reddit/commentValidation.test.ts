@@ -126,6 +126,14 @@ describe('isBodyValid', () => {
   it('accepts bodies with at least 20 visible characters', () => {
     expect(isBodyValid('abcdefghijklmnopqrst')).toBe(true);
   });
+
+  it('rejects bodies longer than the configured maximum', () => {
+    expect(isBodyValid('a'.repeat(181))).toBe(false);
+  });
+
+  it('accepts bodies at exactly the configured maximum length', () => {
+    expect(isBodyValid('a'.repeat(180))).toBe(true);
+  });
 });
 
 describe('isAuthorValid', () => {
@@ -580,6 +588,46 @@ describe('validateComments – error path', () => {
 
     expect(result.cause).toBeInstanceOf(Error);
     expect(mockSetSnapshot).not.toHaveBeenCalled();
+  });
+});
+
+describe('validateComments – maximum comment length', () => {
+  it('skips overlong comments and selects the next eligible roots', async () => {
+    const shortBody = 'This is a valid comment body with enough visible characters.';
+    mockGetComments.mockReturnValue(
+      makeListing([
+        makeComment({ id: 'c1', score: 100, body: 'a'.repeat(181) }),
+        makeComment({ id: 'c2', score: 50, body: shortBody }),
+        makeComment({ id: 'c3', score: 25, body: shortBody }),
+        makeComment({ id: 'c4', score: 10, body: shortBody }),
+      ])
+    );
+
+    const reddit = { getComments: mockGetComments };
+    const result = await validateComments(validateParams(), reddit, makeBudget());
+
+    expect(result.kind).toBe('valid');
+    if (result.kind !== 'valid') {
+      return;
+    }
+
+    expect(result.snapshot.comments.map((comment) => comment.id)).toEqual(['t1_c2', 't1_c3', 't1_c4']);
+  });
+
+  it('returns invalid when fewer than three comments fit within the maximum length', async () => {
+    const shortBody = 'This is a valid comment body with enough visible characters.';
+    mockGetComments.mockReturnValue(
+      makeListing([
+        makeComment({ id: 'c1', score: 100, body: 'a'.repeat(181) }),
+        makeComment({ id: 'c2', score: 50, body: shortBody }),
+        makeComment({ id: 'c3', score: 25, body: 'b'.repeat(181) }),
+      ])
+    );
+
+    const reddit = { getComments: mockGetComments };
+    const result = await validateComments(validateParams(), reddit, makeBudget());
+
+    expect(result.kind).toBe('invalid');
   });
 });
 

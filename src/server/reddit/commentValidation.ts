@@ -1,6 +1,7 @@
 import type { Comment, Listing, RedditClient } from '@devvit/reddit';
 import { T3 } from '@devvit/shared-types/tid.js';
 import type { NextWorkBudget } from '../../shared/api.js';
+import { MAX_COMMENT_LENGTH } from '../config.js';
 import { SNAPSHOT_TTL_S } from '../redis/keys.js';
 import { getSnapshot, setSnapshot } from '../redis/snapshotStore.js';
 import type { PuzzleCommentSnapshot, PuzzleSnapshot } from '../redis/types.js';
@@ -31,6 +32,9 @@ export const isTopLevel = (comment: Comment, sourcePostId: string): boolean =>
 
 export const isBodyValid = (normalizedBody: string): boolean => {
   if (normalizedBody.length < MIN_BODY_CHARS) {
+    return false;
+  }
+  if (normalizedBody.length > MAX_COMMENT_LENGTH) {
     return false;
   }
   const sentinel = normalizedBody.toLowerCase();

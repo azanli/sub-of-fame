@@ -15,3 +15,6 @@ export const HUB_SUBREDDITS: ReadonlySet<string> = new Set(
     .map((s) => s.trim().toLowerCase())
     .filter((s) => s.length > 0)
 );
+
+/** Maximum normalized comment body length for puzzle eligibility (all three comments). */
+export const MAX_COMMENT_LENGTH = 180;
