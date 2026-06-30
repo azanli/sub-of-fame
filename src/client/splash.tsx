@@ -144,7 +144,10 @@ const SplashErrorScreen = ({ onRetry }: { onRetry: () => void }) => (
 
 export const Splash = () => {
   const [phase, setPhase] = useState<SplashPhase>('loading');
-  const [messageIndex, setMessageIndex] = useState(0);
+  const [messageIndex, setMessageIndex] = useState(
+    // eslint-disable-next-line react-hooks/purity
+    Math.floor(Math.random() * LOADING_MESSAGES.length)
+  );
   const [retryCount, setRetryCount] = useState(0);
   const fadeTimeoutRef = useRef<number | undefined>(undefined);
 
@@ -191,7 +194,7 @@ export const Splash = () => {
     }
 
     const intervalId = window.setInterval(() => {
-      setMessageIndex((current) => (current + 1) % LOADING_MESSAGES.length);
+      setMessageIndex(Math.floor(Math.random() * LOADING_MESSAGES.length));
     }, 2400);
 
     return () => {
