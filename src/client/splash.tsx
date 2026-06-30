@@ -63,10 +63,10 @@ const SplashLoadingScreen = ({
     />
     <div className="flex flex-col items-center gap-2 text-center">
       <h1 className="text-3xl font-bold tracking-wide text-white">
-        Sub <span className="text-[#ff4500]">of</span> Fame
+        Sub of Fame
       </h1>
       <p className="max-w-xs text-sm text-gray-400">
-        A social psychology game for witty Redditors.
+        A social psychology game to sharpen your wits.
       </p>
     </div>
     <div className="flex flex-col items-center gap-3">
@@ -96,10 +96,10 @@ const SplashReadyScreen = () => {
       />
       <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="text-3xl font-bold tracking-wide text-white">
-          Sub <span className="text-[#ff4500]">of</span> Fame
+          Sub of Fame
         </h1>
         <p className="max-w-xs text-sm text-gray-400">
-          A social psychology game for witty Redditors.
+          A social psychology game to sharpen your wits.
         </p>
       </div>
       <button
