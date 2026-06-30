@@ -17,9 +17,26 @@ const FADE_DURATION_MS = 300;
 const LOADING_MESSAGES = [
   'Consulting the hivemind...',
   'Scouting the subreddits...',
+  'Reading the room...',
+  'Weighing the internet...',
+  'Decoding the comment roots...',
+  'Summoning the upvote experts...',
+  'Scrambling the comments...',
 ] as const;
 
 type SplashPhase = 'loading' | 'fading' | 'ready' | 'error';
+
+const PlayIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className="h-4 w-4 shrink-0"
+    aria-hidden="true"
+  >
+    <path d="M8 5v14l11-7z" />
+  </svg>
+);
 
 const SplashFooter = () => (
   <footer className="absolute bottom-3 left-0 right-0 px-4 text-center text-[0.65rem] leading-relaxed text-gray-600">
@@ -90,7 +107,10 @@ const SplashReadyScreen = () => {
         onClick={handleLaunch}
         className="rounded-full bg-[#d93900] px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#c23300] cursor-pointer"
       >
-        Play
+        <div className="flex items-center justify-center gap-2">
+          Play
+          <PlayIcon />
+        </div>
       </button>
       <SplashFooter />
     </div>
