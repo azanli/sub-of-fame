@@ -46,12 +46,12 @@ export const StartPuzzleGate = ({
           >
             <span
               aria-hidden="true"
-              className="text-md text-gray-400 leading-none"
+              className="text-md text-gray-500 dark:text-gray-400 leading-none"
             >
               ×
             </span>
           </button>
-          <p className="truncate text-sm font-medium text-gray-400 tracking-widest ml-2">
+          <p className="truncate text-sm font-medium text-gray-500 dark:text-gray-400 tracking-widest ml-2">
             {formatSubredditLabel(subredditDisplayName)}
           </p>
         </div>
