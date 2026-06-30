@@ -77,6 +77,7 @@ export const DashboardCard = (props: DashboardCardProps) => {
             {props.card.leaderboardRank !== null && (
               <p className="text-xs font-medium text-orange-600 dark:text-orange-400">
                 #{props.card.leaderboardRank}
+                {props.card.leaderboardRank ? ' 🏆' : ''}
               </p>
             )}
           </div>
