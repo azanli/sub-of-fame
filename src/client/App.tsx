@@ -592,8 +592,6 @@ export const App = ({ preloadedInit }: AppProps) => {
               fromHubSelection={state.fromHubSelection}
               initData={initData}
               loadingSubreddit={state.subredditDisplayName}
-              subredditDisplayName={state.subredditDisplayName}
-              onExit={handleDashboard}
               selectionError={selectionError}
             />
           }
