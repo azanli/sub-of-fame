@@ -57,30 +57,48 @@ export const DashboardCard = (props: DashboardCardProps) => {
         alt=""
         className="h-10 w-10 shrink-0 rounded-full object-cover"
       />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex items-start justify-between gap-2">
-          <p className="truncate font-semibold text-gray-900 dark:text-white">
-            r/{displayName}
-          </p>
-          {props.kind === 'hydrated' && (
-            <p className="shrink-0 text-sm text-gray-500 dark:text-gray-400">
-              {accuracy}
-              {accuracy.includes('%') ? ' 🎯' : ''}
-            </p>
-          )}
-        </div>
+      <div
+        className={
+          props.kind === 'hydrated'
+            ? 'grid min-w-0 flex-1 grid-cols-[1fr_auto] items-center gap-x-2 gap-y-1'
+            : 'flex min-w-0 flex-1 flex-col gap-1'
+        }
+      >
+        <p className="truncate font-semibold text-gray-900 dark:text-white">
+          r/{displayName}
+        </p>
         {props.kind === 'hydrated' && (
-          <div className="flex items-center justify-between gap-2">
+          <p className="flex shrink-0 items-center justify-end gap-0.5 text-sm text-gray-500 dark:text-gray-400">
+            <span className="tabular-nums">{accuracy}</span>
+            {accuracy.includes('%') ? (
+              <span
+                className="inline-flex w-4 shrink-0 justify-center ml-1"
+                aria-hidden="true"
+              >
+                🎯
+              </span>
+            ) : null}
+          </p>
+        )}
+        {props.kind === 'hydrated' && (
+          <>
             <p className="text-xs text-gray-500 dark:text-gray-400">
               {props.card.completedRoundCount} Completed
             </p>
             {props.card.leaderboardRank !== null && (
-              <p className="text-xs font-medium text-orange-600 dark:text-orange-400">
-                #{props.card.leaderboardRank}
-                {props.card.leaderboardRank ? ' 🏆' : ''}
+              <p className="flex shrink-0 items-center justify-end gap-0.5 text-xs font-medium text-orange-600 dark:text-orange-400">
+                <span className="tabular-nums">
+                  #{props.card.leaderboardRank}
+                </span>
+                <span
+                  className="inline-flex w-4 shrink-0 justify-center ml-1"
+                  aria-hidden="true"
+                >
+                  🏆
+                </span>
               </p>
             )}
-          </div>
+          </>
         )}
       </div>
     </>
