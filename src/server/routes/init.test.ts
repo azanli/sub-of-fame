@@ -60,6 +60,7 @@ const makeCtx = (overrides: Partial<TRPCContext> = {}): TRPCContext => ({
     getSubredditStyles: vi.fn(),
     getTopPosts: vi.fn(),
     getComments: vi.fn(),
+    getCurrentUsername: vi.fn().mockResolvedValue(undefined),
   },
   userId: undefined,
   subredditName: 'suboffame',
@@ -103,6 +104,8 @@ describe('init — logged-out', () => {
       hostSubreddit: 'suboffame',
       isHub: true,
       activeSubreddit: null,
+      playerName: 'Guest',
+      hasGameData: false,
       userGlobalHiveIQ: null,
       dashboardSubreddits: null,
       activeSubredditMetrics: null,
@@ -125,6 +128,8 @@ describe('init — logged-out', () => {
       hostSubreddit: 'gaming',
       isHub: false,
       activeSubreddit: 'gaming',
+      playerName: 'Guest',
+      hasGameData: false,
       userGlobalHiveIQ: null,
       dashboardSubreddits: null,
       activeSubredditMetrics: null,
@@ -306,6 +311,36 @@ describe('init — logged-in Hub', () => {
       totalSlots: 0,
     });
   });
+
+  it('returns hasGameData true when global totalSlots is greater than 0', async () => {
+    mockGetStats.mockResolvedValue(
+      makeStats({
+        global: { correctSlots: 2, totalSlots: 3 },
+      })
+    );
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.init();
+
+    expect(result.hasGameData).toBe(true);
+  });
+
+  it('returns hasGameData true when progress rankIndex is greater than 1', async () => {
+    mockGetAllProgress.mockResolvedValue({ askreddit: 3 });
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.init();
+
+    expect(result.hasGameData).toBe(true);
+  });
+
+  it('returns hasGameData false for a new player with no stats or progress', async () => {
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.init();
+
+    expect(result.hasGameData).toBe(false);
+  });
 });
 
 describe('init — logged-in Community', () => {
@@ -373,5 +408,26 @@ describe('init — logged-in Community', () => {
 
     expect(result.isHub).toBe(false);
     expect(result.activeSubreddit).toBe('gaming');
+  });
+
+  it('returns hasGameData true when community progress rankIndex is greater than 1', async () => {
+    mockGetProgress.mockResolvedValue(2);
+    const caller = createCaller(
+      makeCtx({ userId: 'user-1', subredditName: 'gaming', surface: 'community' })
+    );
+
+    const result = await caller.init();
+
+    expect(result.hasGameData).toBe(true);
+  });
+
+  it('returns hasGameData false for a new community player', async () => {
+    const caller = createCaller(
+      makeCtx({ userId: 'user-1', subredditName: 'gaming', surface: 'community' })
+    );
+
+    const result = await caller.init();
+
+    expect(result.hasGameData).toBe(false);
   });
 });

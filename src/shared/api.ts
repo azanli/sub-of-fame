@@ -48,6 +48,8 @@ export type InitResponse = {
   hostSubreddit: string;
   isHub: boolean;
   activeSubreddit: string | null;
+  playerName: string;
+  hasGameData: boolean;
   userGlobalHiveIQ: UserGlobalHiveIQMetrics | null;
   dashboardSubreddits: SubredditDashboardCard[] | null;
   activeSubredditMetrics: UserActiveSubredditMetrics | null;

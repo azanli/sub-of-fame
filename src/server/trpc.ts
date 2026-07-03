@@ -6,7 +6,11 @@ import { resolveRedditSurface } from './launchContext';
 export type TRPCContext = {
   reddit: Pick<
     RedditClient,
-    'getSubredditInfoByName' | 'getSubredditStyles' | 'getTopPosts' | 'getComments'
+    | 'getSubredditInfoByName'
+    | 'getSubredditStyles'
+    | 'getTopPosts'
+    | 'getComments'
+    | 'getCurrentUsername'
   >;
   userId: string | undefined;
   subredditName: string;

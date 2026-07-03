@@ -71,17 +71,36 @@ const buildDashboardSubreddits = async (
   return cards.filter((card): card is SubredditDashboardCard => card !== null);
 };
 
+const resolvePlayerName = async (ctx: TRPCContext): Promise<string> => {
+  if (ctx.userId === undefined) {
+    return 'Guest';
+  }
+
+  const username = await ctx.reddit.getCurrentUsername();
+  return username ?? 'Redditor';
+};
+
+const playerHasGameData = (
+  stats: UserStatsProfile,
+  progress: Record<string, number>
+): boolean =>
+  stats.global.totalSlots > 0 ||
+  Object.values(progress).some((rankIndex) => rankIndex > 1);
+
 export const initRouter = router({
   init: publicProcedure.query(async ({ ctx }): Promise<InitResponse> => {
     const launchContext = deriveLaunchContext(ctx.subredditName, ctx.surface);
     const isHub = launchContext.surface === 'hub';
     const hostSubreddit = launchContext.hostSubreddit;
+    const playerName = await resolvePlayerName(ctx);
 
     if (ctx.userId === undefined) {
       return {
         hostSubreddit,
         isHub,
         activeSubreddit: isHub ? null : hostSubreddit,
+        playerName,
+        hasGameData: false,
         userGlobalHiveIQ: null,
         dashboardSubreddits: null,
         activeSubredditMetrics: null,
@@ -107,6 +126,8 @@ export const initRouter = router({
         hostSubreddit,
         isHub: true,
         activeSubreddit: null,
+        playerName,
+        hasGameData: playerHasGameData(stats, progress),
         userGlobalHiveIQ: buildGlobalHiveIQ(stats),
         dashboardSubreddits,
         activeSubredditMetrics: null,
@@ -127,6 +148,8 @@ export const initRouter = router({
       hostSubreddit,
       isHub: false,
       activeSubreddit: hostSubreddit,
+      playerName,
+      hasGameData: playerHasGameData(stats, { [hostSubreddit]: currentRankIndex }),
       userGlobalHiveIQ: buildGlobalHiveIQ(stats),
       dashboardSubreddits: null,
       activeSubredditMetrics: {
