@@ -337,9 +337,11 @@ export const puzzleRouter = router({
           post.id,
           ctx.reddit
         );
-        if (galleryUrls !== undefined && galleryUrls.length > 1) {
-          postPayload.galleryUrls = galleryUrls;
+        if (galleryUrls !== undefined && galleryUrls.length > 0) {
           postPayload.imageUrl = galleryUrls[0];
+          if (galleryUrls.length > 1) {
+            postPayload.galleryUrls = galleryUrls;
+          }
         } else {
           const imageUrl = await resolvePostImageUrl(post.imageUrl, post.id, ctx.reddit);
           if (imageUrl !== undefined) {

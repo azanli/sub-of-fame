@@ -95,6 +95,10 @@ export const upgradeRedditImageUrl = (url: string): string => {
   return url;
 };
 
+/** Upgrades preview URLs and converts them into direct i.redd.it links the webview can load. */
+export const resolveLoadableImageUrl = (url: string): string =>
+  toLoadableRedditImageUrl(upgradeRedditImageUrl(url));
+
 export const isLowResImageUrl = (url: string): boolean => {
   try {
     const parsed = new URL(url);
@@ -159,12 +163,12 @@ export const normalizeImageUrl = (post: Post): string | undefined => {
   }
 
   if (post.url && isDirectImageUrl(post.url)) {
-    return upgradeRedditImageUrl(post.url);
+    return resolveLoadableImageUrl(post.url);
   }
 
   const thumbnail = getThumbnailUrl(post);
   if (thumbnail && thumbnail !== 'default' && thumbnail !== 'self') {
-    return upgradeRedditImageUrl(thumbnail);
+    return resolveLoadableImageUrl(thumbnail);
   }
 
   return undefined;
@@ -180,7 +184,7 @@ export const resolvePostImageUrl = async (
   if (cachedUrl !== undefined) {
     const upgraded = upgradeRedditImageUrl(cachedUrl);
     if (!isLowResImageUrl(upgraded)) {
-      return upgraded;
+      return resolveLoadableImageUrl(upgraded);
     }
   }
 
@@ -193,14 +197,14 @@ export const resolvePostImageUrl = async (
 
     const enriched = await post.getEnrichedThumbnail();
     if (enriched?.image.url !== undefined) {
-      return upgradeRedditImageUrl(enriched.image.url);
+      return resolveLoadableImageUrl(enriched.image.url);
     }
   } catch {
     // Fall back to the cached URL when enrichment fails.
   }
 
   if (cachedUrl !== undefined) {
-    return upgradeRedditImageUrl(cachedUrl);
+    return resolveLoadableImageUrl(cachedUrl);
   }
 
   return undefined;

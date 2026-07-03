@@ -38,6 +38,8 @@ const {
   resolveLadderPage,
   resolveLadderPostUrl,
   resolvePostGalleryUrls,
+  resolvePostImageUrl,
+  resolveLoadableImageUrl,
   toLoadableRedditImageUrl,
   toPostUrl,
   upgradeRedditImageUrl,
@@ -129,6 +131,15 @@ describe('normalizeImageUrl – direct jpg', () => {
   it('returns the jpg URL for a non-self post', () => {
     const post = makePost({ url: 'https://example.com/photo.jpg' });
     expect(normalizeImageUrl(post)).toBe('https://example.com/photo.jpg');
+  });
+});
+
+describe('normalizeImageUrl – preview.redd.it direct link', () => {
+  it('converts preview URLs into loadable i.redd.it links', () => {
+    const post = makePost({
+      url: 'https://preview.redd.it/photo.jpg?width=640&crop=smart&auto=webp&s=abc',
+    });
+    expect(normalizeImageUrl(post)).toBe('https://i.redd.it/photo.jpg');
   });
 });
 
@@ -344,6 +355,55 @@ describe('upgradeRedditImageUrl', () => {
         'https://preview.redd.it/photo.jpg?width=640&crop=smart&auto=webp&s=abc'
       )
     ).toBe('https://preview.redd.it/photo.jpg?auto=webp&s=abc');
+  });
+});
+
+describe('resolveLoadableImageUrl', () => {
+  it('upgrades preview URLs and converts them to i.redd.it', () => {
+    expect(
+      resolveLoadableImageUrl(
+        'https://preview.redd.it/photo.jpg?width=640&crop=smart&auto=webp&s=abc'
+      )
+    ).toBe('https://i.redd.it/photo.jpg');
+  });
+});
+
+describe('resolvePostImageUrl', () => {
+  it('returns a loadable URL for cached preview.redd.it links', async () => {
+    const reddit = {
+      getPostById: vi.fn(),
+    };
+
+    const result = await resolvePostImageUrl(
+      'https://preview.redd.it/photo.jpg?width=640&crop=smart&auto=webp&s=abc',
+      't3_abc123',
+      reddit
+    );
+
+    expect(result).toBe('https://i.redd.it/photo.jpg');
+    expect(reddit.getPostById).not.toHaveBeenCalled();
+  });
+
+  it('enriches low-res cached URLs into loadable links', async () => {
+    const post = makePost({
+      url: 'https://preview.redd.it/photo.jpg?width=140&crop=smart&auto=webp&s=abc',
+    });
+    post.getEnrichedThumbnail = vi.fn().mockResolvedValue({
+      image: {
+        url: 'https://preview.redd.it/photo.jpg?width=640&crop=smart&auto=webp&s=abc',
+      },
+    });
+    const reddit = {
+      getPostById: vi.fn().mockResolvedValue(post),
+    };
+
+    const result = await resolvePostImageUrl(
+      'https://b.thumbs.redditmedia.com/abc123.jpg',
+      't3_abc123',
+      reddit
+    );
+
+    expect(result).toBe('https://i.redd.it/photo.jpg');
   });
 });
 
