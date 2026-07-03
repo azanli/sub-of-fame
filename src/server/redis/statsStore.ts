@@ -62,20 +62,33 @@ export const incrementStats = async (
 };
 
 /**
- * Attempt to deduct one Karma Coin. Rolls back if the balance would go negative.
+ * Attempt to deduct Karma Coins. Rolls back if the balance would go negative.
  */
-export const deductCoin = async (
-  userId: string
+export const deductCoins = async (
+  userId: string,
+  amount: number
 ): Promise<{ ok: true; coins: number } | { ok: false }> => {
+  if (amount <= 0) {
+    const stats = await getStats(userId);
+    return { ok: true, coins: stats.coins };
+  }
+
   const key = statsKey(userId);
   const field = statsCoinsField();
-  const newBalance = await redis.hIncrBy(key, field, -1);
+  const newBalance = await redis.hIncrBy(key, field, -amount);
   if (newBalance < 0) {
-    await redis.hIncrBy(key, field, 1);
+    await redis.hIncrBy(key, field, amount);
     return { ok: false };
   }
   return { ok: true, coins: newBalance };
 };
+
+/**
+ * Attempt to deduct one Karma Coin. Rolls back if the balance would go negative.
+ */
+export const deductCoin = async (
+  userId: string
+): Promise<{ ok: true; coins: number } | { ok: false }> => deductCoins(userId, 1);
 
 /**
  * Read all stats for a user and return them as a structured profile.

@@ -75,11 +75,13 @@ export type SessionSubResponse = {
   activeSubreddit: string;
   currentRankIndex: number;
   subredditMetadata: SubredditDisplayMetadata;
+  /** Updated wallet balance after an unlock charge; null for guests and free selections. */
+  coins: number | null;
 };
 
 export type SessionSubError = {
   status: 'error';
-  code: 'SUBREDDIT_UNAVAILABLE' | 'HOST_SUBREDDIT_LOCKED';
+  code: 'SUBREDDIT_UNAVAILABLE' | 'HOST_SUBREDDIT_LOCKED' | 'INSUFFICIENT_COINS';
   message: string;
 };
 

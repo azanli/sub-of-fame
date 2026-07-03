@@ -6,6 +6,9 @@ const {
   mockResolveSubredditMetadata,
   mockResolveLadderPage,
   mockGetProgress,
+  mockGetAllProgress,
+  mockGetStats,
+  mockDeductCoins,
   mockSetMetadata,
   mockSetProgress,
   mockIncrementProgress,
@@ -13,6 +16,9 @@ const {
   mockResolveSubredditMetadata: vi.fn(),
   mockResolveLadderPage: vi.fn(),
   mockGetProgress: vi.fn(),
+  mockGetAllProgress: vi.fn(),
+  mockGetStats: vi.fn(),
+  mockDeductCoins: vi.fn(),
   mockSetMetadata: vi.fn(),
   mockSetProgress: vi.fn(),
   mockIncrementProgress: vi.fn(),
@@ -28,9 +34,14 @@ vi.mock('../reddit/ladderPipeline.js', () => ({
 
 vi.mock('../redis/progressStore.js', () => ({
   getProgress: mockGetProgress,
+  getAllProgress: mockGetAllProgress,
   setProgress: mockSetProgress,
   incrementProgress: mockIncrementProgress,
-  getAllProgress: vi.fn(),
+}));
+
+vi.mock('../redis/statsStore.js', () => ({
+  getStats: mockGetStats,
+  deductCoins: mockDeductCoins,
 }));
 
 const { appRouter } = await import('../appRouter.js');
@@ -83,6 +94,9 @@ describe('session.selectSubreddit', () => {
     mockResolveSubredditMetadata.mockResolvedValue(curatedMetadata);
     mockResolveLadderPage.mockResolvedValue(makeLadderHit());
     mockGetProgress.mockResolvedValue(1);
+    mockGetAllProgress.mockResolvedValue({});
+    mockGetStats.mockResolvedValue({ global: { correctSlots: 0, totalSlots: 0 }, bySubreddit: {}, coins: 100 });
+    mockDeductCoins.mockResolvedValue({ ok: true, coins: 75 });
   });
 
   it('rejects community surface launches with HOST_SUBREDDIT_LOCKED', async () => {
@@ -108,6 +122,7 @@ describe('session.selectSubreddit', () => {
       activeSubreddit: 'askreddit',
       currentRankIndex: 1,
       subredditMetadata: curatedMetadata,
+      coins: null,
     });
   });
 
@@ -140,8 +155,10 @@ describe('session.selectSubreddit', () => {
       activeSubreddit: 'askreddit',
       currentRankIndex: 4,
       subredditMetadata: curatedMetadata,
+      coins: 100,
     });
     expect(mockGetProgress).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockDeductCoins).not.toHaveBeenCalled();
     expect(mockSetProgress).not.toHaveBeenCalled();
     expect(mockIncrementProgress).not.toHaveBeenCalled();
   });
@@ -204,6 +221,7 @@ describe('session.selectSubreddit', () => {
 
     expect(result.currentRankIndex).toBe(1);
     expect(mockGetProgress).not.toHaveBeenCalled();
+    expect(result.coins).toBeNull();
   });
 
   it('defaults currentRankIndex to 1 when logged-in user has no progress', async () => {
@@ -213,5 +231,46 @@ describe('session.selectSubreddit', () => {
     const result = await caller.session.selectSubreddit({ subreddit: 'askreddit' });
 
     expect(result.currentRankIndex).toBe(1);
+  });
+
+  it('charges coins to unlock a new custom subreddit', async () => {
+    mockResolveSubredditMetadata.mockResolvedValue(customMetadata);
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.session.selectSubreddit({ subreddit: 'customsub' });
+
+    expect(result).toEqual({
+      activeSubreddit: 'customsub',
+      currentRankIndex: 1,
+      subredditMetadata: customMetadata,
+      coins: 75,
+    });
+    expect(mockDeductCoins).toHaveBeenCalledWith('user-1', 25);
+  });
+
+  it('does not charge coins when custom subreddit progress already exists', async () => {
+    mockResolveSubredditMetadata.mockResolvedValue(customMetadata);
+    mockGetAllProgress.mockResolvedValue({ customsub: 2 });
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.session.selectSubreddit({ subreddit: 'customsub' });
+
+    expect(result.coins).toBe(100);
+    expect(mockDeductCoins).not.toHaveBeenCalled();
+  });
+
+  it('returns INSUFFICIENT_COINS when the wallet is too low for a custom unlock', async () => {
+    mockResolveSubredditMetadata.mockResolvedValue(customMetadata);
+    mockGetStats.mockResolvedValue({ global: { correctSlots: 0, totalSlots: 0 }, bySubreddit: {}, coins: 10 });
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    await expect(caller.session.selectSubreddit({ subreddit: 'customsub' })).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof TRPCError &&
+        error.code === 'PRECONDITION_FAILED' &&
+        error.message === 'INSUFFICIENT_COINS'
+    );
+
+    expect(mockDeductCoins).not.toHaveBeenCalled();
   });
 });

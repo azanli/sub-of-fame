@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import type { InitResponse } from '../../shared/api';
+import { SUBREDDIT_UNLOCK_COST } from '../../shared/coins';
 import { CURATED_SUBREDDITS } from '../../shared/subreddits';
 import { DAILY_CHALLENGE_SUBREDDIT } from '../../shared/dailyChallenge';
 import { resolveLoadingCard } from '../gameplay/resolveLoadingCard';
@@ -94,6 +95,11 @@ export const HubDashboard = ({
 
     return resolveLoadingCard(loadingSubreddit, initData);
   }, [hasMatchingLoadingCard, initData, isLoadingSelection, loadingSubreddit]);
+
+  const cannotAffordUnlock =
+    isLoggedIn &&
+    initData.coins !== null &&
+    initData.coins < SUBREDDIT_UNLOCK_COST;
 
   return (
     <div className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 p-4">
@@ -203,7 +209,7 @@ export const HubDashboard = ({
           >
             Custom Subreddit
           </label>
-          <div className="flex gap-2">
+          <div className="relative flex gap-2">
             <input
               autoComplete="off"
               autoCorrect="off"
@@ -217,16 +223,35 @@ export const HubDashboard = ({
               }}
               placeholder="e.g. r/dadjokes"
               disabled={isLoadingSelection}
-              className="min-w-0 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 outline-none focus:border-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              className="peer min-w-0 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 outline-none focus:border-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             />
+            {cannotAffordUnlock ? (
+              <p
+                aria-live="polite"
+                className="pointer-events-none absolute left-0 top-full z-10 mt-1 w-full text-sm text-orange-700 opacity-0 transition-opacity peer-focus:opacity-100 dark:text-orange-300"
+              >
+                You need {SUBREDDIT_UNLOCK_COST} coins to unlock a custom
+                subreddit.
+              </p>
+            ) : null}
             <button
               type="submit"
               disabled={
-                isLoadingSelection || customSubreddit.trim().length === 0
+                isLoadingSelection ||
+                customSubreddit.trim().length === 0 ||
+                cannotAffordUnlock
               }
               className="shrink-0 rounded-full bg-[#d93900] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#c23300] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Go
+              <span className="inline-flex items-center gap-1">
+                Unlock
+                <img
+                  src="/coin.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className="h-4 w-4"
+                />
+              </span>
             </button>
           </div>
           {selectionError !== null && (

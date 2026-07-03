@@ -3,7 +3,9 @@ import type {
   PuzzleNextRequest,
   PuzzleSubmitSuccess,
 } from '../shared/api';
+import { SUBREDDIT_UNLOCK_COST } from '../shared/coins';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { TRPCClientError } from '@trpc/client';
 import { HubDashboard } from './dashboard/HubDashboard';
 import { HubDashboardFromPromise } from './dashboard/HubDashboardFromPromise';
 import { HubDashboardSkeleton } from './dashboard/HubDashboardSkeleton';
@@ -16,6 +18,7 @@ import { trpcClient } from './trpc';
 
 type PuzzleLoadFailure =
   | { type: 'select_failed' }
+  | { type: 'insufficient_coins' }
   | { type: 'exhausted'; message: string }
   | { type: 'unplayable'; rankIndex: number; unplayableCount: number }
   | { type: 'problem'; message: string }
@@ -233,6 +236,14 @@ export const App = ({ preloadedInit }: AppProps) => {
         return;
       }
 
+      if (error.type === 'insufficient_coins') {
+        setState({ phase: 'hub_dashboard' });
+        setSelectionError(
+          `You need ${SUBREDDIT_UNLOCK_COST} coins to unlock a custom subreddit.`
+        );
+        return;
+      }
+
       if (error.type === 'exhausted' && 'message' in error) {
         setState({
           phase: 'exhausted',
@@ -443,8 +454,21 @@ export const App = ({ preloadedInit }: AppProps) => {
             guestRankIndexRef.current = result.currentRankIndex;
           }
 
+          if (result.coins !== null) {
+            setInitData((current) =>
+              current === null ? current : { ...current, coins: result.coins }
+            );
+          }
+
           return fetchNextPuzzle(0, undefined);
-        } catch {
+        } catch (error) {
+          if (
+            error instanceof TRPCClientError &&
+            error.message === 'INSUFFICIENT_COINS'
+          ) {
+            throw { type: 'insufficient_coins' } satisfies PuzzleLoadFailure;
+          }
+
           throw { type: 'select_failed' } satisfies PuzzleLoadFailure;
         }
       })();

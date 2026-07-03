@@ -25,6 +25,7 @@ const {
   WELCOME_COINS,
   computeHiveIQ,
   deductCoin,
+  deductCoins,
   ensureWelcomeCoins,
   incrementStats,
   getStats,
@@ -95,6 +96,26 @@ describe('incrementStats', () => {
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'sub:askreddit:total', 3);
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'global:correct', 0);
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'coins', 0);
+  });
+});
+
+describe('deductCoins', () => {
+  it('returns the new balance when the wallet has enough coins', async () => {
+    mockHIncrBy.mockResolvedValueOnce(75);
+    const result = await deductCoins('u1', 25);
+
+    expect(result).toEqual({ ok: true, coins: 75 });
+    expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'coins', -25);
+    expect(mockHIncrBy).toHaveBeenCalledTimes(1);
+  });
+
+  it('rolls back and returns ok:false when the wallet is too low', async () => {
+    mockHIncrBy.mockResolvedValueOnce(-5).mockResolvedValueOnce(20);
+    const result = await deductCoins('u1', 25);
+
+    expect(result).toEqual({ ok: false });
+    expect(mockHIncrBy).toHaveBeenNthCalledWith(1, 'user:u1:stats', 'coins', -25);
+    expect(mockHIncrBy).toHaveBeenNthCalledWith(2, 'user:u1:stats', 'coins', 25);
   });
 });
 
