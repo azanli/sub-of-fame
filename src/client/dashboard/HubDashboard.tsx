@@ -97,6 +97,35 @@ export const HubDashboard = ({
 
   return (
     <div className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 p-4">
+      <div className="flex items-center">
+        {isLoggedIn && initData.coins !== null && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-4 py-1.5 text-sm font-semibold text-orange-800 dark:border-orange-800 dark:bg-orange-950/60 dark:text-orange-200">
+            <img
+              src="/coin.svg"
+              alt=""
+              aria-hidden="true"
+              className="h-5 w-5"
+            />
+            <span className="tabular-nums">{initData.coins}</span>
+            <span>Coins</span>
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => undefined}
+          className="ml-auto text-sm font-semibold rounded-lg px-3 py-1.5 border transition-colors cursor-pointer
+    text-[#d93900] border-[#d93900] bg-[#d93900]/10 hover:text-[#c23300] hover:border-[#c23300] hover:bg-[#d93900]/20
+    dark:text-orange-400 dark:border-orange-400 dark:bg-orange-400/10 dark:hover:text-orange-300 dark:hover:border-orange-300 dark:hover:bg-orange-400/20"
+        >
+          <span className="inline-flex items-center gap-1">
+            Leaderboard
+            <span className="text-xs" aria-hidden="true">
+              🏆
+            </span>
+          </span>
+        </button>
+      </div>
+
       <div className="flex flex-col gap-2">
         {/* <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 border-gray-200 dark:border-gray-600">
           <img

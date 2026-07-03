@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="coinRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFE57F" />
+      <stop offset="40%" stop-color="#FFC107" />
+      <stop offset="70%" stop-color="#B78103" />
+      <stop offset="100%" stop-color="#684800" />
+    </linearGradient>
+
+    <linearGradient id="coinFace" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF9C4" />
+      <stop offset="50%" stop-color="#FFD54F" />
+      <stop offset="100%" stop-color="#FFA000" />
+    </linearGradient>
+
+    <linearGradient id="snooEmblem" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7D5600" />
+      <stop offset="50%" stop-color="#B78103" />
+      <stop offset="100%" stop-color="#FFD54F" />
+    </linearGradient>
+
+    <filter id="dropShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#000000" flood-opacity="0.4" />
+    </filter>
+  </defs>
+
+  <g filter="url(#dropShadow)">
+    
+    <circle cx="256" cy="256" r="230" fill="url(#coinRim)" />
+    
+    <circle cx="256" cy="256" r="210" fill="#684800" opacity="0.3" />
+    <circle cx="256" cy="256" r="206" fill="url(#coinFace)" />
+    
+    <circle cx="256" cy="256" r="186" fill="none" stroke="#DCA204" stroke-width="4" stroke-dasharray="12 8" opacity="0.6" />
+
+    <circle cx="256" cy="256" r="145" fill="#FFE082" opacity="0.2" />
+
+    <g transform="translate(0, 10)">
+      <path d="M 256,180 L 285,120" stroke="url(#snooEmblem)" stroke-width="14" stroke-linecap="round" fill="none" />
+      
+      <circle cx="295" cy="110" r="18" fill="url(#snooEmblem)" />
+
+      <circle cx="145" cy="235" r="22" fill="url(#snooEmblem)" />
+      
+      <circle cx="367" cy="235" r="22" fill="url(#snooEmblem)" />
+
+      <ellipse cx="256" cy="245" rx="100" ry="72" fill="url(#snooEmblem)" />
+
+      <circle cx="215" cy="245" r="14" fill="#FFD54F" />
+      
+      <circle cx="297" cy="245" r="14" fill="#FFD54F" />
+
+      <path d="M 230,275 Q 256,295 282,275" fill="none" stroke="#FFD54F" stroke-width="8" stroke-linecap="round" />
+    </g>
+    <path d="M 60,160 A 220,220 0 0,1 400,60 A 204,204 0 0,0 76,210 Z" fill="#FFFFFF" opacity="0.25" />
+    
+  </g>
+</svg>

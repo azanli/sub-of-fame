@@ -2,11 +2,15 @@ import { redis } from '@devvit/web/server';
 import type { UserStatsProfile } from '../../shared/api';
 import {
   statsKey,
+  statsCoinsField,
   statsGlobalCorrectField,
   statsGlobalTotalField,
   statsSubCorrectField,
   statsSubTotalField,
 } from './keys';
+
+/** Welcome balance granted once when a user has no coins field yet. */
+export const WELCOME_COINS = 3;
 
 /**
  * Compute Hive IQ from raw counters.
@@ -19,22 +23,58 @@ export const computeHiveIQ = (correctSlots: number, totalSlots: number): number 
 };
 
 /**
+ * Grant the welcome coin balance on first access. Idempotent for existing wallets.
+ */
+export const ensureWelcomeCoins = async (userId: string): Promise<number> => {
+  const key = statsKey(userId);
+  const field = statsCoinsField();
+  const raw = await redis.hGet(key, field);
+  if (raw !== undefined) {
+    const parsed = parseInt(raw, 10);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  await redis.hSet(key, { [field]: String(WELCOME_COINS) });
+  return WELCOME_COINS;
+};
+
+/**
  * Increment stats counters atomically after a successful submit.
  * total always advances by 3 (one round = 3 slots); correct advances by score (0–3).
+ * coins advance by score (0–3), matching correctly ranked slots.
  * Uses HINCRBY so missing fields start at 0 automatically.
  */
 export const incrementStats = async (
   userId: string,
   subredditName: string,
   correctSlots: number
-): Promise<void> => {
+): Promise<number> => {
   const key = statsKey(userId);
-  await Promise.all([
+  const [, , , , coins] = await Promise.all([
     redis.hIncrBy(key, statsGlobalCorrectField(), correctSlots),
     redis.hIncrBy(key, statsGlobalTotalField(), 3),
     redis.hIncrBy(key, statsSubCorrectField(subredditName), correctSlots),
     redis.hIncrBy(key, statsSubTotalField(subredditName), 3),
+    redis.hIncrBy(key, statsCoinsField(), correctSlots),
   ]);
+
+  return coins;
+};
+
+/**
+ * Attempt to deduct one Karma Coin. Rolls back if the balance would go negative.
+ */
+export const deductCoin = async (
+  userId: string
+): Promise<{ ok: true; coins: number } | { ok: false }> => {
+  const key = statsKey(userId);
+  const field = statsCoinsField();
+  const newBalance = await redis.hIncrBy(key, field, -1);
+  if (newBalance < 0) {
+    await redis.hIncrBy(key, field, 1);
+    return { ok: false };
+  }
+  return { ok: true, coins: newBalance };
 };
 
 /**
@@ -76,5 +116,6 @@ export const getStats = async (userId: string): Promise<UserStatsProfile> => {
       totalSlots: parseField(statsGlobalTotalField()),
     },
     bySubreddit,
+    coins: parseField(statsCoinsField()),
   };
 };

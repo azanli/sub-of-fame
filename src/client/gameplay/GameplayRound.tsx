@@ -16,6 +16,7 @@ type GameplayRoundProps = {
   isSubmitting: boolean;
   isSkipping: boolean;
   onDashboard: () => void;
+  coinBalance: number | null;
 };
 
 type GameplayRoundInnerProps = GameplayRoundProps;
@@ -27,6 +28,7 @@ const GameplayRoundInner = ({
   isSubmitting,
   isSkipping,
   onDashboard,
+  coinBalance,
 }: GameplayRoundInnerProps) => {
   const allottedSeconds = useMemo(
     () => calculatePuzzleTimer(puzzle.comments),
@@ -130,6 +132,7 @@ const GameplayRoundInner = ({
       onTap={isSubmitting || isSkipping ? () => undefined : handleTap}
       onSkip={handleSkip}
       isSkipping={isSubmitting || isSkipping}
+      coinBalance={coinBalance}
     />
   );
 };
@@ -141,6 +144,7 @@ export const GameplayRound = ({
   isSubmitting,
   isSkipping,
   onDashboard,
+  coinBalance,
 }: GameplayRoundProps) => (
   <GameplayRoundInner
     key={puzzle.attemptId}
@@ -150,5 +154,6 @@ export const GameplayRound = ({
     isSubmitting={isSubmitting}
     isSkipping={isSkipping}
     onDashboard={onDashboard}
+    coinBalance={coinBalance}
   />
 );

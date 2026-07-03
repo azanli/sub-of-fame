@@ -8,6 +8,7 @@ type PerformanceCounters = {
 export type UserStatsProfile = {
   global: PerformanceCounters;
   bySubreddit: Record<string, PerformanceCounters>;
+  coins: number;
 };
 
 export type UserGlobalHiveIQMetrics = {
@@ -58,6 +59,8 @@ export type InitResponse = {
   activeSubreddit: string | null;
   playerName: string;
   hasGameData: boolean;
+  /** Logged-in wallet balance; null for guests. */
+  coins: number | null;
   userGlobalHiveIQ: UserGlobalHiveIQMetrics | null;
   dashboardSubreddits: SubredditDashboardCard[] | null;
   activeSubredditMetrics: UserActiveSubredditMetrics | null;
@@ -135,6 +138,8 @@ export type PuzzleSubmitSuccess = {
   }>;
   userHiveIQ: UserActiveSubredditMetrics | null;
   nextRankIndex: number;
+  /** Updated wallet balance after earning coins; null for guests. */
+  coins: number | null;
 };
 
 export type PuzzleSubmitErrorCode =
@@ -163,11 +168,17 @@ export type PuzzleSkipRequest = {
 export type PuzzleSkipSuccess = {
   status: 'skipped';
   nextRankIndex: number;
+  /** Updated wallet balance after the skip cost; null for guests. */
+  coins: number | null;
 };
+
+export type PuzzleSkipErrorCode =
+  | Exclude<PuzzleSubmitErrorCode, 'INVALID_SLOT_PERMUTATION'>
+  | 'INSUFFICIENT_COINS';
 
 export type PuzzleSkipError = {
   status: 'error';
-  code: Exclude<PuzzleSubmitErrorCode, 'INVALID_SLOT_PERMUTATION'>;
+  code: PuzzleSkipErrorCode;
   message: string;
   nextAction: PuzzleSubmitError['nextAction'];
   currentRankIndex?: number;

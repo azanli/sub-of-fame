@@ -96,3 +96,6 @@ export const statsSubCorrectField = (subredditName: string): string =>
 /** `sub:{subredditName}:total` */
 export const statsSubTotalField = (subredditName: string): string =>
   `sub:${subredditName}:total`;
+
+/** `coins` — Karma Coin wallet balance (integer string) */
+export const statsCoinsField = (): string => 'coins';

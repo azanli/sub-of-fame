@@ -18,7 +18,7 @@ import { getRankIndex, advanceRankIndex } from '../redis/rankProgress';
 import { getAttempt, markAttemptSubmitted, setAttempt } from '../redis/attemptStore';
 import { getSnapshot } from '../redis/snapshotStore';
 import { acquireSubmitLock } from '../redis/submitLockStore';
-import { computeHiveIQ, getStats, incrementStats } from '../redis/statsStore';
+import { computeHiveIQ, deductCoin, getStats, incrementStats } from '../redis/statsStore';
 import { updateLeaderboard } from '../redis/leaderboardStore';
 import { ATTEMPT_TTL_S } from '../redis/keys';
 import type { PuzzleAttemptOwner, PuzzleSnapshot } from '../redis/types';
@@ -546,9 +546,11 @@ export const puzzleRouter = router({
 
       let nextRankIndex: number;
       let userHiveIQ: UserActiveSubredditMetrics | null;
+      let coins: number | null = null;
 
       if (attempt.owner.kind === 'user') {
-        await incrementStats(attempt.owner.userId, attempt.subreddit, score);
+        const updatedCoins = await incrementStats(attempt.owner.userId, attempt.subreddit, score);
+        coins = updatedCoins;
         nextRankIndex = await advanceRankIndex(attempt.owner.userId, attempt.subreddit);
         await updateLeaderboard(attempt.subreddit, attempt.owner.userId, attempt.rankIndex);
 
@@ -572,6 +574,7 @@ export const puzzleRouter = router({
         slots: buildRevealSlots(input.slots, snapshot),
         userHiveIQ,
         nextRankIndex,
+        coins,
       };
     }),
 
@@ -631,6 +634,17 @@ export const puzzleRouter = router({
         }
       }
 
+      if (attempt.owner.kind === 'user') {
+        const stats = await getStats(attempt.owner.userId);
+        if (stats.coins < 1) {
+          return skipError(
+            'INSUFFICIENT_COINS',
+            'You need at least 1 Karma Coin to skip this puzzle.',
+            'resubmit_valid_slots'
+          );
+        }
+      }
+
       const lockAcquired = await acquireSubmitLock(input.attemptId);
       if (!lockAcquired) {
         return skipError(
@@ -638,6 +652,20 @@ export const puzzleRouter = router({
           'A duplicate skip was detected.',
           'request_next_puzzle'
         );
+      }
+
+      let coins: number | null = null;
+
+      if (attempt.owner.kind === 'user') {
+        const deduction = await deductCoin(attempt.owner.userId);
+        if (!deduction.ok) {
+          return skipError(
+            'INSUFFICIENT_COINS',
+            'You need at least 1 Karma Coin to skip this puzzle.',
+            'resubmit_valid_slots'
+          );
+        }
+        coins = deduction.coins;
       }
 
       await markAttemptSubmitted(attempt);
@@ -650,6 +678,7 @@ export const puzzleRouter = router({
       return {
         status: 'skipped',
         nextRankIndex,
+        coins,
       };
     }),
 });

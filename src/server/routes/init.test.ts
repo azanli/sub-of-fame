@@ -9,12 +9,14 @@ const {
   mockGetStats,
   mockResolveSubredditMetadata,
   mockGetLeaderboardRank,
+  mockEnsureWelcomeCoins,
 } = vi.hoisted(() => ({
   mockGetAllProgress: vi.fn(),
   mockGetProgress: vi.fn(),
   mockGetStats: vi.fn(),
   mockResolveSubredditMetadata: vi.fn(),
   mockGetLeaderboardRank: vi.fn(),
+  mockEnsureWelcomeCoins: vi.fn(),
 }));
 
 vi.mock('../reddit/resolveSubredditMetadata.js', () => ({
@@ -33,6 +35,7 @@ vi.mock('../redis/statsStore.js', async (importOriginal) => {
   return {
     ...original,
     getStats: mockGetStats,
+    ensureWelcomeCoins: mockEnsureWelcomeCoins,
   };
 });
 
@@ -71,16 +74,19 @@ const makeCtx = (overrides: Partial<TRPCContext> = {}): TRPCContext => ({
 const emptyStats = (): UserStatsProfile => ({
   global: { correctSlots: 0, totalSlots: 0 },
   bySubreddit: {},
+  coins: 0,
 });
 
 const makeStats = (
   overrides: {
     global?: { correctSlots: number; totalSlots: number };
     bySubreddit?: Record<string, { correctSlots: number; totalSlots: number }>;
+    coins?: number;
   } = {}
 ): UserStatsProfile => ({
   global: overrides.global ?? { correctSlots: 0, totalSlots: 0 },
   bySubreddit: overrides.bySubreddit ?? {},
+  coins: overrides.coins ?? 0,
 });
 
 describe('init — logged-out', () => {
@@ -93,6 +99,7 @@ describe('init — logged-out', () => {
     mockGetAllProgress.mockResolvedValue({});
     mockGetStats.mockResolvedValue(emptyStats());
     mockGetProgress.mockResolvedValue(1);
+    mockEnsureWelcomeCoins.mockResolvedValue(3);
   });
 
   it('returns null for all user fields on logged-out Hub', async () => {
@@ -106,6 +113,7 @@ describe('init — logged-out', () => {
       activeSubreddit: null,
       playerName: 'Guest',
       hasGameData: false,
+      coins: null,
       userGlobalHiveIQ: null,
       dashboardSubreddits: null,
       activeSubredditMetrics: null,
@@ -131,6 +139,7 @@ describe('init — logged-out', () => {
       activeSubreddit: 'gaming',
       playerName: 'Guest',
       hasGameData: false,
+      coins: null,
       userGlobalHiveIQ: null,
       dashboardSubreddits: null,
       activeSubredditMetrics: null,
@@ -154,6 +163,7 @@ describe('init — logged-in Hub', () => {
     mockGetAllProgress.mockResolvedValue({});
     mockGetStats.mockResolvedValue(emptyStats());
     mockGetProgress.mockResolvedValue(1);
+    mockEnsureWelcomeCoins.mockResolvedValue(3);
   });
 
   it('includes all CURATED_SUBREDDITS names in dashboardSubreddits', async () => {
@@ -161,6 +171,8 @@ describe('init — logged-in Hub', () => {
 
     const result = await caller.init();
 
+    expect(result.coins).toBe(3);
+    expect(mockEnsureWelcomeCoins).toHaveBeenCalledWith('user-1');
     expect(result.isHub).toBe(true);
     expect(result.activeSubreddit).toBeNull();
     expect(result.activeSubredditMetrics).toBeNull();
@@ -384,6 +396,7 @@ describe('init — logged-in Community', () => {
     mockGetAllProgress.mockResolvedValue({});
     mockGetStats.mockResolvedValue(emptyStats());
     mockGetProgress.mockResolvedValue(1);
+    mockEnsureWelcomeCoins.mockResolvedValue(3);
   });
 
   it('returns activeSubredditMetrics with currentRankIndex and userSubredditHiveIQ', async () => {

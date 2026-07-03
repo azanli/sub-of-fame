@@ -14,6 +14,7 @@ import {
   statsGlobalTotalField,
   statsSubCorrectField,
   statsSubTotalField,
+  statsCoinsField,
   METADATA_TTL_S,
   LADDER_PAGE_TTL_S,
   LADDER_CURSORS_TTL_S,
@@ -92,6 +93,10 @@ describe('stats field builders', () => {
 
   it('statsSubTotalField builds the correct field', () => {
     expect(statsSubTotalField('askreddit')).toBe('sub:askreddit:total');
+  });
+
+  it('statsCoinsField returns coins', () => {
+    expect(statsCoinsField()).toBe('coins');
   });
 });
 

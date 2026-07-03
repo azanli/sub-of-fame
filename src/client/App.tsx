@@ -473,6 +473,11 @@ export const App = ({ preloadedInit }: AppProps) => {
           if (session !== null && !session.isLoggedIn) {
             guestRankIndexRef.current = result.nextRankIndex;
           }
+          if (result.coins !== null) {
+            setInitData((current) =>
+              current === null ? current : { ...current, coins: result.coins }
+            );
+          }
           setState({ phase: 'revealed', result, puzzle });
           return;
         }
@@ -515,10 +520,20 @@ export const App = ({ preloadedInit }: AppProps) => {
         if (session !== null && !session.isLoggedIn) {
           guestRankIndexRef.current = result.nextRankIndex;
         }
+        if (result.coins !== null) {
+          setInitData((current) =>
+            current === null ? current : { ...current, coins: result.coins }
+          );
+        }
         void loadNextPuzzleRef.current(
           0,
           session?.isLoggedIn ? undefined : result.nextRankIndex
         );
+        return;
+      }
+
+      if (result.code === 'INSUFFICIENT_COINS') {
+        setState({ phase: 'ready', puzzle });
         return;
       }
 
@@ -607,6 +622,7 @@ export const App = ({ preloadedInit }: AppProps) => {
             isSubmitting={false}
             isSkipping={false}
             onDashboard={handleDashboard}
+            coinBalance={initData?.coins ?? null}
           />
         </Suspense>
         {state.unplayableCount > 0 && (
@@ -705,6 +721,7 @@ export const App = ({ preloadedInit }: AppProps) => {
           isSubmitting={state.phase === 'submitting'}
           isSkipping={state.phase === 'skipping'}
           onDashboard={handleDashboard}
+          coinBalance={initData?.coins ?? null}
         />
       </div>
     );

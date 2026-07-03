@@ -17,6 +17,7 @@ const {
   mockIncrementStats,
   mockGetStats,
   mockUpdateLeaderboard,
+  mockDeductCoin,
 } = vi.hoisted(() => ({
   mockResolveSubredditMetadata: vi.fn(),
   mockResolveLadderPage: vi.fn(),
@@ -32,6 +33,7 @@ const {
   mockIncrementStats: vi.fn(),
   mockGetStats: vi.fn(),
   mockUpdateLeaderboard: vi.fn(),
+  mockDeductCoin: vi.fn(),
 }));
 
 vi.mock('../reddit/resolveSubredditMetadata.js', () => ({
@@ -78,6 +80,7 @@ vi.mock('../redis/statsStore.js', async (importOriginal) => {
     ...original,
     incrementStats: mockIncrementStats,
     getStats: mockGetStats,
+    deductCoin: mockDeductCoin,
   };
 });
 
@@ -510,12 +513,13 @@ describe('puzzle.submit', () => {
     mockMarkAttemptSubmitted.mockResolvedValue(undefined);
     mockGetProgress.mockResolvedValue(3);
     mockIncrementProgress.mockResolvedValue(4);
-    mockIncrementStats.mockResolvedValue(undefined);
+    mockIncrementStats.mockResolvedValue(5);
     mockGetStats.mockResolvedValue({
       global: { correctSlots: 3, totalSlots: 6 },
       bySubreddit: {
         askreddit: { correctSlots: 3, totalSlots: 6 },
       },
+      coins: 5,
     });
     mockUpdateLeaderboard.mockResolvedValue(undefined);
   });
@@ -717,6 +721,7 @@ describe('puzzle.submit', () => {
       userSubredditHiveIQ: 50,
       currentRankIndex: 4,
     });
+    expect(result.coins).toBe(5);
   });
 
   it('does not write user stats or leaderboard for guest attempts', async () => {
@@ -739,6 +744,7 @@ describe('puzzle.submit', () => {
 
     expect(result.userHiveIQ).toBeNull();
     expect(result.nextRankIndex).toBe(3);
+    expect(result.coins).toBeNull();
   });
 });
 
@@ -750,6 +756,12 @@ describe('puzzle.skip', () => {
     mockIncrementProgress.mockResolvedValue(4);
     mockAcquireSubmitLock.mockResolvedValue(true);
     mockMarkAttemptSubmitted.mockResolvedValue(undefined);
+    mockGetStats.mockResolvedValue({
+      global: { correctSlots: 0, totalSlots: 0 },
+      bySubreddit: {},
+      coins: 3,
+    });
+    mockDeductCoin.mockResolvedValue({ ok: true, coins: 2 });
   });
 
   it('returns ATTEMPT_EXPIRED when attempt is missing', async () => {
@@ -776,7 +788,9 @@ describe('puzzle.skip', () => {
     expect(result).toEqual({
       status: 'skipped',
       nextRankIndex: 4,
+      coins: 2,
     });
+    expect(mockDeductCoin).toHaveBeenCalledWith('user-1');
     expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', 'askreddit');
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
     expect(mockIncrementStats).not.toHaveBeenCalled();
@@ -795,10 +809,34 @@ describe('puzzle.skip', () => {
     expect(result).toEqual({
       status: 'skipped',
       nextRankIndex: 3,
+      coins: null,
     });
+    expect(mockDeductCoin).not.toHaveBeenCalled();
     expect(mockIncrementProgress).not.toHaveBeenCalled();
     expect(mockIncrementStats).not.toHaveBeenCalled();
     expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
+  });
+
+  it('returns INSUFFICIENT_COINS when the wallet is empty', async () => {
+    mockGetStats.mockResolvedValue({
+      global: { correctSlots: 0, totalSlots: 0 },
+      bySubreddit: {},
+      coins: 0,
+    });
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.skip(makeSkipInput());
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'INSUFFICIENT_COINS',
+        nextAction: 'resubmit_valid_slots',
+      })
+    );
+    expect(mockDeductCoin).not.toHaveBeenCalled();
+    expect(mockIncrementProgress).not.toHaveBeenCalled();
+    expect(mockMarkAttemptSubmitted).not.toHaveBeenCalled();
   });
 });

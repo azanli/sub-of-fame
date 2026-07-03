@@ -97,9 +97,21 @@ export const RevealScreen = ({
             {formatCompactNumber(puzzle.numberOfComments)} comments
           </span>
         </div>
-        <p className="text-4xl font-bold text-gray-900 dark:text-white">
-          {result.score} / 3
-        </p>
+        <div className="flex flex-col items-center gap-2 py-2">
+          <div className="flex items-center gap-2">
+            <span className="text-4xl font-bold text-gray-900 dark:text-white">
+              +{result.score}
+            </span>
+            <img
+              src="/coin.svg"
+              alt="Karma Coin"
+              className="h-10 w-10"
+            />
+          </div>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+            {result.score === 1 ? 'Coin earned this round' : 'Coins earned this round'}
+          </p>
+        </div>
         <div className="flex flex-col gap-3">
           {result.slots.map((slot, index) => (
             <div

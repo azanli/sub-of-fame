@@ -9,6 +9,7 @@ type PuzzleGateFromPromiseProps = {
   isSubmitting: boolean;
   isSkipping: boolean;
   onDashboard: () => void;
+  coinBalance: number | null;
 };
 
 export const PuzzleGateFromPromise = ({
@@ -18,6 +19,7 @@ export const PuzzleGateFromPromise = ({
   isSubmitting,
   isSkipping,
   onDashboard,
+  coinBalance,
 }: PuzzleGateFromPromiseProps) => {
   const puzzle = use(puzzlePromise);
 
@@ -29,6 +31,7 @@ export const PuzzleGateFromPromise = ({
       isSubmitting={isSubmitting}
       isSkipping={isSkipping}
       onDashboard={onDashboard}
+      coinBalance={coinBalance}
     />
   );
 };
