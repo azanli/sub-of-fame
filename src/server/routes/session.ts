@@ -3,7 +3,7 @@ import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
 import { deriveLaunchContext, normalizeSubredditName } from '../launchContext';
 import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
-import { getProgress } from '../redis/progressStore';
+import { getRankIndex } from '../redis/rankProgress';
 import { resolveLadderPage } from '../reddit/ladderPipeline';
 import { SOFT_DEADLINE_MS } from '../../shared/api';
 
@@ -50,7 +50,7 @@ export const sessionRouter = router({
         });
       }
 
-      const currentRankIndex = ctx.userId ? await getProgress(ctx.userId, subreddit) : 1;
+      const currentRankIndex = ctx.userId ? await getRankIndex(ctx.userId, subreddit) : 1;
 
       return {
         activeSubreddit: subreddit,

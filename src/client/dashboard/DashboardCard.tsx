@@ -1,5 +1,6 @@
 import type { SubredditDashboardCard } from '../../shared/api';
 import type { SubredditOption } from '../../shared/subreddits';
+import { SpinningLoadingCard } from './SpinningLoadingCard';
 
 type DashboardCardBaseProps = {
   onSelect: (subreddit: string) => void;
@@ -32,10 +33,12 @@ const formatDashboardAccuracy = (
   return `${userSubredditHiveIQ.toFixed(1)}%`;
 };
 
-const cardButtonClasses =
+// Exported so other priority dashboard cards (e.g. DailyChallengeCard) can reuse the
+// exact same geometric container and padding as standard curated subreddit cards.
+export const cardButtonClasses =
   'flex w-full items-center gap-3 p-3 text-left transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60';
 
-const idleCardClasses =
+export const idleCardClasses =
   'rounded-xl border border-gray-200 bg-white hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-700 dark:hover:bg-gray-700/50';
 
 export const DashboardCard = (props: DashboardCardProps) => {
@@ -105,32 +108,7 @@ export const DashboardCard = (props: DashboardCardProps) => {
   );
 
   if (isLoading) {
-    return (
-      <div className="relative rounded-xl">
-        {/* 1. The Spinning Border Layer (Masked to only show the edges) */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl p-[2px]"
-          style={{
-            WebkitMask:
-              'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-            WebkitMaskComposite: 'xor',
-            maskComposite: 'exclude',
-          }}
-        >
-          <div className="absolute inset-[-100%] animate-spin bg-[conic-gradient(from_0deg,transparent_0deg,transparent_250deg,#fb923c_285deg,#d93900_360deg)]" />
-        </div>
-
-        {/* 2. The Card Content (Now free to use bg-transparent) */}
-        <button
-          type="button"
-          disabled
-          className={`${cardButtonClasses} relative z-10 rounded-xl border-0 bg-transparent`}
-        >
-          {cardContent}
-        </button>
-      </div>
-    );
+    return <SpinningLoadingCard>{cardContent}</SpinningLoadingCard>;
   }
 
   return (

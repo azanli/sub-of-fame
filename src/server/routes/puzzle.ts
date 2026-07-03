@@ -5,7 +5,8 @@ import { deriveLaunchContext, resolveRequestedSubreddit } from '../launchContext
 import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
 import { fastFilterEligible, resolveLadderPage, resolveLadderPostUrl } from '../reddit/ladderPipeline';
 import { validateComments } from '../reddit/commentValidation';
-import { getProgress, incrementProgress } from '../redis/progressStore';
+import { resolveLadderPageSize } from '../redis/keys';
+import { getRankIndex, advanceRankIndex } from '../redis/rankProgress';
 import { getAttempt, markAttemptSubmitted, setAttempt } from '../redis/attemptStore';
 import { getSnapshot } from '../redis/snapshotStore';
 import { acquireSubmitLock } from '../redis/submitLockStore';
@@ -26,11 +27,24 @@ import {
   type PuzzleSubmitResponse,
   type UserActiveSubredditMetrics,
 } from '../../shared/api';
+import { isDailyChallengeSubreddit } from '../../shared/dailyChallenge';
 import { CURATED_SUBREDDITS } from '../../shared/subreddits';
 
 const UNPLAYABLE_MESSAGE =
   'Could not find a playable puzzle within the current request budget. Retry to continue.';
 const EXHAUSTED_MESSAGE = 'No more playable posts remain on this subreddit ladder.';
+
+const resolveSubredditDisplayName = async (
+  subredditName: string,
+  reddit: Parameters<typeof resolveSubredditMetadata>[1]
+): Promise<string> => {
+  const metadata = await resolveSubredditMetadata(subredditName, reddit);
+  return (
+    metadata?.displayName ??
+    CURATED_SUBREDDITS.find((entry) => entry.name === subredditName)?.displayName ??
+    subredditName
+  );
+};
 
 const shuffleCommentIds = (ids: [string, string, string]): [string, string, string] => {
   const shuffled = [ids[0], ids[1], ids[2]];
@@ -52,7 +66,7 @@ const advanceSkip = async (
   currentRankIndex: number
 ): Promise<number> => {
   if (userId !== undefined) {
-    return incrementProgress(userId, subreddit);
+    return advanceRankIndex(userId, subreddit);
   }
   return currentRankIndex + 1;
 };
@@ -182,14 +196,14 @@ export const puzzleRouter = router({
         };
       }
 
-      const subredditDisplayName =
+      const campaignDisplayName =
         metadata?.displayName ??
         CURATED_SUBREDDITS.find((entry) => entry.name === subreddit)?.displayName ??
         subreddit;
 
       let rankIndex =
         ctx.userId !== undefined
-          ? await getProgress(ctx.userId, subreddit)
+          ? await getRankIndex(ctx.userId, subreddit)
           : (input.rankIndex ?? 1);
 
       const budget: NextWorkBudget = {
@@ -229,7 +243,8 @@ export const puzzleRouter = router({
         const post = page.posts[offset];
 
         if (post === undefined) {
-          const isTerminal = page.nextAfter === null || page.posts.length < 100;
+          const isTerminal =
+            page.nextAfter === null || page.posts.length < resolveLadderPageSize(subreddit);
           if (isTerminal) {
             return {
               status: 'exhausted',
@@ -308,6 +323,10 @@ export const puzzleRouter = router({
           expiresAt: now + ATTEMPT_TTL_S * 1000,
         });
 
+        const subredditDisplayName = isDailyChallengeSubreddit(subreddit)
+          ? await resolveSubredditDisplayName(post.sourceSubredditName, ctx.reddit)
+          : campaignDisplayName;
+
         return buildReadyResponse(
           attemptId,
           rankIndex,
@@ -379,7 +398,7 @@ export const puzzleRouter = router({
           );
         }
 
-        const currentRankIndex = await getProgress(attempt.owner.userId, attempt.subreddit);
+        const currentRankIndex = await getRankIndex(attempt.owner.userId, attempt.subreddit);
         if (currentRankIndex !== attempt.rankIndex) {
           return submitError(
             'STALE_PROGRESS',
@@ -423,7 +442,7 @@ export const puzzleRouter = router({
 
       if (attempt.owner.kind === 'user') {
         await incrementStats(attempt.owner.userId, attempt.subreddit, score);
-        nextRankIndex = await incrementProgress(attempt.owner.userId, attempt.subreddit);
+        nextRankIndex = await advanceRankIndex(attempt.owner.userId, attempt.subreddit);
         await updateLeaderboard(attempt.subreddit, attempt.owner.userId, attempt.rankIndex);
 
         const stats = await getStats(attempt.owner.userId);
@@ -494,7 +513,7 @@ export const puzzleRouter = router({
           );
         }
 
-        const currentRankIndex = await getProgress(attempt.owner.userId, attempt.subreddit);
+        const currentRankIndex = await getRankIndex(attempt.owner.userId, attempt.subreddit);
         if (currentRankIndex !== attempt.rankIndex) {
           return skipError(
             'STALE_PROGRESS',
@@ -518,7 +537,7 @@ export const puzzleRouter = router({
 
       const nextRankIndex =
         attempt.owner.kind === 'user'
-          ? await incrementProgress(attempt.owner.userId, attempt.subreddit)
+          ? await advanceRankIndex(attempt.owner.userId, attempt.subreddit)
           : attempt.rankIndex + 1;
 
       return {

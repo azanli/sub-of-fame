@@ -114,6 +114,7 @@ const makePostSummary = () => ({
   id: 't3_abc123',
   title: 'A long enough post title for the puzzle',
   postUrl: 'https://www.reddit.com/r/askreddit/comments/abc123/title/',
+  sourceSubredditName: 'askreddit',
   hasBody: false,
   isNSFW: false,
   isSpoiler: false,
@@ -411,6 +412,55 @@ describe('puzzle.next', () => {
     const attempt = mockSetAttempt.mock.calls[0]?.[0];
     expect(attempt?.commentOrder).toHaveLength(3);
     expect(result.comments.map((comment) => comment.id)).toEqual(attempt?.commentOrder);
+  });
+
+  it('returns ready with the post source subreddit display name for Daily Challenge', async () => {
+    mockResolveSubredditMetadata.mockImplementation(async (name: string) => {
+      if (name === 'all') {
+        return {
+          subreddit: 'all',
+          displayName: 'all',
+          iconUrl: '/fame-icon.png',
+          metadataSource: 'curated',
+        };
+      }
+      if (name === 'gaming') {
+        return {
+          subreddit: 'gaming',
+          displayName: 'Gaming',
+          iconUrl: 'https://example.com/gaming.png',
+          metadataSource: 'reddit',
+        };
+      }
+      return null;
+    });
+
+    mockResolveLadderPage.mockResolvedValue(
+      makeLadderHit({
+        ...makePostSummary(),
+        sourceSubredditName: 'gaming',
+        postUrl: 'https://www.reddit.com/r/gaming/comments/abc123/title/',
+      })
+    );
+
+    const caller = createCaller(makeCtx({ userId: undefined }));
+    const result = await caller.puzzle.next({ subreddit: 'all', rankIndex: 1 });
+
+    expect(result.status).toBe('ready');
+    if (result.status !== 'ready') {
+      return;
+    }
+
+    expect(result.subredditDisplayName).toBe('Gaming');
+    expect(result.rankIndex).toBe(1);
+    expect(mockResolveSubredditMetadata).toHaveBeenCalledWith('all', expect.any(Object));
+    expect(mockResolveSubredditMetadata).toHaveBeenCalledWith('gaming', expect.any(Object));
+    expect(mockSetAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subreddit: 'all',
+        rankIndex: 1,
+      })
+    );
   });
 
   it('freezes guest owner for logged-out ready responses', async () => {

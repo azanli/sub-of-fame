@@ -1,7 +1,9 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import type { InitResponse } from '../../shared/api';
 import { CURATED_SUBREDDITS } from '../../shared/subreddits';
+import { DAILY_CHALLENGE_SUBREDDIT } from '../../shared/dailyChallenge';
 import { resolveLoadingCard } from '../gameplay/resolveLoadingCard';
+import { DailyChallengeCard } from './DailyChallengeCard';
 import { DashboardCard } from './DashboardCard';
 
 type HubDashboardProps = {
@@ -50,9 +52,18 @@ export const HubDashboard = ({
     onSelectSubreddit(sanitized);
   };
 
+  const isDailyChallengeLoading = matchesLoadingSubreddit(
+    DAILY_CHALLENGE_SUBREDDIT,
+    loadingSubreddit
+  );
+
   const hasMatchingLoadingCard = useMemo(() => {
     if (!isLoadingSelection) {
       return false;
+    }
+
+    if (isDailyChallengeLoading) {
+      return true;
     }
 
     if (isLoggedIn && initData.dashboardSubreddits !== null) {
@@ -66,6 +77,7 @@ export const HubDashboard = ({
     );
   }, [
     initData.dashboardSubreddits,
+    isDailyChallengeLoading,
     isLoadingSelection,
     isLoggedIn,
     loadingSubreddit,
@@ -110,6 +122,24 @@ export const HubDashboard = ({
           </p>
         </div>
       )} */}
+
+      {initData.dailyChallenge !== null && (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            Daily Challenge
+          </p>
+          <div className="flex flex-col gap-2 pr-1">
+            <DailyChallengeCard
+              resetsAt={initData.dailyChallenge.resetsAt}
+              onSelect={() => {
+                onSelectSubreddit(DAILY_CHALLENGE_SUBREDDIT);
+              }}
+              isLoading={isDailyChallengeLoading}
+              disabled={isLoadingSelection && !isDailyChallengeLoading}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <p className="text-sm font-medium text-gray-700 dark:text-gray-300">

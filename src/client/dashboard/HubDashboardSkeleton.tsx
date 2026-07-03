@@ -26,6 +26,15 @@ export const HubDashboardSkeleton = () => (
   >
     <div className="flex flex-col gap-2">
       <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+        Daily Challenge
+      </p>
+      <div className="flex flex-col gap-2 pr-1">
+        <DashboardCardSkeleton />
+      </div>
+    </div>
+
+    <div className="flex flex-col gap-2">
+      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
         Campaigns
       </p>
       <div className="flex flex-col gap-2 pr-1">

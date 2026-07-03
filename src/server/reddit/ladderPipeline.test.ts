@@ -30,6 +30,7 @@ vi.mock('../redis/ladderStore.js', async (importOriginal) => {
 
 const {
   canSpendRedditCall,
+  buildPostSummary,
   fastFilterEligible,
   normalizeImageUrl,
   resolveLadderPage,
@@ -178,6 +179,17 @@ describe('toPostUrl – link post', () => {
   });
 });
 
+describe('buildPostSummary', () => {
+  it('captures the post source subreddit name', () => {
+    expect(buildPostSummary(makePost({ id: 'post123' }))).toEqual(
+      expect.objectContaining({
+        id: 't3_post123',
+        sourceSubredditName: 'gaming',
+      })
+    );
+  });
+});
+
 describe('resolveLadderPostUrl', () => {
   it('returns the stored postUrl when present', () => {
     expect(
@@ -185,6 +197,7 @@ describe('resolveLadderPostUrl', () => {
         id: 't3_abc123',
         title: 'Title',
         postUrl: 'https://www.reddit.com/r/gaming/comments/abc123/title/',
+        sourceSubredditName: 'gaming',
         hasBody: false,
         isNSFW: false,
         isSpoiler: false,
@@ -199,6 +212,7 @@ describe('resolveLadderPostUrl', () => {
         id: 't3_abc123',
         title: 'Title',
         postUrl: '',
+        sourceSubredditName: 'gaming',
         hasBody: false,
         isNSFW: false,
         isSpoiler: false,
@@ -215,6 +229,7 @@ describe('fastFilterEligible – NSFW', () => {
         id: 't3_1',
         title: 'Long enough title',
         postUrl: 'https://www.reddit.com/r/gaming/comments/abc123/title/',
+        sourceSubredditName: 'gaming',
         hasBody: false,
         isNSFW: true,
         isSpoiler: false,
@@ -231,6 +246,7 @@ describe('fastFilterEligible – spoiler', () => {
         id: 't3_1',
         title: 'Long enough title',
         postUrl: 'https://www.reddit.com/r/gaming/comments/abc123/title/',
+        sourceSubredditName: 'gaming',
         hasBody: false,
         isNSFW: false,
         isSpoiler: true,
@@ -247,6 +263,7 @@ describe('fastFilterEligible – short title no body', () => {
         id: 't3_1',
         title: 'short',
         postUrl: 'https://www.reddit.com/r/gaming/comments/abc123/title/',
+        sourceSubredditName: 'gaming',
         hasBody: false,
         isNSFW: false,
         isSpoiler: false,
@@ -263,6 +280,7 @@ describe('fastFilterEligible – low comment count', () => {
         id: 't3_1',
         title: 'Long enough title',
         postUrl: 'https://www.reddit.com/r/gaming/comments/abc123/title/',
+        sourceSubredditName: 'gaming',
         hasBody: false,
         isNSFW: false,
         isSpoiler: false,
@@ -279,6 +297,7 @@ describe('fastFilterEligible – valid post', () => {
         id: 't3_1',
         title: 'Long enough title',
         postUrl: 'https://www.reddit.com/r/gaming/comments/abc123/title/',
+        sourceSubredditName: 'gaming',
         hasBody: false,
         isNSFW: false,
         isSpoiler: false,
@@ -349,6 +368,7 @@ describe('resolveLadderPage – direct cursor fetch', () => {
       subredditName: 'gaming',
       after: 'cursor_page1',
       limit: 100,
+      timeframe: 'all',
     });
     expect(mockSetLadderPage).toHaveBeenCalledTimes(1);
     expect(mockSetCursorChain).toHaveBeenCalledTimes(1);
@@ -473,6 +493,7 @@ describe('resolveLadderPage – cold start page 1', () => {
       subredditName: 'gaming',
       after: undefined,
       limit: 100,
+      timeframe: 'all',
     });
     expect(result.kind).toBe('hit');
     if (result.kind === 'hit') {

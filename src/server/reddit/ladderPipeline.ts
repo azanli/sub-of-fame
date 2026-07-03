@@ -1,5 +1,6 @@
 import type { Listing, Post, RedditClient } from '@devvit/reddit';
 import type { NextWorkBudget } from '../../shared/api.js';
+import { resolveLadderPageSize, resolveLadderTimeframe } from '../redis/keys.js';
 import {
   getCursorChain,
   getLadderPage,
@@ -76,6 +77,7 @@ export const buildPostSummary = (post: Post): LadderPostSummary => {
     id: post.id,
     title: post.title,
     postUrl: toPostUrl(post),
+    sourceSubredditName: post.subredditName,
     hasBody: body !== undefined && body.length >= 50,
     isNSFW: post.nsfw,
     isSpoiler: post.spoiler,
@@ -171,16 +173,17 @@ const fetchAndPersistPage = async (
   reddit: Reddit,
   chain: MutableCursorChain
 ): Promise<FetchPageResult> => {
+  const pageSize = resolveLadderPageSize(subredditName);
   const listing = reddit.getTopPosts({
     subredditName,
     after: after ?? undefined,
-    limit: 100,
-    timeframe: 'all',
+    limit: pageSize,
+    timeframe: resolveLadderTimeframe(subredditName),
   });
-  const posts = await listing.get(100);
+  const posts = await listing.get(pageSize);
   spendRedditCall(budget);
 
-  const isTerminal = posts.length < 100 || !listing.hasMore;
+  const isTerminal = posts.length < pageSize || !listing.hasMore;
   const nextAfter = isTerminal ? null : extractListingAfter(listing, posts);
 
   const cachePage: LadderCachePage = {
@@ -221,8 +224,8 @@ export const resolveLadderPage = async (
     return { kind: 'error', message: 'rankIndex must be >= 1' };
   }
 
-  const targetPage = rankIndexToPage(rankIndex);
-  const offset = rankIndexToOffset(rankIndex);
+  const targetPage = rankIndexToPage(rankIndex, subredditName);
+  const offset = rankIndexToOffset(rankIndex, subredditName);
 
   const cachedPage = await getLadderPage(subredditName, targetPage);
   if (cachedPage !== null) {

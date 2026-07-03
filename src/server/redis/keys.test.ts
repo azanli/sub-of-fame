@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   progressKey,
+  dailyProgressKey,
   statsKey,
   leaderboardKey,
   metadataKey,
@@ -19,6 +20,13 @@ import {
   SNAPSHOT_TTL_S,
   ATTEMPT_TTL_S,
   SUBMIT_LOCK_TTL_S,
+  DAILY_LADDER_PAGE_TTL_S,
+  DAILY_PROGRESS_TTL_S,
+  STANDARD_LADDER_PAGE_SIZE,
+  DAILY_LADDER_PAGE_SIZE,
+  resolveLadderPageTtlS,
+  resolveLadderPageSize,
+  resolveLadderTimeframe,
 } from './keys';
 
 describe('key builders', () => {
@@ -61,6 +69,11 @@ describe('key builders', () => {
 
   it('leaderboardKey and ladderCursorsKey do not collide for the same subreddit', () => {
     expect(leaderboardKey('gaming')).not.toBe(ladderCursorsKey('gaming'));
+  });
+
+  it('dailyProgressKey builds the correct key string, isolated from progressKey', () => {
+    expect(dailyProgressKey('u123', '2026-07-02')).toBe('user:u123:daily-progress:2026-07-02');
+    expect(dailyProgressKey('u123', '2026-07-02')).not.toBe(progressKey('u123'));
   });
 });
 
@@ -109,5 +122,43 @@ describe('TTL constants', () => {
 
   it('LADDER_CURSORS_TTL_S is longer than LADDER_PAGE_TTL_S', () => {
     expect(LADDER_CURSORS_TTL_S).toBeGreaterThan(LADDER_PAGE_TTL_S);
+  });
+
+  it('DAILY_LADDER_PAGE_TTL_S is 2 hours in seconds', () => {
+    expect(DAILY_LADDER_PAGE_TTL_S).toBe(2 * 60 * 60);
+  });
+
+  it('DAILY_LADDER_PAGE_TTL_S is far shorter than LADDER_PAGE_TTL_S', () => {
+    expect(DAILY_LADDER_PAGE_TTL_S).toBeLessThan(LADDER_PAGE_TTL_S);
+  });
+
+  it('DAILY_PROGRESS_TTL_S is 2 days in seconds', () => {
+    expect(DAILY_PROGRESS_TTL_S).toBe(2 * 24 * 60 * 60);
+  });
+});
+
+describe('ladder pipeline policy resolvers', () => {
+  it('resolveLadderPageTtlS returns the aggressive TTL for the Daily Challenge subreddit', () => {
+    expect(resolveLadderPageTtlS('all')).toBe(DAILY_LADDER_PAGE_TTL_S);
+  });
+
+  it('resolveLadderPageTtlS returns the durable TTL for any other subreddit', () => {
+    expect(resolveLadderPageTtlS('askreddit')).toBe(LADDER_PAGE_TTL_S);
+  });
+
+  it('resolveLadderPageSize returns 50 for the Daily Challenge subreddit', () => {
+    expect(resolveLadderPageSize('all')).toBe(DAILY_LADDER_PAGE_SIZE);
+  });
+
+  it('resolveLadderPageSize returns 100 for any other subreddit', () => {
+    expect(resolveLadderPageSize('askreddit')).toBe(STANDARD_LADDER_PAGE_SIZE);
+  });
+
+  it("resolveLadderTimeframe returns 'day' for the Daily Challenge subreddit", () => {
+    expect(resolveLadderTimeframe('all')).toBe('day');
+  });
+
+  it("resolveLadderTimeframe returns 'all' for any other subreddit", () => {
+    expect(resolveLadderTimeframe('askreddit')).toBe('all');
   });
 });

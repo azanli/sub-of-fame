@@ -1,5 +1,11 @@
 import { redis } from '@devvit/web/server';
-import { ladderPageKey, ladderCursorsKey, LADDER_PAGE_TTL_S, LADDER_CURSORS_TTL_S } from './keys';
+import {
+  ladderPageKey,
+  ladderCursorsKey,
+  LADDER_CURSORS_TTL_S,
+  resolveLadderPageSize,
+  resolveLadderPageTtlS,
+} from './keys';
 import { parseJson, stringifyJson } from './json';
 import type { LadderCachePage, LadderCursorChain } from './types';
 
@@ -20,9 +26,10 @@ export const getLadderPage = async (
 };
 
 /**
- * Persist a ladder page with a 7-day TTL.
- * Page content expiry is intentionally shorter than the cursor chain TTL so the
- * cursor chain can re-fetch a single page directly on content miss.
+ * Persist a ladder page with a subreddit-appropriate TTL (7 days for curated/custom
+ * subreddits, a couple hours for the fast-moving r/all Daily Challenge — see
+ * resolveLadderPageTtlS). Page content expiry is intentionally shorter than the cursor
+ * chain TTL so the cursor chain can re-fetch a single page directly on content miss.
  */
 export const setLadderPage = async (
   subredditName: string,
@@ -31,7 +38,7 @@ export const setLadderPage = async (
 ): Promise<void> => {
   const key = ladderPageKey(subredditName, page);
   await redis.set(key, stringifyJson(data));
-  await redis.expire(key, LADDER_PAGE_TTL_S);
+  await redis.expire(key, resolveLadderPageTtlS(subredditName));
 };
 
 // ─── Cursor chain helpers ─────────────────────────────────────────────────────
@@ -63,8 +70,13 @@ export const setCursorChain = async (
 
 // ─── Page derivation utility ──────────────────────────────────────────────────
 
-/** Derive the 1-based page number from a 1-based rankIndex. */
-export const rankIndexToPage = (rankIndex: number): number => Math.ceil(rankIndex / 100);
+/**
+ * Derive the 1-based page number from a 1-based rankIndex.
+ * Page size varies by subreddit — 50 for the Daily Challenge, 100 otherwise.
+ */
+export const rankIndexToPage = (rankIndex: number, subredditName: string): number =>
+  Math.ceil(rankIndex / resolveLadderPageSize(subredditName));
 
 /** Derive the 0-based offset within a page from a 1-based rankIndex. */
-export const rankIndexToOffset = (rankIndex: number): number => (rankIndex - 1) % 100;
+export const rankIndexToOffset = (rankIndex: number, subredditName: string): number =>
+  (rankIndex - 1) % resolveLadderPageSize(subredditName);

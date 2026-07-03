@@ -109,6 +109,7 @@ describe('init — logged-out', () => {
       userGlobalHiveIQ: null,
       dashboardSubreddits: null,
       activeSubredditMetrics: null,
+      dailyChallenge: { subreddit: 'all', resetsAt: expect.any(Number) },
     });
     expect(mockGetAllProgress).not.toHaveBeenCalled();
     expect(mockGetProgress).not.toHaveBeenCalled();
@@ -133,6 +134,7 @@ describe('init — logged-out', () => {
       userGlobalHiveIQ: null,
       dashboardSubreddits: null,
       activeSubredditMetrics: null,
+      dailyChallenge: null,
     });
     expect(mockGetAllProgress).not.toHaveBeenCalled();
     expect(mockGetProgress).not.toHaveBeenCalled();
@@ -287,6 +289,35 @@ describe('init — logged-in Hub', () => {
     expect(askredditCard?.leaderboardRank).toBe(3);
   });
 
+  it('excludes the Daily Challenge subreddit from dashboardSubreddits even when it appears in progress or stats', async () => {
+    mockGetAllProgress.mockResolvedValue({ all: 5 });
+    mockGetStats.mockResolvedValue(
+      makeStats({
+        bySubreddit: {
+          all: { correctSlots: 3, totalSlots: 6 },
+        },
+      })
+    );
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.init();
+
+    const cardNames = result.dashboardSubreddits?.map((card) => card.subreddit) ?? [];
+    expect(cardNames).not.toContain('all');
+  });
+
+  it('returns a dailyChallenge object with the all subreddit and a future resetsAt for logged-in Hub', async () => {
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.init();
+
+    expect(result.dailyChallenge).toEqual({
+      subreddit: 'all',
+      resetsAt: expect.any(Number),
+    });
+    expect(result.dailyChallenge?.resetsAt ?? 0).toBeGreaterThan(Date.now());
+  });
+
   it('excludes a card when resolveSubredditMetadata returns null', async () => {
     mockGetAllProgress.mockResolvedValue({ inaccessible: 2 });
     mockResolveSubredditMetadata.mockImplementation(async (subreddit: string) =>
@@ -429,5 +460,15 @@ describe('init — logged-in Community', () => {
     const result = await caller.init();
 
     expect(result.hasGameData).toBe(false);
+  });
+
+  it('returns null dailyChallenge for logged-in Community', async () => {
+    const caller = createCaller(
+      makeCtx({ userId: 'user-1', subredditName: 'gaming', surface: 'community' })
+    );
+
+    const result = await caller.init();
+
+    expect(result.dailyChallenge).toBeNull();
   });
 });

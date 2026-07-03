@@ -4,8 +4,11 @@ import { getProgress, getAllProgress } from '../redis/progressStore';
 import { getStats, computeHiveIQ } from '../redis/statsStore';
 import { getLeaderboardRank } from '../redis/leaderboardStore';
 import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
+import { getDailyChallengeResetAt } from '../redis/dailyChallengeStore';
 import { CURATED_SUBREDDITS } from '../../shared/subreddits';
+import { DAILY_CHALLENGE_SUBREDDIT, isDailyChallengeSubreddit } from '../../shared/dailyChallenge';
 import type {
+  DailyChallengeMetrics,
   InitResponse,
   SubredditDashboardCard,
   UserGlobalHiveIQMetrics,
@@ -37,7 +40,9 @@ const buildDashboardSubreddits = async (
     ...new Set(
       [...Object.keys(progress), ...Object.keys(stats.bySubreddit)].map(normalizeSubredditName)
     ),
-  ].filter((name) => name.length > 0 && !curatedSet.has(name));
+  ].filter(
+    (name) => name.length > 0 && !curatedSet.has(name) && !isDailyChallengeSubreddit(name)
+  );
 
   const orderedSubreddits = [...curatedNames, ...customNames].sort(
     (a, b) =>
@@ -87,6 +92,11 @@ const playerHasGameData = (
   stats.global.totalSlots > 0 ||
   Object.values(progress).some((rankIndex) => rankIndex > 1);
 
+const buildDailyChallengeMetrics = (): DailyChallengeMetrics => ({
+  subreddit: DAILY_CHALLENGE_SUBREDDIT,
+  resetsAt: getDailyChallengeResetAt(),
+});
+
 export const initRouter = router({
   init: publicProcedure.query(async ({ ctx }): Promise<InitResponse> => {
     const launchContext = deriveLaunchContext(ctx.subredditName, ctx.surface);
@@ -104,6 +114,7 @@ export const initRouter = router({
         userGlobalHiveIQ: null,
         dashboardSubreddits: null,
         activeSubredditMetrics: null,
+        dailyChallenge: isHub ? buildDailyChallengeMetrics() : null,
       };
     }
 
@@ -131,6 +142,7 @@ export const initRouter = router({
         userGlobalHiveIQ: buildGlobalHiveIQ(stats),
         dashboardSubreddits,
         activeSubredditMetrics: null,
+        dailyChallenge: buildDailyChallengeMetrics(),
       };
     }
 
@@ -156,6 +168,7 @@ export const initRouter = router({
         userSubredditHiveIQ: computeHiveIQ(hostStats.correctSlots, hostStats.totalSlots),
         currentRankIndex,
       },
+      dailyChallenge: null,
     };
   }),
 });

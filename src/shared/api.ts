@@ -44,6 +44,12 @@ export type LaunchContext =
   | { surface: 'hub'; hostSubreddit: 'suboffame' }
   | { surface: 'community'; hostSubreddit: string };
 
+export type DailyChallengeMetrics = {
+  subreddit: string;
+  // Epoch ms of the next daily gauntlet reset (UTC midnight boundary).
+  resetsAt: number;
+};
+
 export type InitResponse = {
   hostSubreddit: string;
   isHub: boolean;
@@ -53,6 +59,7 @@ export type InitResponse = {
   userGlobalHiveIQ: UserGlobalHiveIQMetrics | null;
   dashboardSubreddits: SubredditDashboardCard[] | null;
   activeSubredditMetrics: UserActiveSubredditMetrics | null;
+  dailyChallenge: DailyChallengeMetrics | null;
 };
 
 export type SessionSubRequest = {

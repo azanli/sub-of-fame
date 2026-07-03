@@ -14,6 +14,8 @@ export type LadderPostSummary = {
   id: string;
   title: string;
   postUrl: string;
+  /** Subreddit the post was originally submitted to (distinct from the ladder campaign key). */
+  sourceSubredditName: string;
   hasBody: boolean;
   isNSFW: boolean;
   isSpoiler: boolean;

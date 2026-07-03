@@ -1,6 +1,7 @@
 import type { RedditClient } from '@devvit/reddit';
 import type { T5 } from '@devvit/shared-types/tid.js';
 import { CURATED_SUBREDDITS } from '../../shared/subreddits';
+import { isDailyChallengeSubreddit } from '../../shared/dailyChallenge';
 import type { SubredditDisplayMetadata } from '../../shared/api';
 import { getMetadata, setMetadata } from '../redis/metadataStore';
 import { METADATA_TTL_S } from '../redis/keys';
@@ -8,6 +9,7 @@ import type { SubredditMetadataCacheEntry } from '../redis/types';
 
 const APP_FALLBACK_ICON_URL =
   'https://www.redditstatic.com/avatars/defaults/v2/avatar_default_1.png';
+const DAILY_CHALLENGE_ICON_URL = '/fame-icon.png';
 
 type Reddit = Pick<RedditClient, 'getSubredditInfoByName' | 'getSubredditStyles'>;
 
@@ -31,6 +33,17 @@ export const resolveSubredditMetadata = async (
   subredditName: string,
   reddit: Reddit
 ): Promise<SubredditDisplayMetadata | null> => {
+  // r/all is a virtual, platform-wide feed rather than a real subreddit — calling
+  // getSubredditInfoByName for it would fail, so it's resolved locally like a curated entry.
+  if (isDailyChallengeSubreddit(subredditName)) {
+    return {
+      subreddit: subredditName,
+      displayName: subredditName,
+      iconUrl: DAILY_CHALLENGE_ICON_URL,
+      metadataSource: 'curated',
+    };
+  }
+
   const curated = CURATED_SUBREDDITS.find((entry) => entry.name === subredditName);
   if (curated) {
     return {
