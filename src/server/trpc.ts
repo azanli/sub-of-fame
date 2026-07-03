@@ -11,6 +11,7 @@ export type TRPCContext = {
     | 'getTopPosts'
     | 'getComments'
     | 'getCurrentUsername'
+    | 'getPostById'
   >;
   userId: string | undefined;
   subredditName: string;

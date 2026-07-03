@@ -1,4 +1,5 @@
 import type { Listing, Post, RedditClient } from '@devvit/reddit';
+import type { T3 } from '@devvit/shared-types/tid.js';
 import type { NextWorkBudget } from '../../shared/api.js';
 import { resolveLadderPageSize, resolveLadderTimeframe } from '../redis/keys.js';
 import {
@@ -45,27 +46,130 @@ export const toPostUrl = (post: Post): string => {
 export const resolveLadderPostUrl = (post: LadderPostSummary): string =>
   post.postUrl || `https://www.reddit.com/comments/${post.id.replace(/^t3_/, '')}/`;
 
+/** Matches `GalleryMediaStatus.VALID` from the Devvit Post model. */
+const GALLERY_MEDIA_VALID = 1;
+const IMAGE_EXTENSION_PATTERN = /\.(jpe?g|png|gif|webp)$/i;
+const REDDIT_IMAGE_HOST_PATTERN =
+  /^https:\/\/(i|preview|external-preview)\.redd\.it\//i;
+const LOW_RES_THUMB_HOST_PATTERN = /thumbs\.redditmedia\.com/i;
+
+export const upgradeRedditImageUrl = (url: string): string => {
+  try {
+    const parsed = new URL(url);
+    if (
+      parsed.hostname === 'preview.redd.it' ||
+      parsed.hostname === 'external-preview.redd.it'
+    ) {
+      parsed.searchParams.delete('width');
+      parsed.searchParams.delete('crop');
+      return parsed.toString();
+    }
+  } catch {
+    return url;
+  }
+
+  return url;
+};
+
+export const isLowResImageUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    if (LOW_RES_THUMB_HOST_PATTERN.test(parsed.hostname)) {
+      return true;
+    }
+
+    if (
+      (parsed.hostname === 'preview.redd.it' ||
+        parsed.hostname === 'external-preview.redd.it') &&
+      parsed.searchParams.has('width')
+    ) {
+      const width = Number(parsed.searchParams.get('width'));
+      return Number.isFinite(width) && width <= 640;
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+};
+
+const isDirectImageUrl = (url: string): boolean => {
+  if (REDDIT_IMAGE_HOST_PATTERN.test(url)) {
+    return true;
+  }
+
+  try {
+    const { pathname } = new URL(url);
+    return IMAGE_EXTENSION_PATTERN.test(pathname);
+  } catch {
+    return false;
+  }
+};
+
+const getGalleryImageUrl = (post: Post): string | undefined => {
+  for (const item of post.gallery) {
+    if (item.status === GALLERY_MEDIA_VALID && item.url.length > 0) {
+      return item.url;
+    }
+  }
+  return undefined;
+};
+
 const getThumbnailUrl = (post: Post): string | undefined => post.thumbnail?.url;
 
 export const normalizeImageUrl = (post: Post): string | undefined => {
-  if (
-    !isSelfPost(post) &&
-    post.url &&
-    (post.url.endsWith('.jpg') ||
-      post.url.endsWith('.png') ||
-      post.url.endsWith('.gif'))
-  ) {
-    return post.url;
+  if (isSelfPost(post)) {
+    return undefined;
+  }
+
+  const galleryUrl = getGalleryImageUrl(post);
+  if (galleryUrl !== undefined) {
+    return upgradeRedditImageUrl(galleryUrl);
+  }
+
+  if (post.url && isDirectImageUrl(post.url)) {
+    return upgradeRedditImageUrl(post.url);
   }
 
   const thumbnail = getThumbnailUrl(post);
-  if (
-    !isSelfPost(post) &&
-    thumbnail &&
-    thumbnail !== 'default' &&
-    thumbnail !== 'self'
-  ) {
-    return thumbnail;
+  if (thumbnail && thumbnail !== 'default' && thumbnail !== 'self') {
+    return upgradeRedditImageUrl(thumbnail);
+  }
+
+  return undefined;
+};
+
+type PostLookupReddit = Pick<RedditClient, 'getPostById'>;
+
+export const resolvePostImageUrl = async (
+  cachedUrl: string | undefined,
+  postId: T3,
+  reddit: PostLookupReddit
+): Promise<string | undefined> => {
+  if (cachedUrl !== undefined) {
+    const upgraded = upgradeRedditImageUrl(cachedUrl);
+    if (!isLowResImageUrl(upgraded)) {
+      return upgraded;
+    }
+  }
+
+  try {
+    const post = await reddit.getPostById(postId);
+    const normalized = normalizeImageUrl(post);
+    if (normalized !== undefined && !isLowResImageUrl(normalized)) {
+      return normalized;
+    }
+
+    const enriched = await post.getEnrichedThumbnail();
+    if (enriched?.image.url !== undefined) {
+      return upgradeRedditImageUrl(enriched.image.url);
+    }
+  } catch {
+    // Fall back to the cached URL when enrichment fails.
+  }
+
+  if (cachedUrl !== undefined) {
+    return upgradeRedditImageUrl(cachedUrl);
   }
 
   return undefined;

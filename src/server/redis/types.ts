@@ -2,6 +2,8 @@
 // persisted in Redis and are intentionally separate from shared API response types.
 // Do not import these from src/client or src/shared.
 
+import type { T3 } from '@devvit/shared-types/tid.js';
+
 export type SubredditMetadataCacheEntry = {
   subreddit: string;
   displayName: string;
@@ -11,7 +13,7 @@ export type SubredditMetadataCacheEntry = {
 };
 
 export type LadderPostSummary = {
-  id: string;
+  id: T3;
   title: string;
   postUrl: string;
   /** Subreddit the post was originally submitted to (distinct from the ladder campaign key). */

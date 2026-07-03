@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { router, publicProcedure } from '../trpc';
 import { deriveLaunchContext, resolveRequestedSubreddit } from '../launchContext';
 import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
-import { fastFilterEligible, resolveLadderPage, resolveLadderPostUrl } from '../reddit/ladderPipeline';
+import { fastFilterEligible, resolveLadderPage, resolveLadderPostUrl, resolvePostImageUrl } from '../reddit/ladderPipeline';
 import { validateComments } from '../reddit/commentValidation';
 import { resolveLadderPageSize } from '../redis/keys';
 import { getRankIndex, advanceRankIndex } from '../redis/rankProgress';
@@ -268,8 +268,9 @@ export const puzzleRouter = router({
         const postPayload: { title: string; body?: string; imageUrl?: string } = {
           title: post.title,
         };
-        if (post.imageUrl !== undefined) {
-          postPayload.imageUrl = post.imageUrl;
+        const imageUrl = await resolvePostImageUrl(post.imageUrl, post.id, ctx.reddit);
+        if (imageUrl !== undefined) {
+          postPayload.imageUrl = imageUrl;
         }
 
         const validation = await validateComments(

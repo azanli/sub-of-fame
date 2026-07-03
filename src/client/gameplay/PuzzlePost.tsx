@@ -24,7 +24,7 @@ export const PuzzlePost = ({ post }: PuzzlePostProps) => (
       <img
         src={post.imageUrl}
         alt="Post context"
-        className="w-full rounded-lg object-contain max-h-64"
+        className="block w-full h-auto rounded-lg"
       />
     )}
   </div>
