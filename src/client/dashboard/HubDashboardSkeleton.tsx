@@ -24,6 +24,11 @@ export const HubDashboardSkeleton = () => (
     aria-busy="true"
     aria-label="Loading dashboard"
   >
+    <div className="flex items-center">
+      <SkeletonBar className="h-8 w-28 rounded-full" />
+      <SkeletonBar className="ml-auto h-8 w-32 rounded-lg" />
+    </div>
+
     <div className="flex flex-col gap-2">
       <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
         Daily Challenge

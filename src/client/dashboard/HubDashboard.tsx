@@ -126,32 +126,6 @@ export const HubDashboard = ({
         </button>
       </div>
 
-      <div className="flex flex-col gap-2">
-        {/* <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 border-gray-200 dark:border-gray-600">
-          <img
-            src="/fame-icon.png"
-            alt="Sub of Fame"
-            className="h-full w-full object-cover"
-          />
-        </div> */}
-        {/* <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-          Pick a subreddit campaign to start ranking comments.
-        </p> */}
-      </div>
-
-      {/* {initData.userGlobalHiveIQ !== null && (
-        <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
-          <p className="text-xs font-medium uppercase tracking-widest text-gray-400">
-            Your Karma Accuracy
-          </p>
-          <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
-            {initData.userGlobalHiveIQ.userGlobalHiveIQ !== null
-              ? `${initData.userGlobalHiveIQ.userGlobalHiveIQ.toFixed(1)}%`
-              : 'No rounds played yet'}
-          </p>
-        </div>
-      )} */}
-
       {initData.dailyChallenge !== null && (
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
