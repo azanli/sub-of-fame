@@ -205,6 +205,10 @@ export const HubDashboard = ({
           </label>
           <div className="flex gap-2">
             <input
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
               id="custom-subreddit"
               type="text"
               value={customSubreddit}
