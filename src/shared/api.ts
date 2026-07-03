@@ -90,7 +90,7 @@ export type PuzzleNextResponse =
       rankIndex: number;
       subredditDisplayName: string;
       postUrl: string;
-      post: { title: string; body?: string; imageUrl?: string };
+      post: { title: string; body?: string; imageUrl?: string; galleryUrls?: string[] };
       numberOfComments: number;
       comments: Array<{ id: string; body: string }>;
     }

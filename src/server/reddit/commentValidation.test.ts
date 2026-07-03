@@ -71,7 +71,13 @@ const makeListing = (comments: Comment[]) => ({
 });
 
 const validateParams = (
-  overrides: Partial<{ title: string; body?: string; imageUrl?: string; numberOfComments: number }> = {}
+  overrides: Partial<{
+    title: string;
+    body?: string;
+    imageUrl?: string;
+    galleryUrls?: string[];
+    numberOfComments: number;
+  }> = {}
 ) => ({
   sourcePostId: SOURCE_POST_ID,
   post: {
@@ -227,9 +233,66 @@ describe('validateComments – cached snapshot', () => {
     const reddit = { getComments: mockGetComments };
     const result = await validateComments(validateParams(), reddit, makeBudget());
 
-    expect(result).toEqual({ kind: 'valid', snapshot: cached });
+    expect(result).toEqual({
+      kind: 'valid',
+      snapshot: {
+        ...cached,
+        post: {
+          title: 'Cached post',
+          imageUrl: 'https://example.com/image.jpg',
+        },
+        numberOfComments: 30,
+      },
+    });
     expect(mockGetComments).not.toHaveBeenCalled();
     expect(mockSetSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('merges galleryUrls from fresh post data into a cached snapshot', async () => {
+    const cached: PuzzleSnapshot = {
+      sourcePostId: SOURCE_POST_ID,
+      post: {
+        title: 'Cached post',
+        imageUrl: 'https://example.com/first.jpg',
+      },
+      numberOfComments: 30,
+      comments: [
+        { id: 't1_1', body: 'First cached comment body text.', score: 100, createdAt: 1 },
+        { id: 't1_2', body: 'Second cached comment body text.', score: 50, createdAt: 2 },
+        { id: 't1_3', body: 'Third cached comment body text.', score: 25, createdAt: 3 },
+      ],
+      createdAt: 1000,
+      expiresAt: 2000,
+    };
+    mockGetSnapshot.mockResolvedValue(cached);
+
+    const galleryUrls = [
+      'https://example.com/one.jpg',
+      'https://example.com/two.jpg',
+      'https://example.com/three.jpg',
+    ];
+    const reddit = { getComments: mockGetComments };
+    const result = await validateComments(
+      validateParams({
+        galleryUrls,
+        imageUrl: galleryUrls[0],
+      }),
+      reddit,
+      makeBudget()
+    );
+
+    expect(result).toEqual({
+      kind: 'valid',
+      snapshot: {
+        ...cached,
+        post: {
+          title: 'Cached post',
+          imageUrl: galleryUrls[0],
+          galleryUrls,
+        },
+        numberOfComments: 30,
+      },
+    });
   });
 });
 

@@ -33,9 +33,12 @@ const {
   buildPostSummary,
   fastFilterEligible,
   isLowResImageUrl,
+  normalizeGalleryImageUrls,
   normalizeImageUrl,
   resolveLadderPage,
   resolveLadderPostUrl,
+  resolvePostGalleryUrls,
+  toLoadableRedditImageUrl,
   toPostUrl,
   upgradeRedditImageUrl,
 } = await import('./ladderPipeline.js');
@@ -162,6 +165,175 @@ describe('normalizeImageUrl – gallery source', () => {
       ],
     });
     expect(normalizeImageUrl(post)).toBe('https://i.redd.it/full-resolution.jpg');
+  });
+});
+
+describe('normalizeGalleryImageUrls', () => {
+  it('returns all valid gallery images in order', () => {
+    const post = makePost({
+      url: 'https://www.reddit.com/gallery/abc123',
+      gallery: [
+        {
+          url: 'https://preview.redd.it/one.jpg?width=640&crop=smart',
+          width: 1920,
+          height: 1080,
+          status: GalleryMediaStatus.VALID,
+        },
+        {
+          url: '',
+          width: 0,
+          height: 0,
+          status: GalleryMediaStatus.VALID,
+        },
+        {
+          url: 'https://i.redd.it/two.jpg',
+          width: 1080,
+          height: 1080,
+          status: GalleryMediaStatus.VALID,
+        },
+      ],
+    });
+
+    expect(normalizeGalleryImageUrls(post)).toEqual([
+      'https://i.redd.it/one.jpg',
+      'https://i.redd.it/two.jpg',
+    ]);
+  });
+
+  it('skips invalid gallery items', () => {
+    const post = makePost({
+      url: 'https://www.reddit.com/gallery/abc123',
+      gallery: [
+        {
+          url: 'https://i.redd.it/skipped.jpg',
+          width: 1080,
+          height: 1080,
+          status: GalleryMediaStatus.FAILED,
+        },
+        {
+          url: 'https://i.redd.it/kept.jpg',
+          width: 1080,
+          height: 1080,
+          status: GalleryMediaStatus.VALID,
+        },
+      ],
+    });
+
+    expect(normalizeGalleryImageUrls(post)).toEqual(['https://i.redd.it/kept.jpg']);
+  });
+});
+
+describe('toLoadableRedditImageUrl', () => {
+  it('converts preview.redd.it URLs to i.redd.it', () => {
+    expect(
+      toLoadableRedditImageUrl(
+        'https://preview.redd.it/photo.jpg?width=640&crop=smart&auto=webp&s=abc'
+      )
+    ).toBe('https://i.redd.it/photo.jpg');
+  });
+
+  it('decodes HTML entities before parsing', () => {
+    expect(
+      toLoadableRedditImageUrl(
+        'https://preview.redd.it/photo.jpg?width=640&amp;auto=webp&amp;s=abc'
+      )
+    ).toBe('https://i.redd.it/photo.jpg');
+  });
+
+  it('leaves direct i.redd.it URLs unchanged', () => {
+    expect(toLoadableRedditImageUrl('https://i.redd.it/photo.jpg')).toBe(
+      'https://i.redd.it/photo.jpg'
+    );
+  });
+});
+
+describe('resolvePostGalleryUrls', () => {
+  it('prefers the longer ladder cache when getPostById returns a partial gallery', async () => {
+    const post = makePost({
+      url: 'https://www.reddit.com/gallery/abc123',
+      gallery: [
+        {
+          url: 'https://i.redd.it/one.jpg',
+          width: 1080,
+          height: 1080,
+          status: GalleryMediaStatus.VALID,
+        },
+      ],
+    });
+    const reddit = {
+      getPostById: vi.fn().mockResolvedValue(post),
+    };
+    const cachedUrls = [
+      'https://i.redd.it/one.jpg',
+      'https://i.redd.it/two.jpg',
+      'https://i.redd.it/three.jpg',
+    ];
+
+    const result = await resolvePostGalleryUrls(cachedUrls, 't3_abc123', reddit);
+
+    expect(reddit.getPostById).toHaveBeenCalledWith('t3_abc123');
+    expect(result).toEqual(cachedUrls);
+  });
+
+  it('uses the fetched gallery when it is longer than the ladder cache', async () => {
+    const post = makePost({
+      url: 'https://www.reddit.com/gallery/abc123',
+      gallery: [
+        {
+          url: 'https://i.redd.it/one.jpg',
+          width: 1080,
+          height: 1080,
+          status: GalleryMediaStatus.VALID,
+        },
+        {
+          url: 'https://i.redd.it/two.jpg',
+          width: 1080,
+          height: 1080,
+          status: GalleryMediaStatus.VALID,
+        },
+      ],
+    });
+    const reddit = {
+      getPostById: vi.fn().mockResolvedValue(post),
+    };
+
+    const result = await resolvePostGalleryUrls(
+      ['https://i.redd.it/one.jpg'],
+      't3_abc123',
+      reddit
+    );
+
+    expect(reddit.getPostById).toHaveBeenCalledWith('t3_abc123');
+    expect(result).toEqual(['https://i.redd.it/one.jpg', 'https://i.redd.it/two.jpg']);
+  });
+
+  it('always re-fetches and merges with a multi-image ladder cache', async () => {
+    const post = makePost({
+      url: 'https://www.reddit.com/gallery/abc123',
+      gallery: [
+        {
+          url: 'https://i.redd.it/one.jpg',
+          width: 1080,
+          height: 1080,
+          status: GalleryMediaStatus.VALID,
+        },
+        {
+          url: 'https://i.redd.it/two.jpg',
+          width: 1080,
+          height: 1080,
+          status: GalleryMediaStatus.VALID,
+        },
+      ],
+    });
+    const reddit = {
+      getPostById: vi.fn().mockResolvedValue(post),
+    };
+    const cachedUrls = ['https://i.redd.it/one.jpg', 'https://i.redd.it/two.jpg'];
+
+    const result = await resolvePostGalleryUrls(cachedUrls, 't3_abc123', reddit);
+
+    expect(reddit.getPostById).toHaveBeenCalledWith('t3_abc123');
+    expect(result).toEqual(cachedUrls);
   });
 });
 

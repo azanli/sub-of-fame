@@ -1,7 +1,10 @@
 import type { Listing, Post, RedditClient } from '@devvit/reddit';
 import type { T3 } from '@devvit/shared-types/tid.js';
 import type { NextWorkBudget } from '../../shared/api.js';
-import { resolveLadderPageSize, resolveLadderTimeframe } from '../redis/keys.js';
+import {
+  resolveLadderPageSize,
+  resolveLadderTimeframe,
+} from '../redis/keys.js';
 import {
   getCursorChain,
   getLadderPage,
@@ -40,18 +43,38 @@ export const toPostUrl = (post: Post): string => {
   }
 
   const { permalink } = post;
-  return permalink.startsWith('http') ? permalink : `https://www.reddit.com${permalink}`;
+  return permalink.startsWith('http')
+    ? permalink
+    : `https://www.reddit.com${permalink}`;
 };
 
 export const resolveLadderPostUrl = (post: LadderPostSummary): string =>
-  post.postUrl || `https://www.reddit.com/comments/${post.id.replace(/^t3_/, '')}/`;
+  post.postUrl ||
+  `https://www.reddit.com/comments/${post.id.replace(/^t3_/, '')}/`;
 
-/** Matches `GalleryMediaStatus.VALID` from the Devvit Post model. */
-const GALLERY_MEDIA_VALID = 1;
+/** Matches `GalleryMediaStatus.FAILED` from the Devvit Post model. */
+const GALLERY_MEDIA_FAILED = 2;
 const IMAGE_EXTENSION_PATTERN = /\.(jpe?g|png|gif|webp)$/i;
 const REDDIT_IMAGE_HOST_PATTERN =
   /^https:\/\/(i|preview|external-preview)\.redd\.it\//i;
 const LOW_RES_THUMB_HOST_PATTERN = /thumbs\.redditmedia\.com/i;
+
+const REDDIT_PREVIEW_HOSTS = new Set(['preview.redd.it', 'external-preview.redd.it']);
+
+/** Converts signed preview URLs into direct i.redd.it links the webview can load. */
+export const toLoadableRedditImageUrl = (url: string): string => {
+  const normalized = url.replace(/&amp;/g, '&').trim();
+
+  try {
+    const parsed = new URL(normalized);
+    if (REDDIT_PREVIEW_HOSTS.has(parsed.hostname)) {
+      return `https://i.redd.it${parsed.pathname}`;
+    }
+    return parsed.toString();
+  } catch {
+    return normalized;
+  }
+};
 
 export const upgradeRedditImageUrl = (url: string): string => {
   try {
@@ -106,14 +129,21 @@ const isDirectImageUrl = (url: string): boolean => {
   }
 };
 
-const getGalleryImageUrl = (post: Post): string | undefined => {
+export const normalizeGalleryImageUrls = (post: Post): string[] => {
+  const urls: string[] = [];
   for (const item of post.gallery) {
-    if (item.status === GALLERY_MEDIA_VALID && item.url.length > 0) {
-      return item.url;
+    if (item.status !== GALLERY_MEDIA_FAILED && item.url.length > 0) {
+      urls.push(toLoadableRedditImageUrl(item.url));
     }
   }
-  return undefined;
+  return urls;
 };
+
+const pickLongerGalleryList = (fetched: string[], cached: string[]): string[] =>
+  fetched.length >= cached.length ? fetched : cached;
+
+const getGalleryImageUrl = (post: Post): string | undefined =>
+  normalizeGalleryImageUrls(post)[0];
 
 const getThumbnailUrl = (post: Post): string | undefined => post.thumbnail?.url;
 
@@ -124,7 +154,7 @@ export const normalizeImageUrl = (post: Post): string | undefined => {
 
   const galleryUrl = getGalleryImageUrl(post);
   if (galleryUrl !== undefined) {
-    return upgradeRedditImageUrl(galleryUrl);
+    return galleryUrl;
   }
 
   if (post.url && isDirectImageUrl(post.url)) {
@@ -175,6 +205,41 @@ export const resolvePostImageUrl = async (
   return undefined;
 };
 
+export const resolvePostGalleryUrls = async (
+  cachedUrls: string[] | undefined,
+  postId: T3,
+  reddit: PostLookupReddit
+): Promise<string[] | undefined> => {
+  const cachedLoadable =
+    cachedUrls?.map(toLoadableRedditImageUrl).filter((url) => url.length > 0) ?? [];
+
+  try {
+    const post = await reddit.getPostById(postId);
+    const fetchedUrls = normalizeGalleryImageUrls(post);
+    const urls = pickLongerGalleryList(fetchedUrls, cachedLoadable);
+
+    if (urls.length > 0) {
+      try {
+        const enriched = await post.getEnrichedThumbnail();
+        if (enriched?.image.url !== undefined) {
+          urls[0] = toLoadableRedditImageUrl(enriched.image.url);
+        }
+      } catch {
+        // Fall back to the first gallery URL when enrichment fails.
+      }
+      return urls;
+    }
+  } catch {
+    // Fall back to cached gallery URLs when enrichment fails.
+  }
+
+  if (cachedLoadable.length > 0) {
+    return cachedLoadable;
+  }
+
+  return undefined;
+};
+
 export const buildPostSummary = (post: Post): LadderPostSummary => {
   const body = post.body;
   const summary: LadderPostSummary = {
@@ -187,9 +252,15 @@ export const buildPostSummary = (post: Post): LadderPostSummary => {
     isSpoiler: post.spoiler,
     commentCount: post.numberOfComments ?? 0,
   };
-  const imageUrl = normalizeImageUrl(post);
-  if (imageUrl !== undefined) {
-    summary.imageUrl = imageUrl;
+  const galleryUrls = normalizeGalleryImageUrls(post);
+  if (galleryUrls.length > 0) {
+    summary.galleryUrls = galleryUrls;
+    summary.imageUrl = galleryUrls[0];
+  } else {
+    const imageUrl = normalizeImageUrl(post);
+    if (imageUrl !== undefined) {
+      summary.imageUrl = imageUrl;
+    }
   }
   return summary;
 };

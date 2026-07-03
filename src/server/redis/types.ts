@@ -23,6 +23,7 @@ export type LadderPostSummary = {
   isSpoiler: boolean;
   commentCount: number;
   imageUrl?: string;
+  galleryUrls?: string[];
 };
 
 export type LadderCachePage = {
@@ -52,7 +53,7 @@ export type PuzzleCommentSnapshot = {
 
 export type PuzzleSnapshot = {
   sourcePostId: string;
-  post: { title: string; body?: string; imageUrl?: string };
+  post: { title: string; body?: string; imageUrl?: string; galleryUrls?: string[] };
   numberOfComments: number;
   // index 0 = #1 most upvotes (true rank); never scrambled
   comments: [PuzzleCommentSnapshot, PuzzleCommentSnapshot, PuzzleCommentSnapshot];

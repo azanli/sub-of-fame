@@ -15,7 +15,12 @@ export type CommentValidationResult =
 
 export type ValidateCommentsParams = {
   sourcePostId: string;
-  post: { title: string; body?: string; imageUrl?: string };
+  post: {
+    title: string;
+    body?: string;
+    imageUrl?: string;
+    galleryUrls?: string[];
+  };
   numberOfComments: number;
 };
 
@@ -45,7 +50,8 @@ export const isAuthorValid = (authorName: string): boolean =>
   authorName.toLowerCase() !== 'automoderator';
 
 export const isNotModerationContent = (comment: Comment): boolean =>
-  !comment.stickied && (comment.distinguishedBy === undefined || comment.distinguishedBy === '');
+  !comment.stickied &&
+  (comment.distinguishedBy === undefined || comment.distinguishedBy === '');
 
 export const isScoreValid = (score: unknown): boolean =>
   typeof score === 'number' && Number.isFinite(score);
@@ -63,7 +69,9 @@ export const deduplicateById = (comments: Comment[]): Comment[] => {
   return unique;
 };
 
-export const hasDistinctScores = (candidates: PuzzleCommentSnapshot[]): boolean => {
+export const hasDistinctScores = (
+  candidates: PuzzleCommentSnapshot[]
+): boolean => {
   if (candidates.length < 3) {
     return false;
   }
@@ -108,10 +116,19 @@ export const validateComments = async (
   try {
     const cached = await getSnapshot(sourcePostId);
     if (cached !== null) {
+      const mergedPost = {
+        ...cached.post,
+        ...(post.imageUrl !== undefined ? { imageUrl: post.imageUrl } : {}),
+        ...(post.galleryUrls !== undefined
+          ? { galleryUrls: post.galleryUrls }
+          : {}),
+      };
+
       return {
         kind: 'valid',
         snapshot: {
           ...cached,
+          post: mergedPost,
           numberOfComments: cached.numberOfComments ?? numberOfComments,
         },
       };
@@ -153,6 +170,9 @@ export const validateComments = async (
         title: post.title,
         ...(post.body !== undefined ? { body: post.body } : {}),
         ...(post.imageUrl !== undefined ? { imageUrl: post.imageUrl } : {}),
+        ...(post.galleryUrls !== undefined
+          ? { galleryUrls: post.galleryUrls }
+          : {}),
       },
       numberOfComments,
       comments: [selected[0]!, selected[1]!, selected[2]!],

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { router, publicProcedure } from '../trpc';
 import { deriveLaunchContext, resolveRequestedSubreddit } from '../launchContext';
 import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
-import { fastFilterEligible, resolveLadderPage, resolveLadderPostUrl, resolvePostImageUrl } from '../reddit/ladderPipeline';
+import { fastFilterEligible, resolveLadderPage, resolveLadderPostUrl, resolvePostGalleryUrls, resolvePostImageUrl } from '../reddit/ladderPipeline';
 import { validateComments } from '../reddit/commentValidation';
 import { resolveLadderPageSize } from '../redis/keys';
 import { getRankIndex, advanceRankIndex } from '../redis/rankProgress';
@@ -124,6 +124,36 @@ const buildRevealSlots = (
     };
   });
 
+type ResolvedPostMedia = {
+  imageUrl?: string;
+  galleryUrls?: string[];
+};
+
+const enrichSnapshotMedia = (
+  snapshot: PuzzleSnapshot,
+  resolvedMedia: ResolvedPostMedia
+): PuzzleSnapshot => {
+  if (
+    resolvedMedia.galleryUrls === undefined &&
+    resolvedMedia.imageUrl === undefined
+  ) {
+    return snapshot;
+  }
+
+  const post = { ...snapshot.post };
+  if (resolvedMedia.galleryUrls !== undefined && resolvedMedia.galleryUrls.length > 0) {
+    post.galleryUrls = resolvedMedia.galleryUrls;
+    post.imageUrl = resolvedMedia.galleryUrls[0];
+  } else if (resolvedMedia.imageUrl !== undefined) {
+    post.imageUrl = resolvedMedia.imageUrl;
+  }
+
+  return {
+    ...snapshot,
+    post,
+  };
+};
+
 const buildReadyResponse = (
   attemptId: string,
   rankIndex: number,
@@ -142,6 +172,9 @@ const buildReadyResponse = (
   }
   if (snapshot.post.imageUrl !== undefined) {
     post.imageUrl = snapshot.post.imageUrl;
+  }
+  if (snapshot.post.galleryUrls !== undefined) {
+    post.galleryUrls = snapshot.post.galleryUrls;
   }
 
   return {
@@ -265,12 +298,27 @@ export const puzzleRouter = router({
           continue;
         }
 
-        const postPayload: { title: string; body?: string; imageUrl?: string } = {
+        const postPayload: {
+          title: string;
+          body?: string;
+          imageUrl?: string;
+          galleryUrls?: string[];
+        } = {
           title: post.title,
         };
-        const imageUrl = await resolvePostImageUrl(post.imageUrl, post.id, ctx.reddit);
-        if (imageUrl !== undefined) {
-          postPayload.imageUrl = imageUrl;
+        const galleryUrls = await resolvePostGalleryUrls(
+          post.galleryUrls,
+          post.id,
+          ctx.reddit
+        );
+        if (galleryUrls !== undefined && galleryUrls.length > 1) {
+          postPayload.galleryUrls = galleryUrls;
+          postPayload.imageUrl = galleryUrls[0];
+        } else {
+          const imageUrl = await resolvePostImageUrl(post.imageUrl, post.id, ctx.reddit);
+          if (imageUrl !== undefined) {
+            postPayload.imageUrl = imageUrl;
+          }
         }
 
         const validation = await validateComments(
@@ -297,7 +345,7 @@ export const puzzleRouter = router({
           continue;
         }
 
-        const snapshot = validation.snapshot;
+        const snapshot = enrichSnapshotMedia(validation.snapshot, postPayload);
         const attemptId = randomUUID();
         const trueOrder: [string, string, string] = [
           snapshot.comments[0].id,
