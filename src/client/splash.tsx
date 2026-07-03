@@ -64,6 +64,7 @@ const SplashHeader = ({
 }: {
   playerName: string;
   hasGameData: boolean;
+  isLoading: boolean;
 }) => (
   <header className="flex w-full max-w-md flex-col items-center pt-10 text-center">
     <h1 className="text-3xl font-bold tracking-wide text-[#d93900]">
