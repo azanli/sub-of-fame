@@ -72,17 +72,16 @@ export const HubDashboard = ({
   ]);
 
   const customLoadingCard = useMemo(() => {
-    if (!isLoadingSelection || hasMatchingLoadingCard || loadingSubreddit === null) {
+    if (
+      !isLoadingSelection ||
+      hasMatchingLoadingCard ||
+      loadingSubreddit === null
+    ) {
       return null;
     }
 
     return resolveLoadingCard(loadingSubreddit, initData);
-  }, [
-    hasMatchingLoadingCard,
-    initData,
-    isLoadingSelection,
-    loadingSubreddit,
-  ]);
+  }, [hasMatchingLoadingCard, initData, isLoadingSelection, loadingSubreddit]);
 
   return (
     <div className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 p-4">
@@ -200,6 +199,11 @@ export const HubDashboard = ({
           )}
         </form>
       )}
+      <img
+        className="mx-auto w-1/2 max-w-[220px] object-contain"
+        src="/snoo.png"
+        alt="Snoo thinking about the hivemind"
+      />
     </div>
   );
 };
