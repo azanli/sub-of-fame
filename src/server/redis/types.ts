@@ -3,6 +3,7 @@
 // Do not import these from src/client or src/shared.
 
 import type { T3 } from '@devvit/shared-types/tid.js';
+import type { PostContentBlock } from '../../shared/postContent.js';
 
 export type SubredditMetadataCacheEntry = {
   subreddit: string;
@@ -53,7 +54,13 @@ export type PuzzleCommentSnapshot = {
 
 export type PuzzleSnapshot = {
   sourcePostId: string;
-  post: { title: string; body?: string; imageUrl?: string; galleryUrls?: string[] };
+  post: {
+    title: string;
+    body?: string;
+    contentBlocks?: PostContentBlock[];
+    imageUrl?: string;
+    galleryUrls?: string[];
+  };
   numberOfComments: number;
   // index 0 = #1 most upvotes (true rank); never scrambled
   comments: [PuzzleCommentSnapshot, PuzzleCommentSnapshot, PuzzleCommentSnapshot];

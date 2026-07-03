@@ -1,3 +1,5 @@
+import type { PostContentBlock } from './postContent.js';
+
 type PerformanceCounters = {
   correctSlots: number;
   totalSlots: number;
@@ -90,7 +92,13 @@ export type PuzzleNextResponse =
       rankIndex: number;
       subredditDisplayName: string;
       postUrl: string;
-      post: { title: string; body?: string; imageUrl?: string; galleryUrls?: string[] };
+      post: {
+        title: string;
+        body?: string;
+        contentBlocks?: PostContentBlock[];
+        imageUrl?: string;
+        galleryUrls?: string[];
+      };
       numberOfComments: number;
       comments: Array<{ id: string; body: string }>;
     }

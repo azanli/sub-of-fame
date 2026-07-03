@@ -239,6 +239,7 @@ describe('validateComments – cached snapshot', () => {
         ...cached,
         post: {
           title: 'Cached post',
+          body: POST_BODY,
           imageUrl: 'https://example.com/image.jpg',
         },
         numberOfComments: 30,
@@ -287,6 +288,7 @@ describe('validateComments – cached snapshot', () => {
         ...cached,
         post: {
           title: 'Cached post',
+          body: POST_BODY,
           imageUrl: galleryUrls[0],
           galleryUrls,
         },

@@ -4,6 +4,7 @@ import { router, publicProcedure } from '../trpc';
 import { deriveLaunchContext, resolveRequestedSubreddit } from '../launchContext';
 import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
 import { fastFilterEligible, resolveLadderPage, resolveLadderPostUrl, resolvePostGalleryUrls, resolvePostImageUrl } from '../reddit/ladderPipeline';
+import { resolvePostContent } from '../reddit/postContent';
 import { validateComments } from '../reddit/commentValidation';
 import { resolveLadderPageSize } from '../redis/keys';
 import { getRankIndex, advanceRankIndex } from '../redis/rankProgress';
@@ -170,6 +171,9 @@ const buildReadyResponse = (
   if (snapshot.post.body !== undefined) {
     post.body = snapshot.post.body;
   }
+  if (snapshot.post.contentBlocks !== undefined) {
+    post.contentBlocks = snapshot.post.contentBlocks;
+  }
   if (snapshot.post.imageUrl !== undefined) {
     post.imageUrl = snapshot.post.imageUrl;
   }
@@ -301,11 +305,33 @@ export const puzzleRouter = router({
         const postPayload: {
           title: string;
           body?: string;
+          contentBlocks?: Extract<PuzzleNextResponse, { status: 'ready' }>['post']['contentBlocks'];
           imageUrl?: string;
           galleryUrls?: string[];
         } = {
           title: post.title,
         };
+
+        let resolvedPost;
+        try {
+          resolvedPost = await ctx.reddit.getPostById(post.id);
+        } catch {
+          resolvedPost = undefined;
+        }
+
+        if (resolvedPost !== undefined) {
+          const resolvedContent = resolvePostContent(resolvedPost);
+          if (resolvedContent.body !== undefined) {
+            postPayload.body = resolvedContent.body;
+          }
+          if (
+            resolvedContent.contentBlocks !== undefined &&
+            resolvedContent.contentBlocks.length > 0
+          ) {
+            postPayload.contentBlocks = resolvedContent.contentBlocks;
+          }
+        }
+
         const galleryUrls = await resolvePostGalleryUrls(
           post.galleryUrls,
           post.id,

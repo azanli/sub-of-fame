@@ -1,6 +1,7 @@
 import type { Comment, Listing, RedditClient } from '@devvit/reddit';
 import { T3 } from '@devvit/shared-types/tid.js';
 import type { NextWorkBudget } from '../../shared/api.js';
+import type { PostContentBlock } from '../../shared/postContent.js';
 import { MAX_COMMENT_LENGTH } from '../config.js';
 import { SNAPSHOT_TTL_S } from '../redis/keys.js';
 import { getSnapshot, setSnapshot } from '../redis/snapshotStore.js';
@@ -18,6 +19,7 @@ export type ValidateCommentsParams = {
   post: {
     title: string;
     body?: string;
+    contentBlocks?: PostContentBlock[];
     imageUrl?: string;
     galleryUrls?: string[];
   };
@@ -118,6 +120,8 @@ export const validateComments = async (
     if (cached !== null) {
       const mergedPost = {
         ...cached.post,
+        ...(post.body !== undefined ? { body: post.body } : {}),
+        ...(post.contentBlocks !== undefined ? { contentBlocks: post.contentBlocks } : {}),
         ...(post.imageUrl !== undefined ? { imageUrl: post.imageUrl } : {}),
         ...(post.galleryUrls !== undefined
           ? { galleryUrls: post.galleryUrls }
@@ -169,6 +173,7 @@ export const validateComments = async (
       post: {
         title: post.title,
         ...(post.body !== undefined ? { body: post.body } : {}),
+        ...(post.contentBlocks !== undefined ? { contentBlocks: post.contentBlocks } : {}),
         ...(post.imageUrl !== undefined ? { imageUrl: post.imageUrl } : {}),
         ...(post.galleryUrls !== undefined
           ? { galleryUrls: post.galleryUrls }

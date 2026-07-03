@@ -5,6 +5,7 @@ import {
   resolveLadderPageSize,
   resolveLadderTimeframe,
 } from '../redis/keys.js';
+import { resolvePostPlainText } from './postContent.js';
 import {
   getCursorChain,
   getLadderPage,
@@ -241,13 +242,13 @@ export const resolvePostGalleryUrls = async (
 };
 
 export const buildPostSummary = (post: Post): LadderPostSummary => {
-  const body = post.body;
+  const plainText = resolvePostPlainText(post);
   const summary: LadderPostSummary = {
     id: post.id,
     title: post.title,
     postUrl: toPostUrl(post),
     sourceSubredditName: post.subredditName,
-    hasBody: body !== undefined && body.length >= 50,
+    hasBody: plainText.length >= 50,
     isNSFW: post.nsfw,
     isSpoiler: post.spoiler,
     commentCount: post.numberOfComments ?? 0,
