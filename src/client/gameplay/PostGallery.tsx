@@ -46,11 +46,15 @@ export const PostGallery = ({ imageUrls }: PostGalleryProps) => {
   }
 
   const goToPrevious = () => {
-    setActiveIndex((current) => (current === 0 ? totalImages - 1 : current - 1));
+    setActiveIndex((current) =>
+      current === 0 ? totalImages - 1 : current - 1
+    );
   };
 
   const goToNext = () => {
-    setActiveIndex((current) => (current === totalImages - 1 ? 0 : current + 1));
+    setActiveIndex((current) =>
+      current === totalImages - 1 ? 0 : current + 1
+    );
   };
 
   return (
@@ -67,18 +71,21 @@ export const PostGallery = ({ imageUrls }: PostGalleryProps) => {
         type="button"
         onClick={goToPrevious}
         aria-label="Previous image"
-        className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition-colors hover:bg-black/70 cursor-pointer"
+        className="absolute left-2 top-1/2 -translate-y-1/2 p-4 cursor-pointer group"
       >
-        <ChevronLeftIcon />
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white transition-colors group-hover:bg-black/70">
+          <ChevronLeftIcon />
+        </div>
       </button>
-
       <button
         type="button"
         onClick={goToNext}
         aria-label="Next image"
-        className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition-colors hover:bg-black/70 cursor-pointer"
+        className="absolute right-2 top-1/2 -translate-y-1/2 p-4 cursor-pointer group"
       >
-        <ChevronRightIcon />
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white transition-colors group-hover:bg-black/70">
+          <ChevronRightIcon />
+        </div>
       </button>
 
       <div
