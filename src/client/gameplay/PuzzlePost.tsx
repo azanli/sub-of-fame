@@ -14,6 +14,19 @@ const PostImage = ({ url, alt }: { url: string; alt: string }) => (
   />
 );
 
+const PostVideo = ({ url }: { url: string }) => (
+  <video
+    src={url}
+    controls
+    autoPlay
+    muted
+    loop
+    playsInline
+    onContextMenu={(e) => e.preventDefault()}
+    className="block w-full h-auto max-w-full max-h-full rounded-lg"
+  />
+);
+
 export const PuzzlePost = ({ post }: PuzzlePostProps) => {
   const contentBlocks =
     post.contentBlocks !== undefined && post.contentBlocks.length > 0
@@ -74,9 +87,12 @@ export const PuzzlePost = ({ post }: PuzzlePostProps) => {
       {showTrailingGallery ? (
         <PostGallery imageUrls={galleryUrls} />
       ) : (
-        showTrailingSingleImage && (
+        showTrailingSingleImage &&
+        (post.isVideo ? (
+          <PostVideo url={singleImageUrl} />
+        ) : (
           <PostImage url={singleImageUrl} alt="Post context" />
-        )
+        ))
       )}
     </div>
   );

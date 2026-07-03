@@ -485,6 +485,29 @@ describe('buildPostSummary', () => {
       })
     );
   });
+
+  it('flags reddit-hosted video posts and uses the mp4 fallback URL', () => {
+    const post = new Post({
+      ...basePostData,
+      url: 'https://v.redd.it/abc123',
+      secureMedia: {
+        redditVideo: {
+          fallbackUrl: 'https://v.redd.it/abc123/DASH_1080.mp4?source=fallback',
+        },
+      },
+    });
+
+    expect(buildPostSummary(post)).toEqual(
+      expect.objectContaining({
+        imageUrl: 'https://v.redd.it/abc123/DASH_1080.mp4?source=fallback',
+        isVideo: true,
+      })
+    );
+  });
+
+  it('does not flag isVideo for regular image posts', () => {
+    expect(buildPostSummary(makePost({})).isVideo).toBeUndefined();
+  });
 });
 
 describe('resolveLadderPostUrl', () => {

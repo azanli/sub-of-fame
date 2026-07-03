@@ -22,6 +22,7 @@ export type ValidateCommentsParams = {
     contentBlocks?: PostContentBlock[];
     imageUrl?: string;
     galleryUrls?: string[];
+    isVideo?: boolean;
   };
   numberOfComments: number;
 };
@@ -126,6 +127,7 @@ export const validateComments = async (
         ...(post.galleryUrls !== undefined
           ? { galleryUrls: post.galleryUrls }
           : {}),
+        ...(post.isVideo !== undefined ? { isVideo: post.isVideo } : {}),
       };
 
       return {
@@ -178,6 +180,7 @@ export const validateComments = async (
         ...(post.galleryUrls !== undefined
           ? { galleryUrls: post.galleryUrls }
           : {}),
+        ...(post.isVideo !== undefined ? { isVideo: post.isVideo } : {}),
       },
       numberOfComments,
       comments: [selected[0]!, selected[1]!, selected[2]!],

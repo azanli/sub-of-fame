@@ -60,7 +60,10 @@ const REDDIT_IMAGE_HOST_PATTERN =
   /^https:\/\/(i|preview|external-preview)\.redd\.it\//i;
 const LOW_RES_THUMB_HOST_PATTERN = /thumbs\.redditmedia\.com/i;
 
-const REDDIT_PREVIEW_HOSTS = new Set(['preview.redd.it', 'external-preview.redd.it']);
+const REDDIT_PREVIEW_HOSTS = new Set([
+  'preview.redd.it',
+  'external-preview.redd.it',
+]);
 
 /** Converts signed preview URLs into direct i.redd.it links the webview can load. */
 export const toLoadableRedditImageUrl = (url: string): string => {
@@ -144,13 +147,19 @@ export const normalizeGalleryImageUrls = (post: Post): string[] => {
   return urls;
 };
 
-const pickLongerGalleryList = (fetched: string[], cached: string[]): string[] =>
-  fetched.length >= cached.length ? fetched : cached;
+const pickLongerGalleryList = (
+  fetched: string[],
+  cached: string[]
+): string[] => (fetched.length >= cached.length ? fetched : cached);
 
 const getGalleryImageUrl = (post: Post): string | undefined =>
   normalizeGalleryImageUrls(post)[0];
 
 const getThumbnailUrl = (post: Post): string | undefined => post.thumbnail?.url;
+
+/** Direct .mp4 URL for reddit-hosted videos (v.redd.it), suitable for a plain <video> tag. */
+export const getVideoFallbackUrl = (post: Post): string | undefined =>
+  post.secureMedia?.redditVideo?.fallbackUrl;
 
 export const normalizeImageUrl = (post: Post): string | undefined => {
   if (isSelfPost(post)) {
@@ -216,7 +225,8 @@ export const resolvePostGalleryUrls = async (
   reddit: PostLookupReddit
 ): Promise<string[] | undefined> => {
   const cachedLoadable =
-    cachedUrls?.map(toLoadableRedditImageUrl).filter((url) => url.length > 0) ?? [];
+    cachedUrls?.map(toLoadableRedditImageUrl).filter((url) => url.length > 0) ??
+    [];
 
   try {
     const post = await reddit.getPostById(postId);
@@ -257,6 +267,13 @@ export const buildPostSummary = (post: Post): LadderPostSummary => {
     isSpoiler: post.spoiler,
     commentCount: post.numberOfComments ?? 0,
   };
+  const videoUrl = getVideoFallbackUrl(post);
+  if (videoUrl !== undefined) {
+    summary.imageUrl = videoUrl;
+    summary.isVideo = true;
+    return summary;
+  }
+
   const galleryUrls = normalizeGalleryImageUrls(post);
   if (galleryUrls.length > 0) {
     summary.galleryUrls = galleryUrls;

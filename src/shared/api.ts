@@ -98,6 +98,7 @@ export type PuzzleNextResponse =
         contentBlocks?: PostContentBlock[];
         imageUrl?: string;
         galleryUrls?: string[];
+        isVideo?: boolean;
       };
       numberOfComments: number;
       comments: Array<{ id: string; body: string }>;

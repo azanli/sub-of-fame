@@ -415,6 +415,30 @@ describe('puzzle.next', () => {
     expect(result.comments.map((comment) => comment.id)).toEqual(attempt?.commentOrder);
   });
 
+  it('returns ready with isVideo passthrough for reddit-hosted video posts', async () => {
+    mockResolveLadderPage.mockResolvedValue(
+      makeLadderHit({
+        ...makePostSummary(),
+        imageUrl: 'https://v.redd.it/abc123/DASH_1080.mp4?source=fallback',
+        isVideo: true,
+      })
+    );
+
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+    const result = await caller.puzzle.next({ subreddit: 'askreddit' });
+
+    expect(result.status).toBe('ready');
+    if (result.status !== 'ready') {
+      return;
+    }
+
+    expect(result.post.isVideo).toBe(true);
+    expect(result.post.imageUrl).toBe(
+      'https://v.redd.it/abc123/DASH_1080.mp4?source=fallback'
+    );
+    expect(result.post.galleryUrls).toBeUndefined();
+  });
+
   it('returns ready with the post source subreddit display name for Daily Challenge', async () => {
     mockResolveSubredditMetadata.mockImplementation(async (name: string) => {
       if (name === 'all') {

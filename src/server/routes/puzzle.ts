@@ -3,7 +3,14 @@ import { z } from 'zod';
 import { router, publicProcedure } from '../trpc';
 import { deriveLaunchContext, resolveRequestedSubreddit } from '../launchContext';
 import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
-import { fastFilterEligible, resolveLadderPage, resolveLadderPostUrl, resolvePostGalleryUrls, resolvePostImageUrl } from '../reddit/ladderPipeline';
+import {
+  fastFilterEligible,
+  getVideoFallbackUrl,
+  resolveLadderPage,
+  resolveLadderPostUrl,
+  resolvePostGalleryUrls,
+  resolvePostImageUrl,
+} from '../reddit/ladderPipeline';
 import { resolvePostContent } from '../reddit/postContent';
 import { validateComments } from '../reddit/commentValidation';
 import { resolveLadderPageSize } from '../redis/keys';
@@ -128,6 +135,7 @@ const buildRevealSlots = (
 type ResolvedPostMedia = {
   imageUrl?: string;
   galleryUrls?: string[];
+  isVideo?: boolean;
 };
 
 const enrichSnapshotMedia = (
@@ -142,11 +150,17 @@ const enrichSnapshotMedia = (
   }
 
   const post = { ...snapshot.post };
-  if (resolvedMedia.galleryUrls !== undefined && resolvedMedia.galleryUrls.length > 0) {
+  if (resolvedMedia.isVideo) {
+    post.imageUrl = resolvedMedia.imageUrl;
+    post.isVideo = true;
+    delete post.galleryUrls;
+  } else if (resolvedMedia.galleryUrls !== undefined && resolvedMedia.galleryUrls.length > 0) {
     post.galleryUrls = resolvedMedia.galleryUrls;
     post.imageUrl = resolvedMedia.galleryUrls[0];
+    delete post.isVideo;
   } else if (resolvedMedia.imageUrl !== undefined) {
     post.imageUrl = resolvedMedia.imageUrl;
+    delete post.isVideo;
   }
 
   return {
@@ -179,6 +193,9 @@ const buildReadyResponse = (
   }
   if (snapshot.post.galleryUrls !== undefined) {
     post.galleryUrls = snapshot.post.galleryUrls;
+  }
+  if (snapshot.post.isVideo !== undefined) {
+    post.isVideo = snapshot.post.isVideo;
   }
 
   return {
@@ -308,6 +325,7 @@ export const puzzleRouter = router({
           contentBlocks?: Extract<PuzzleNextResponse, { status: 'ready' }>['post']['contentBlocks'];
           imageUrl?: string;
           galleryUrls?: string[];
+          isVideo?: boolean;
         } = {
           title: post.title,
         };
@@ -332,20 +350,32 @@ export const puzzleRouter = router({
           }
         }
 
-        const galleryUrls = await resolvePostGalleryUrls(
-          post.galleryUrls,
-          post.id,
-          ctx.reddit
-        );
-        if (galleryUrls !== undefined && galleryUrls.length > 0) {
-          postPayload.imageUrl = galleryUrls[0];
-          if (galleryUrls.length > 1) {
-            postPayload.galleryUrls = galleryUrls;
-          }
+        const videoUrl =
+          resolvedPost !== undefined
+            ? getVideoFallbackUrl(resolvedPost)
+            : post.isVideo
+              ? post.imageUrl
+              : undefined;
+
+        if (videoUrl !== undefined) {
+          postPayload.imageUrl = videoUrl;
+          postPayload.isVideo = true;
         } else {
-          const imageUrl = await resolvePostImageUrl(post.imageUrl, post.id, ctx.reddit);
-          if (imageUrl !== undefined) {
-            postPayload.imageUrl = imageUrl;
+          const galleryUrls = await resolvePostGalleryUrls(
+            post.galleryUrls,
+            post.id,
+            ctx.reddit
+          );
+          if (galleryUrls !== undefined && galleryUrls.length > 0) {
+            postPayload.imageUrl = galleryUrls[0];
+            if (galleryUrls.length > 1) {
+              postPayload.galleryUrls = galleryUrls;
+            }
+          } else {
+            const imageUrl = await resolvePostImageUrl(post.imageUrl, post.id, ctx.reddit);
+            if (imageUrl !== undefined) {
+              postPayload.imageUrl = imageUrl;
+            }
           }
         }
 

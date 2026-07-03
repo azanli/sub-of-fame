@@ -25,6 +25,8 @@ export type LadderPostSummary = {
   commentCount: number;
   imageUrl?: string;
   galleryUrls?: string[];
+  /** True when `imageUrl` points at a playable video (reddit-hosted, mp4 fallback). */
+  isVideo?: boolean;
 };
 
 export type LadderCachePage = {
@@ -60,6 +62,7 @@ export type PuzzleSnapshot = {
     contentBlocks?: PostContentBlock[];
     imageUrl?: string;
     galleryUrls?: string[];
+    isVideo?: boolean;
   };
   numberOfComments: number;
   // index 0 = #1 most upvotes (true rank); never scrambled

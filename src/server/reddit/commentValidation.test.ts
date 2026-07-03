@@ -76,6 +76,7 @@ const validateParams = (
     body?: string;
     imageUrl?: string;
     galleryUrls?: string[];
+    isVideo?: boolean;
     numberOfComments: number;
   }> = {}
 ) => ({
@@ -291,6 +292,49 @@ describe('validateComments – cached snapshot', () => {
           body: POST_BODY,
           imageUrl: galleryUrls[0],
           galleryUrls,
+        },
+        numberOfComments: 30,
+      },
+    });
+  });
+
+  it('merges isVideo from fresh post data into a cached snapshot', async () => {
+    const cached: PuzzleSnapshot = {
+      sourcePostId: SOURCE_POST_ID,
+      post: {
+        title: 'Cached post',
+        imageUrl: 'https://example.com/thumb.jpg',
+      },
+      numberOfComments: 30,
+      comments: [
+        { id: 't1_1', body: 'First cached comment body text.', score: 100, createdAt: 1 },
+        { id: 't1_2', body: 'Second cached comment body text.', score: 50, createdAt: 2 },
+        { id: 't1_3', body: 'Third cached comment body text.', score: 25, createdAt: 3 },
+      ],
+      createdAt: 1000,
+      expiresAt: 2000,
+    };
+    mockGetSnapshot.mockResolvedValue(cached);
+
+    const reddit = { getComments: mockGetComments };
+    const result = await validateComments(
+      validateParams({
+        imageUrl: 'https://v.redd.it/abc123/DASH_1080.mp4?source=fallback',
+        isVideo: true,
+      }),
+      reddit,
+      makeBudget()
+    );
+
+    expect(result).toEqual({
+      kind: 'valid',
+      snapshot: {
+        ...cached,
+        post: {
+          title: 'Cached post',
+          body: POST_BODY,
+          imageUrl: 'https://v.redd.it/abc123/DASH_1080.mp4?source=fallback',
+          isVideo: true,
         },
         numberOfComments: 30,
       },
