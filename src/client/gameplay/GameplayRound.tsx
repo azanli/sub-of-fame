@@ -125,6 +125,7 @@ const GameplayRoundInner = ({
     <CommentsModal
       comments={puzzle.comments}
       secondsRemaining={secondsRemaining}
+      totalSeconds={allottedSeconds}
       assignments={assignments}
       onTap={isSubmitting || isSkipping ? () => undefined : handleTap}
       onSkip={handleSkip}

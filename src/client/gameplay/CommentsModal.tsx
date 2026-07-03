@@ -5,6 +5,7 @@ import type { RankAssignments, ReadyPuzzle } from './types';
 type CommentsModalProps = {
   comments: ReadyPuzzle['comments'];
   secondsRemaining: number;
+  totalSeconds: number;
   assignments: RankAssignments;
   onTap: (commentId: string) => void;
   onSkip: () => void;
@@ -14,19 +15,23 @@ type CommentsModalProps = {
 export const CommentsModal = ({
   comments,
   secondsRemaining,
+  totalSeconds,
   assignments,
   onTap,
   onSkip,
   isSkipping,
 }: CommentsModalProps) => (
   <div className="fixed inset-0 z-20 flex flex-col overflow-hidden bg-white dark:bg-gray-900">
+    <CountdownTimer
+      secondsRemaining={secondsRemaining}
+      totalSeconds={totalSeconds}
+    />
     <div className="mx-auto flex h-full w-full max-w-lg flex-col">
       <div className="flex shrink-0 items-center justify-between gap-3 p-4">
         <h3 className="text-base font-semibold text-gray-900 dark:text-white">
           Rank the comments
         </h3>
         <div className="flex shrink-0 items-center gap-2">
-          <CountdownTimer secondsRemaining={secondsRemaining} />
           <button
             type="button"
             onClick={onSkip}
