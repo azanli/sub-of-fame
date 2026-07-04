@@ -718,7 +718,7 @@ describe('puzzle.submit', () => {
 
     expect(result.nextRankIndex).toBe(4);
     expect(result.userHiveIQ).toEqual({
-      userSubredditHiveIQ: 50,
+      userSubredditHiveIQ: 125,
       currentRankIndex: 4,
     });
     expect(result.coins).toBe(5);

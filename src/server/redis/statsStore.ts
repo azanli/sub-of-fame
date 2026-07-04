@@ -1,5 +1,6 @@
 import { redis } from '@devvit/web/server';
 import type { UserStatsProfile } from '../../shared/api';
+import { computeHiveIQScore } from '../../shared/hiveIQ';
 import {
   statsKey,
   statsCoinsField,
@@ -14,13 +15,12 @@ export const WELCOME_COINS = 3;
 
 /**
  * Compute Hive IQ from raw counters.
- * Returns null when totalSlots is 0 — not yet measured, distinct from 0% accuracy.
- * Returns 0 when totalSlots > 0 and correctSlots = 0 — measured, no correct slots.
+ * Returns null when totalSlots is 0 — not yet measured.
  */
-export const computeHiveIQ = (correctSlots: number, totalSlots: number): number | null => {
-  if (totalSlots === 0) return null;
-  return (correctSlots / totalSlots) * 100;
-};
+export const computeHiveIQ = (
+  correctSlots: number,
+  totalSlots: number
+): number | null => computeHiveIQScore(correctSlots, totalSlots);
 
 /**
  * Grant the welcome coin balance on first access. Idempotent for existing wallets.

@@ -250,7 +250,7 @@ describe('init — logged-in Hub', () => {
     const result = await caller.init();
 
     const askredditCard = result.dashboardSubreddits?.find((card) => card.subreddit === 'askreddit');
-    expect(askredditCard?.userSubredditHiveIQ).toBe((6 / 9) * 100);
+    expect(askredditCard?.userSubredditHiveIQ).toBe(150);
   });
 
   it('sorts dashboardSubreddits by completedRoundCount descending', async () => {
@@ -416,7 +416,7 @@ describe('init — logged-in Community', () => {
 
     expect(result.activeSubredditMetrics).toEqual({
       currentRankIndex: 4,
-      userSubredditHiveIQ: 50,
+      userSubredditHiveIQ: 125,
     });
     expect(mockGetProgress).toHaveBeenCalledWith('user-1', 'gaming');
   });

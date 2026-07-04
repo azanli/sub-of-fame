@@ -1,4 +1,8 @@
 import type { SubredditDashboardCard } from '../../shared/api';
+import {
+  formatHiveIQDisplayText,
+  resolveHiveIQDisplay,
+} from '../../shared/hiveIQ';
 import type { SubredditOption } from '../../shared/subreddits';
 import { SpinningLoadingCard } from './SpinningLoadingCard';
 
@@ -20,19 +24,6 @@ type StaticCardProps = DashboardCardBaseProps & {
 
 type DashboardCardProps = HydratedCardProps | StaticCardProps;
 
-const formatDashboardAccuracy = (
-  completedRoundCount: number,
-  userSubredditHiveIQ: number | null
-): string => {
-  if (completedRoundCount === 0 || userSubredditHiveIQ === null) {
-    return '—';
-  } else if (completedRoundCount <= 3) {
-    return 'Calibrating';
-  }
-
-  return `${userSubredditHiveIQ.toFixed(1)}%`;
-};
-
 // Exported so other priority dashboard cards (e.g. DailyChallengeCard) can reuse the
 // exact same geometric container and padding as standard curated subreddit cards.
 export const cardButtonClasses =
@@ -48,10 +39,16 @@ export const DashboardCard = (props: DashboardCardProps) => {
   const iconUrl = props.card.iconUrl;
   const isLoading = props.isLoading ?? false;
   const disabled = props.disabled ?? false;
-  const accuracy = formatDashboardAccuracy(
-    props.kind === 'hydrated' ? props.card.completedRoundCount : 0,
-    props.kind === 'hydrated' ? props.card.userSubredditHiveIQ : null
-  );
+  const hiveIQDisplay =
+    props.kind === 'hydrated'
+      ? resolveHiveIQDisplay(
+          props.card.userSubredditHiveIQ,
+          props.card.completedRoundCount
+        )
+      : null;
+  const hiveIQText =
+    hiveIQDisplay !== null ? formatHiveIQDisplayText(hiveIQDisplay) : null;
+  const showHiveIQScore = hiveIQDisplay?.kind === 'score';
 
   const cardContent = (
     <>
@@ -70,15 +67,18 @@ export const DashboardCard = (props: DashboardCardProps) => {
         <p className="truncate font-semibold text-gray-900 dark:text-white">
           r/{displayName}
         </p>
-        {props.kind === 'hydrated' && (
-          <p className="flex shrink-0 items-center justify-end gap-0.5 text-sm text-gray-500 dark:text-gray-400">
-            <span className="tabular-nums">{accuracy}</span>
-            {accuracy.includes('%') ? (
+        {props.kind === 'hydrated' && hiveIQText !== null && (
+          <p
+            className="flex shrink-0 items-center justify-end gap-0.5 text-sm text-gray-500 dark:text-gray-400"
+            aria-label={`Hive IQ ${hiveIQText}`}
+          >
+            <span className="tabular-nums">{hiveIQText}</span>
+            {showHiveIQScore ? (
               <span
-                className="inline-flex w-4 shrink-0 justify-center ml-1"
+                className="ml-1 inline-flex w-4 shrink-0 justify-center"
                 aria-hidden="true"
               >
-                🎯
+                🧠
               </span>
             ) : null}
           </p>
@@ -94,7 +94,7 @@ export const DashboardCard = (props: DashboardCardProps) => {
                   #{props.card.leaderboardRank}
                 </span>
                 <span
-                  className="inline-flex w-4 shrink-0 justify-center ml-1"
+                  className="ml-1 inline-flex w-4 shrink-0 justify-center"
                   aria-hidden="true"
                 >
                   🏆

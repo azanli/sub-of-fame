@@ -12,13 +12,13 @@ export type UserStatsProfile = {
 };
 
 export type UserGlobalHiveIQMetrics = {
-  userGlobalHiveIQ: number | null; // null when global:total = 0
+  userGlobalHiveIQ: number | null; // Hive IQ score; null when global:total = 0
   totalCorrectSlots: number;
   totalSlots: number;
 };
 
 export type UserActiveSubredditMetrics = {
-  userSubredditHiveIQ: number | null; // null when sub:total = 0
+  userSubredditHiveIQ: number | null; // Hive IQ score; null when sub:total = 0
   currentRankIndex: number;
 };
 

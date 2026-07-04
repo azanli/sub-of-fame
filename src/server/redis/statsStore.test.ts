@@ -36,21 +36,20 @@ describe('computeHiveIQ', () => {
     expect(computeHiveIQ(0, 0)).toBeNull();
   });
 
-  it('returns 0 when totalSlots > 0 and correctSlots is 0 (measured, no correct)', () => {
-    expect(computeHiveIQ(0, 3)).toBe(0);
+  it('clamps weak measured performance to the floor', () => {
+    expect(computeHiveIQ(0, 3)).toBe(70);
   });
 
-  it('returns 100 for a perfect round (3/3)', () => {
-    expect(computeHiveIQ(3, 3)).toBe(100);
+  it('maps random-guesser accuracy to 100', () => {
+    expect(computeHiveIQ(3, 9)).toBe(100);
   });
 
-  it('returns ~66.7 for 2/3 correct', () => {
-    expect(computeHiveIQ(2, 3)).toBeCloseTo(66.67, 1);
+  it('returns 150 for 2/3 accuracy over three rounds', () => {
+    expect(computeHiveIQ(6, 9)).toBe(150);
   });
 
-  it('returns the ratio over multiple rounds', () => {
-    // 2 rounds, 6 total slots, 5 correct
-    expect(computeHiveIQ(5, 6)).toBeCloseTo(83.33, 1);
+  it('clamps perfect accuracy to the ceiling', () => {
+    expect(computeHiveIQ(9, 9)).toBe(160);
   });
 });
 
