@@ -11,6 +11,57 @@ type StartPuzzleGateProps = {
   onExit: () => void;
 };
 
+type StartPuzzleGateSkeletonProps = {
+  subredditDisplayName?: string;
+};
+
+const SkeletonBar = ({ className }: { className: string }) => (
+  <div
+    aria-hidden="true"
+    className={`animate-pulse rounded-md bg-gray-200 dark:bg-gray-700 ${className}`}
+  />
+);
+
+export const StartPuzzleGateSkeleton = ({
+  subredditDisplayName,
+}: StartPuzzleGateSkeletonProps) => (
+  <div
+    className="fixed inset-0 flex flex-col overflow-hidden"
+    aria-busy="true"
+    aria-label="Loading puzzle"
+  >
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="flex flex-col gap-6 p-4 pb-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <SkeletonBar className="h-8 w-8 shrink-0 rounded-full" />
+            {subredditDisplayName !== undefined &&
+            subredditDisplayName.length > 0 ? (
+              <p className="truncate text-sm font-medium text-gray-500 dark:text-gray-400 tracking-widest ml-2">
+                {formatSubredditLabel(subredditDisplayName)}
+              </p>
+            ) : (
+              <SkeletonBar className="ml-2 h-4 w-24" />
+            )}
+          </div>
+          <SkeletonBar className="h-4 w-24 shrink-0" />
+        </div>
+        <div className="flex flex-col gap-3">
+          <SkeletonBar className="h-6 w-full max-w-md" />
+          <SkeletonBar className="h-6 max-w-sm w-[80%]" />
+          <SkeletonBar className="h-4 w-full" />
+          <SkeletonBar className="h-4 w-full" />
+          <SkeletonBar className="h-4 w-3/4" />
+          <SkeletonBar className="mt-1 aspect-video w-full rounded-lg" />
+        </div>
+      </div>
+    </div>
+    <div className="flex shrink-0 justify-center border-t border-gray-200 bg-gray-50/95 p-4 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/95">
+      <SkeletonBar className="h-12 w-40 rounded-full" />
+    </div>
+  </div>
+);
+
 const CommentIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"

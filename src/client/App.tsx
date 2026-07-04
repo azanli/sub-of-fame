@@ -13,6 +13,7 @@ import { GameplayRound } from './gameplay/GameplayRound';
 import { PuzzleGateFromPromise } from './gameplay/PuzzleGateFromPromise';
 import { PuzzleLoadTransition } from './gameplay/PuzzleLoadTransition';
 import { RevealScreen } from './gameplay/RevealScreen';
+import { StartPuzzleGateSkeleton } from './gameplay/StartPuzzleGate';
 import type { ReadyPuzzle } from './gameplay/types';
 import { trpcClient } from './trpc';
 
@@ -651,12 +652,18 @@ export const App = ({ preloadedInit }: AppProps) => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Suspense
           fallback={
-            <PuzzleLoadTransition
-              fromHubSelection={state.fromHubSelection}
-              initData={initData}
-              loadingSubreddit={state.subredditDisplayName}
-              selectionError={selectionError}
-            />
+            state.fromHubSelection ? (
+              <PuzzleLoadTransition
+                fromHubSelection={state.fromHubSelection}
+                initData={initData}
+                loadingSubreddit={state.subredditDisplayName}
+                selectionError={selectionError}
+              />
+            ) : (
+              <StartPuzzleGateSkeleton
+                subredditDisplayName={state.subredditDisplayName}
+              />
+            )
           }
         >
           <PuzzleGateFromPromise
