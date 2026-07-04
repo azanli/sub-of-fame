@@ -551,7 +551,12 @@ export const RevealScreen = ({
         >
           <div className="flex items-center justify-center gap-1.5">
             Next Challenge
-            <RightArrowIcon />
+            <span
+              aria-hidden="true"
+              className="inline-flex animate-[next-chevron-nudge_2.4s_ease-in-out_infinite]"
+            >
+              <RightArrowIcon />
+            </span>
           </div>
         </button>
       </div>

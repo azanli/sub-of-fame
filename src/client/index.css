@@ -90,6 +90,25 @@
   }
 }
 
+@keyframes next-chevron-nudge {
+  0%,
+  16%,
+  32%,
+  48%,
+  64%,
+  80%,
+  100% {
+    transform: translateX(0);
+  }
+
+  8%,
+  24%,
+  56%,
+  72% {
+    transform: translateX(4px);
+  }
+}
+
 @keyframes coin-reward-glow-pulse {
   0%,
   100% {
