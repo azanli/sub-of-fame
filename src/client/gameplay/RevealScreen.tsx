@@ -299,7 +299,7 @@ export const RevealScreen = ({
                   ×
                 </span>
               </button>
-              <p className="truncate text-sm font-medium text-gray-500 dark:text-gray-400 tracking-widest ml-2">
+              <p className="hidden sm:block truncate text-sm font-medium text-gray-500 dark:text-gray-400 tracking-widest ml-2">
                 {formatSubredditLabel(puzzle.subredditDisplayName)}
               </p>
             </div>
