@@ -111,6 +111,9 @@ export const App = ({ preloadedInit }: AppProps) => {
     preloadedInit ? buildSessionFromInit(preloadedInit) : null
   );
   const loadingFromHubRef = useRef(false);
+  const [lastRedemptionRemarkIndex, setLastRedemptionRemarkIndex] = useState<
+    number | null
+  >(null);
   const loadNextPuzzleRef = useRef<
     (unplayableCount: number, rankIndex: number | undefined) => void
   >(() => undefined);
@@ -722,6 +725,9 @@ export const App = ({ preloadedInit }: AppProps) => {
           puzzle={state.puzzle}
           onNextLevel={handleNextLevel}
           onExit={handleDashboard}
+          coinBalance={initData?.coins ?? null}
+          lastRedemptionRemarkIndex={lastRedemptionRemarkIndex}
+          onRedemptionRemarkUsed={setLastRedemptionRemarkIndex}
         />
       </div>
     );

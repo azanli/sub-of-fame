@@ -1,5 +1,17 @@
 @import 'tailwindcss';
 
+@keyframes float-up {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-48px);
+  }
+}
+
 @layer base {
   * {
     -webkit-touch-callout: none;

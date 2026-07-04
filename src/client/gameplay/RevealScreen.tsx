@@ -1,4 +1,5 @@
 import { navigateTo } from '@devvit/web/client';
+import { useEffect, useRef, useState } from 'react';
 import type { PuzzleSubmitSuccess } from '../../shared/api';
 import { formatCompactNumber } from '../../shared/formatNumber';
 import { formatSubredditLabel } from '../../shared/subreddits';
@@ -9,7 +10,57 @@ type RevealScreenProps = {
   puzzle: ReadyPuzzle;
   onNextLevel: () => void;
   onExit: () => void;
+  coinBalance: number | null;
+  lastRedemptionRemarkIndex: number | null;
+  onRedemptionRemarkUsed: (index: number) => void;
 };
+
+const SLOT_REVEAL_STAGGER_MS = 500;
+const VERDICT_DELAY_AFTER_LAST_SLOT_MS = 150;
+const REMARK_ENTRANCE_MS = 300;
+const COIN_HEADER_PULSE_MS = 200;
+const COIN_COUNT_UP_MS = 400;
+
+const REDEMPTION_REMARKS = [
+  'The Hivemind is unpredictable today.',
+  'You over-estimated r/{subredditName}.',
+  'A beautifully chaotic guess.',
+  'You applied logic where there was absolutely none.',
+  'You thought like a scholar. They voted like Redditors.',
+  'The hivemind works in mysterious (and highly questionable) ways.',
+  'An absolute, certified chaos victory for the comment section.',
+  'A perfectly inverted masterpiece of a guess. Mathematically impressive!',
+  'You read the room beautifully... if the room were completely upside down.',
+  'Task failed successfully: maximum unpredictability unlocked.',
+  'Statistically speaking, being this wrong is actually harder than being right.',
+  'Your faith in the sanity of r/{subredditName} was your downfall.',
+  'The psychology of r/{subredditName} remains an unsolved scientific mystery.',
+  'In a parallel universe, your prediction was flawlessly correct.',
+  'The algorithms are just as confused by these upvote ratios as you are.',
+] as const;
+
+const pickRedemptionRemarkIndex = (
+  lastIndex: number | null,
+  remarkCount: number
+): number => {
+  if (remarkCount <= 1) {
+    return 0;
+  }
+
+  let index = Math.floor(Math.random() * remarkCount);
+  while (index === lastIndex) {
+    index = Math.floor(Math.random() * remarkCount);
+  }
+  return index;
+};
+
+const formatRedemptionRemark = (
+  template: string,
+  subredditDisplayName: string
+): string =>
+  template
+    .replace(/\{subredditName\}/g, subredditDisplayName)
+    .replace(/\$\{subredditName\}/g, subredditDisplayName);
 
 const CommentIcon = () => (
   <svg
@@ -66,101 +117,284 @@ export const RevealScreen = ({
   puzzle,
   onNextLevel,
   onExit,
-}: RevealScreenProps) => (
-  <div className="fixed inset-0 flex flex-col overflow-hidden">
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="flex flex-col gap-6 p-4 pb-6">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={onExit}
-              aria-label="Back to dashboard"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200 cursor-pointer"
-            >
-              <span
-                aria-hidden="true"
-                className="text-md text-gray-500 dark:text-gray-400 leading-none"
+  coinBalance,
+  lastRedemptionRemarkIndex,
+  onRedemptionRemarkUsed,
+}: RevealScreenProps) => {
+  const isZeroScore = result.score === 0;
+  const [revealedSlotCount, setRevealedSlotCount] = useState(0);
+  const [showVerdict, setShowVerdict] = useState(false);
+  const [coinHeaderPulse, setCoinHeaderPulse] = useState(false);
+  const [showFloatingCoin, setShowFloatingCoin] = useState(false);
+  const [displayedCoinBalance, setDisplayedCoinBalance] = useState<
+    number | null
+  >(
+    coinBalance !== null && !isZeroScore
+      ? coinBalance - result.score
+      : coinBalance
+  );
+  const [flashingSlotIndex, setFlashingSlotIndex] = useState<number | null>(
+    null
+  );
+
+  const [redemptionRemark] = useState(() => {
+    if (!isZeroScore) {
+      return null;
+    }
+    const index = pickRedemptionRemarkIndex(
+      lastRedemptionRemarkIndex,
+      REDEMPTION_REMARKS.length
+    );
+    return {
+      index,
+      text: formatRedemptionRemark(
+        REDEMPTION_REMARKS[index] ?? REDEMPTION_REMARKS[0],
+        puzzle.subredditDisplayName
+      ),
+    };
+  });
+
+  useEffect(() => {
+    if (redemptionRemark !== null) {
+      onRedemptionRemarkUsed(redemptionRemark.index);
+    }
+  }, [redemptionRemark, onRedemptionRemarkUsed]);
+
+  const countUpFrameRef = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    const timers: number[] = [];
+
+    for (let slotIndex = 0; slotIndex < result.slots.length; slotIndex += 1) {
+      timers.push(
+        window.setTimeout(() => {
+          setRevealedSlotCount(slotIndex + 1);
+          const slot = result.slots[slotIndex];
+          if (slot?.correct) {
+            setFlashingSlotIndex(slotIndex);
+            timers.push(
+              window.setTimeout(() => setFlashingSlotIndex(null), 300)
+            );
+          }
+        }, slotIndex * SLOT_REVEAL_STAGGER_MS)
+      );
+    }
+
+    const lastSlotRevealMs =
+      Math.max(0, result.slots.length - 1) * SLOT_REVEAL_STAGGER_MS;
+    timers.push(
+      window.setTimeout(() => {
+        setShowVerdict(true);
+
+        if (isZeroScore && coinBalance !== null) {
+          setCoinHeaderPulse(true);
+          timers.push(
+            window.setTimeout(
+              () => setCoinHeaderPulse(false),
+              COIN_HEADER_PULSE_MS
+            )
+          );
+          return;
+        }
+
+        if (!isZeroScore && coinBalance !== null) {
+          setShowFloatingCoin(true);
+          const startBalance = coinBalance - result.score;
+          const endBalance = coinBalance;
+          const startTime = performance.now();
+
+          const tick = (now: number) => {
+            const progress = Math.min(1, (now - startTime) / COIN_COUNT_UP_MS);
+            setDisplayedCoinBalance(
+              Math.round(startBalance + (endBalance - startBalance) * progress)
+            );
+            if (progress < 1) {
+              countUpFrameRef.current = window.requestAnimationFrame(tick);
+            }
+          };
+
+          countUpFrameRef.current = window.requestAnimationFrame(tick);
+          timers.push(window.setTimeout(() => setShowFloatingCoin(false), 800));
+        }
+      }, lastSlotRevealMs + VERDICT_DELAY_AFTER_LAST_SLOT_MS)
+    );
+
+    return () => {
+      timers.forEach((timerId) => window.clearTimeout(timerId));
+      if (countUpFrameRef.current !== undefined) {
+        window.cancelAnimationFrame(countUpFrameRef.current);
+      }
+    };
+  }, [result.slots, isZeroScore, coinBalance, result.score]);
+
+  return (
+    <div className="fixed inset-0 flex flex-col overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex flex-col gap-6 p-4 pb-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={onExit}
+                aria-label="Back to dashboard"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200 cursor-pointer"
               >
-                ×
-              </span>
-            </button>
-            <p className="truncate text-sm font-medium text-gray-500 dark:text-gray-400 tracking-widest ml-2">
-              {formatSubredditLabel(puzzle.subredditDisplayName)}
-            </p>
-          </div>
-          <span
-            aria-label="Post comment count"
-            className="flex shrink-0 items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
-          >
-            <CommentIcon />
-            {formatCompactNumber(puzzle.numberOfComments)} comments
-          </span>
-        </div>
-        <div className="flex flex-col items-center gap-2 py-2">
-          <div className="flex items-center gap-2">
-            <span className="text-4xl font-bold text-gray-900 dark:text-white">
-              +{result.score}
-            </span>
-            <img
-              src="/coin.svg"
-              alt="Karma Coin"
-              className="h-10 w-10"
-            />
-          </div>
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-            {result.score === 1 ? 'Coin earned this round' : 'Coins earned this round'}
-          </p>
-        </div>
-        <div className="flex flex-col gap-3">
-          {result.slots.map((slot, index) => (
-            <div
-              key={slot.commentId}
-              className={`rounded-xl border px-4 py-3 flex items-start gap-3 ${
-                slot.correct
-                  ? 'border-green-400 bg-green-50 dark:bg-green-950'
-                  : 'border-red-400 bg-red-50 dark:bg-red-950'
-              }`}
-            >
-              <span className="shrink-0 text-sm font-bold text-gray-400">
-                #{index + 1}
-              </span>
-              <div className="flex flex-col gap-1 flex-1">
-                <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">
-                  {slot.body}
-                </p>
-                <p className="text-xs text-gray-400">
-                  {slot.score.toLocaleString()} upvotes
-                </p>
-              </div>
+                <span
+                  aria-hidden="true"
+                  className="text-md text-gray-500 dark:text-gray-400 leading-none"
+                >
+                  ×
+                </span>
+              </button>
+              <p className="truncate text-sm font-medium text-gray-500 dark:text-gray-400 tracking-widest ml-2">
+                {formatSubredditLabel(puzzle.subredditDisplayName)}
+              </p>
             </div>
-          ))}
+            <div className="flex shrink-0 items-center gap-3">
+              {coinBalance !== null ? (
+                <div
+                  className={`flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-sm font-semibold text-gray-900 transition-transform duration-200 ease-out dark:border-gray-700 dark:bg-gray-800 dark:text-white ${
+                    coinHeaderPulse ? 'scale-105' : 'scale-100'
+                  }`}
+                  aria-label="Karma Coin balance"
+                >
+                  <img
+                    src="/coin.svg"
+                    alt=""
+                    aria-hidden="true"
+                    className="h-5 w-5"
+                  />
+                  <span className="tabular-nums">
+                    {displayedCoinBalance ?? coinBalance}
+                  </span>
+                </div>
+              ) : null}
+              <span
+                aria-label="Post comment count"
+                className="flex shrink-0 items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                <CommentIcon />
+                {formatCompactNumber(puzzle.numberOfComments)} comments
+              </span>
+            </div>
+          </div>
+
+          <div className="relative flex min-h-24 flex-col items-center justify-center py-2">
+            {isZeroScore ? (
+              <div
+                className={`w-full px-2 text-center text-lg font-semibold leading-snug text-[#E28743] transition-all ease-out dark:text-[#E28743] ${
+                  showVerdict
+                    ? 'translate-y-0 opacity-100'
+                    : 'translate-y-2.5 opacity-0'
+                }`}
+                style={{ transitionDuration: `${REMARK_ENTRANCE_MS}ms` }}
+                aria-live="polite"
+              >
+                {redemptionRemark?.text}
+              </div>
+            ) : (
+              <>
+                {showFloatingCoin ? (
+                  <span
+                    className="pointer-events-none absolute top-6 z-10 text-2xl font-bold text-[#E28743] animate-[float-up_800ms_ease-out_forwards]"
+                    aria-hidden="true"
+                  >
+                    +{result.score}
+                  </span>
+                ) : null}
+                <div
+                  className={`flex flex-col items-center gap-2 transition-all ease-out ${
+                    showVerdict
+                      ? 'translate-y-0 opacity-100'
+                      : 'translate-y-2.5 opacity-0'
+                  }`}
+                  style={{ transitionDuration: `${REMARK_ENTRANCE_MS}ms` }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-4xl font-bold text-gray-900 dark:text-white">
+                      +{result.score}
+                    </span>
+                    <img
+                      src="/coin.svg"
+                      alt="Karma Coin"
+                      className="h-10 w-10"
+                    />
+                  </div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    {result.score === 1
+                      ? 'Coin earned this round'
+                      : 'Coins earned this round'}
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {result.slots.map((slot, index) => {
+              const isRevealed = index < revealedSlotCount;
+              const isFlashing = flashingSlotIndex === index;
+
+              return (
+                <div
+                  key={slot.commentId}
+                  className={`rounded-xl border px-4 py-3 flex items-start gap-3 transition-all duration-300 ease-out ${
+                    isRevealed
+                      ? slot.correct
+                        ? `border-green-400 bg-green-50 dark:bg-green-950 ${
+                            isFlashing
+                              ? 'scale-[1.02] ring-2 ring-green-300'
+                              : ''
+                          }`
+                        : 'border-red-400 bg-red-50 dark:bg-red-950'
+                      : 'border-gray-200 bg-gray-50 opacity-60 dark:border-gray-700 dark:bg-gray-800/60'
+                  }`}
+                >
+                  <span className="shrink-0 text-sm font-bold text-gray-400">
+                    #{index + 1}
+                  </span>
+                  <div className="flex flex-col gap-1 flex-1">
+                    <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">
+                      {slot.body}
+                    </p>
+                    <p
+                      className={`text-xs text-gray-400 transition-opacity duration-300 ${
+                        isRevealed ? 'opacity-100' : 'opacity-0'
+                      }`}
+                    >
+                      {slot.score.toLocaleString()} upvotes
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
-    </div>
-    <div className="flex shrink-0 gap-3 justify-center border-t border-gray-200 bg-gray-50/95 p-4 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/95">
-      {puzzle.postUrl ? (
+      <div className="flex shrink-0 gap-3 justify-center border-t border-gray-200 bg-gray-50/95 p-4 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/95">
+        {puzzle.postUrl ? (
+          <button
+            type="button"
+            onClick={() => navigateTo(puzzle.postUrl)}
+            className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold rounded-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center justify-center gap-2">
+              Open Post
+              <ExternalLinkIcon />
+            </div>
+          </button>
+        ) : null}
         <button
           type="button"
-          onClick={() => navigateTo(puzzle.postUrl)}
-          className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold rounded-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+          onClick={onNextLevel}
+          className="bg-[#d93900] hover:bg-[#c23300] text-white font-semibold rounded-full px-6 py-2 transition-colors cursor-pointer"
         >
-          <div className="flex items-center justify-center gap-2">
-            Open Post
-            <ExternalLinkIcon />
+          <div className="flex items-center justify-center gap-1.5">
+            Next Challenge
+            <RightArrowIcon />
           </div>
         </button>
-      ) : null}
-      <button
-        type="button"
-        onClick={onNextLevel}
-        className="bg-[#d93900] hover:bg-[#c23300] text-white font-semibold rounded-full px-6 py-2 transition-colors cursor-pointer"
-      >
-        <div className="flex items-center justify-center gap-1.5">
-          Next Challenge
-          <RightArrowIcon />
-        </div>
-      </button>
+      </div>
     </div>
-  </div>
-);
+  );
+};
