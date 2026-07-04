@@ -140,12 +140,7 @@ const isIssuedCommentPermutation = (
 const buildRevealSlots = (
   slots: [string, string, string],
   snapshot: PuzzleSnapshot
-): Array<{
-  commentId: string;
-  body: string;
-  score: number;
-  correct: boolean;
-}> =>
+) =>
   slots.map((commentId, index) => {
     const truth = snapshot.comments[index];
     if (truth === undefined) {
@@ -159,6 +154,14 @@ const buildRevealSlots = (
       correct: commentId === truth.id,
     };
   });
+
+const buildTruthRevealSlots = (snapshot: PuzzleSnapshot) =>
+  snapshot.comments.map((comment) => ({
+    commentId: comment.id,
+    body: comment.body,
+    score: comment.score,
+    correct: true,
+  }));
 
 type ResolvedPostMedia = {
   imageUrl?: string;
@@ -722,6 +725,15 @@ export const puzzleRouter = router({
         }
       }
 
+      const snapshot = await getSnapshot(attempt.sourcePostId);
+      if (snapshot === null) {
+        return skipError(
+          'SNAPSHOT_MISSING',
+          'Puzzle snapshot is unavailable; request a fresh puzzle.',
+          'request_next_puzzle'
+        );
+      }
+
       const lockAcquired = await acquireSubmitLock(input.attemptId);
       if (!lockAcquired) {
         return skipError(
@@ -754,6 +766,9 @@ export const puzzleRouter = router({
 
       return {
         status: 'skipped',
+        score: 0,
+        slots: buildTruthRevealSlots(snapshot),
+        userHiveIQ: null,
         nextRankIndex,
         coins,
       };

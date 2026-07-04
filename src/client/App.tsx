@@ -1,7 +1,7 @@
 import type {
   InitResponse,
   PuzzleNextRequest,
-  PuzzleSubmitSuccess,
+  PuzzleRevealResult,
 } from '../shared/api';
 import { SUBREDDIT_UNLOCK_COST } from '../shared/coins';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
@@ -42,7 +42,7 @@ type AppState =
   | { phase: 'ready'; puzzle: ReadyPuzzle }
   | { phase: 'submitting'; puzzle: ReadyPuzzle }
   | { phase: 'skipping'; puzzle: ReadyPuzzle }
-  | { phase: 'revealed'; result: PuzzleSubmitSuccess; puzzle: ReadyPuzzle }
+  | { phase: 'revealed'; result: PuzzleRevealResult; puzzle: ReadyPuzzle }
   | { phase: 'exhausted'; message: string }
   | { phase: 'problem'; message: string };
 
@@ -552,10 +552,7 @@ export const App = ({ preloadedInit }: AppProps) => {
             current === null ? current : { ...current, coins: result.coins }
           );
         }
-        void loadNextPuzzleRef.current(
-          0,
-          session?.isLoggedIn ? undefined : result.nextRankIndex
-        );
+        setState({ phase: 'revealed', result, puzzle });
         return;
       }
 

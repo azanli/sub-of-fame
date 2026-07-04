@@ -1,12 +1,12 @@
 import { navigateTo } from '@devvit/web/client';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import type { PuzzleSubmitSuccess } from '../../shared/api';
+import type { PuzzleRevealResult } from '../../shared/api';
 import { formatCompactNumber } from '../../shared/formatNumber';
 import { formatSubredditLabel } from '../../shared/subreddits';
 import type { ReadyPuzzle } from './types';
 
 type RevealScreenProps = {
-  result: PuzzleSubmitSuccess;
+  result: PuzzleRevealResult;
   puzzle: ReadyPuzzle;
   onNextLevel: () => void;
   onExit: () => void;
@@ -22,6 +22,7 @@ const REMARK_ENTRANCE_MS = 300;
 const COIN_HEADER_PULSE_MS = 200;
 const COIN_REVEAL_STAGGER_MS = 300;
 const COIN_FLOAT_MS = 800;
+const SKIP_SNOO_RISE_MS = 450;
 const DEV_RESET_DOUBLE_TAP_MS = 400;
 
 const REDEMPTION_REMARKS = [
@@ -143,6 +144,7 @@ export const RevealScreen = ({
   onRedemptionRemarkUsed,
   onDevResetRankIndex,
 }: RevealScreenProps) => {
+  const isSkipped = result.status === 'skipped';
   const isZeroScore = result.score === 0;
   const [revealedSlotCount, setRevealedSlotCount] = useState(0);
   const [showVerdict, setShowVerdict] = useState(false);
@@ -163,7 +165,7 @@ export const RevealScreen = ({
   );
 
   const [redemptionRemark] = useState(() => {
-    if (!isZeroScore) {
+    if (!isZeroScore || isSkipped) {
       return null;
     }
     const index = pickRedemptionRemarkIndex(
@@ -231,7 +233,7 @@ export const RevealScreen = ({
       window.setTimeout(() => {
         setShowVerdict(true);
 
-        if (isZeroScore && coinBalance !== null) {
+        if (isZeroScore && !isSkipped && coinBalance !== null) {
           setCoinHeaderPulse(true);
           timers.push(
             window.setTimeout(
@@ -242,7 +244,7 @@ export const RevealScreen = ({
           return;
         }
 
-        if (!isZeroScore) {
+        if (!isZeroScore && !isSkipped) {
           const startBalance =
             coinBalance !== null ? coinBalance - result.score : null;
 
@@ -276,7 +278,7 @@ export const RevealScreen = ({
     return () => {
       timers.forEach((timerId) => window.clearTimeout(timerId));
     };
-  }, [result.slots, isZeroScore, coinBalance, result.score]);
+  }, [result.slots, isZeroScore, isSkipped, coinBalance, result.score]);
 
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden">
@@ -334,7 +336,23 @@ export const RevealScreen = ({
           </div>
 
           <div className="relative flex min-h-16 flex-col items-center justify-center py-2">
-            {isZeroScore ? (
+            {isSkipped ? (
+              <img
+                src="/snoo-skip.png"
+                alt=""
+                aria-hidden="true"
+                className={`h-24 w-auto max-w-full object-contain ${
+                  showVerdict
+                    ? 'animate-[skip-snoo-rise_ease-out_forwards]'
+                    : 'translate-y-6 opacity-0'
+                }`}
+                style={
+                  showVerdict
+                    ? { animationDuration: `${SKIP_SNOO_RISE_MS}ms` }
+                    : undefined
+                }
+              />
+            ) : isZeroScore ? (
               <div
                 className={`w-full px-2 text-center text-lg font-semibold leading-snug text-[#E28743] transition-all ease-out dark:text-[#E28743] ${
                   showVerdict

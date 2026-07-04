@@ -752,6 +752,7 @@ describe('puzzle.skip', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetAttempt.mockResolvedValue(makeAttempt());
+    mockGetSnapshot.mockResolvedValue(makeSnapshot());
     mockGetProgress.mockResolvedValue(3);
     mockIncrementProgress.mockResolvedValue(4);
     mockAcquireSubmitLock.mockResolvedValue(true);
@@ -787,15 +788,37 @@ describe('puzzle.skip', () => {
 
     expect(result).toEqual({
       status: 'skipped',
+      score: 0,
+      slots: [
+        {
+          commentId: 't1_c1',
+          body: 'First valid comment body with enough visible characters.',
+          score: 100,
+          correct: true,
+        },
+        {
+          commentId: 't1_c2',
+          body: 'Second valid comment body with enough visible characters.',
+          score: 50,
+          correct: true,
+        },
+        {
+          commentId: 't1_c3',
+          body: 'Third valid comment body with enough visible characters.',
+          score: 25,
+          correct: true,
+        },
+      ],
+      userHiveIQ: null,
       nextRankIndex: 4,
       coins: 2,
     });
+    expect(mockGetSnapshot).toHaveBeenCalledWith('t3_abc123');
     expect(mockDeductCoin).toHaveBeenCalledWith('user-1');
     expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', 'askreddit');
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
     expect(mockIncrementStats).not.toHaveBeenCalled();
     expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
-    expect(mockGetSnapshot).not.toHaveBeenCalled();
   });
 
   it('returns next rank for guest attempts without writing user stats', async () => {
@@ -808,6 +831,28 @@ describe('puzzle.skip', () => {
 
     expect(result).toEqual({
       status: 'skipped',
+      score: 0,
+      slots: [
+        {
+          commentId: 't1_c1',
+          body: 'First valid comment body with enough visible characters.',
+          score: 100,
+          correct: true,
+        },
+        {
+          commentId: 't1_c2',
+          body: 'Second valid comment body with enough visible characters.',
+          score: 50,
+          correct: true,
+        },
+        {
+          commentId: 't1_c3',
+          body: 'Third valid comment body with enough visible characters.',
+          score: 25,
+          correct: true,
+        },
+      ],
+      userHiveIQ: null,
       nextRankIndex: 3,
       coins: null,
     });

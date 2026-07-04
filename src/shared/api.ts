@@ -129,15 +129,17 @@ export type PuzzleSubmitRequest = {
   slots: [string, string, string];
 };
 
+export type PuzzleRevealSlot = {
+  commentId: string;
+  body: string;
+  score: number;
+  correct: boolean;
+};
+
 export type PuzzleSubmitSuccess = {
   status: 'submitted';
   score: number;
-  slots: Array<{
-    commentId: string;
-    body: string;
-    score: number;
-    correct: boolean;
-  }>;
+  slots: PuzzleRevealSlot[];
   userHiveIQ: UserActiveSubredditMetrics | null;
   nextRankIndex: number;
   /** Updated wallet balance after earning coins; null for guests. */
@@ -169,10 +171,15 @@ export type PuzzleSkipRequest = {
 
 export type PuzzleSkipSuccess = {
   status: 'skipped';
+  score: 0;
+  slots: PuzzleRevealSlot[];
+  userHiveIQ: null;
   nextRankIndex: number;
   /** Updated wallet balance after the skip cost; null for guests. */
   coins: number | null;
 };
+
+export type PuzzleRevealResult = PuzzleSubmitSuccess | PuzzleSkipSuccess;
 
 export type PuzzleSkipErrorCode =
   | Exclude<PuzzleSubmitErrorCode, 'INVALID_SLOT_PERMUTATION'>
