@@ -284,7 +284,13 @@ export const RevealScreen = ({
     <div className="fixed inset-0 flex flex-col overflow-hidden">
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="flex flex-col gap-6 p-4 pb-6">
-          <div className="relative flex items-center justify-between gap-3">
+          <div
+            className={
+              coinBalance !== null
+                ? 'grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3'
+                : 'flex items-center justify-between gap-3'
+            }
+          >
             <div className="flex min-w-0 items-center gap-2">
               <button
                 type="button"
@@ -299,28 +305,28 @@ export const RevealScreen = ({
                   ×
                 </span>
               </button>
-              <p className="hidden sm:block truncate text-sm font-medium text-gray-500 dark:text-gray-400 tracking-widest ml-2">
+              <p className="truncate text-sm font-medium text-gray-500 dark:text-gray-400 tracking-widest ml-2">
                 {formatSubredditLabel(puzzle.subredditDisplayName)}
               </p>
             </div>
             {coinBalance !== null ? (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <div
-                  className={`pointer-events-auto flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-sm font-semibold text-gray-900 transition-transform duration-200 ease-out dark:border-gray-700 dark:bg-gray-800 dark:text-white ${
-                    coinHeaderPulse ? 'scale-105' : 'scale-100'
-                  }`}
-                  aria-label="Karma Coin balance"
-                >
-                  <CoinIcon className="h-5 w-5" />
-                  <span className="tabular-nums">
-                    {displayedCoinBalance ?? coinBalance}
-                  </span>
-                </div>
+              <div
+                className={`flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-sm font-semibold text-gray-900 transition-transform duration-200 ease-out dark:border-gray-700 dark:bg-gray-800 dark:text-white ${
+                  coinHeaderPulse ? 'scale-105' : 'scale-100'
+                }`}
+                aria-label="Karma Coin balance"
+              >
+                <CoinIcon className="h-5 w-5" />
+                <span className="tabular-nums">
+                  {displayedCoinBalance ?? coinBalance}
+                </span>
               </div>
             ) : null}
             <span
               aria-label="Post comment count"
-              className="relative flex shrink-0 items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
+              className={`relative flex shrink-0 items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400 ${
+                coinBalance !== null ? 'justify-self-end' : ''
+              }`}
             >
               <CommentIcon />
               {formatCompactNumber(puzzle.numberOfComments)} comments
