@@ -9,6 +9,7 @@ export const CountdownTimer = ({
 }: CountdownTimerProps) => {
   const progressPercent =
     totalSeconds > 0 ? (secondsRemaining / totalSeconds) * 100 : 0;
+  const isUrgent = secondsRemaining <= 10;
 
   return (
     <div
@@ -20,7 +21,9 @@ export const CountdownTimer = ({
       aria-label="Time remaining"
     >
       <div
-        className="h-1.5 bg-[#d93900] transition-[width] duration-1000 ease-linear"
+        className={`h-1.5 bg-[#d93900] transition-[width] duration-1000 ease-linear${
+          isUrgent ? ' animate-[countdown-blink_1s_ease-in-out_infinite]' : ''
+        }`}
         style={{ width: `${progressPercent}%` }}
       />
     </div>
