@@ -446,14 +446,14 @@ export const RevealScreen = ({
                       : 'border-gray-200 bg-gray-50 opacity-60 dark:border-gray-700 dark:bg-gray-800/60'
                   }`}
                 >
-                  <div className="pointer-events-none absolute left-0 top-0 size-11">
+                  <div className="pointer-events-none absolute left-0 top-0 size-10">
                     <div
                       aria-hidden="true"
                       className={`absolute inset-0 ${rankBadgeBgClass}`}
-                      style={{ clipPath: 'polygon(0 0, 100% 0, 0 100%)' }}
+                      style={{ clipPath: 'polygon(0 0, 85% 0, 0 85%)' }}
                     />
                     <span
-                      className={`absolute left-[33%] top-[33%] -translate-x-1/2 -translate-y-1/2 text-sm font-bold leading-none select-none ${rankBadgeTextClass}`}
+                      className={`absolute left-1 top-1 text-sm font-bold leading-none select-none ${rankBadgeTextClass}`}
                     >
                       {index + 1}
                     </span>
