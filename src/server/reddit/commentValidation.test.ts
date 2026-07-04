@@ -15,6 +15,7 @@ vi.mock('../redis/snapshotStore.js', () => ({
 }));
 
 const {
+  containsUrl,
   deduplicateById,
   hasDistinctScores,
   isAuthorValid,
@@ -114,6 +115,41 @@ describe('isTopLevel', () => {
 
   it('returns false when parentId is a comment id', () => {
     expect(isTopLevel(makeComment({ parentId: 't1_parent' }), SOURCE_POST_ID)).toBe(false);
+  });
+});
+
+describe('containsUrl', () => {
+  it('detects http and https URLs', () => {
+    expect(containsUrl('Check this out https://example.com/path for details.')).toBe(true);
+    expect(containsUrl('Old link http://example.org/page')).toBe(true);
+  });
+
+  it('detects www URLs without a scheme', () => {
+    expect(containsUrl('Visit www.example.com for more info today.')).toBe(true);
+  });
+
+  it('detects common Reddit short links', () => {
+    expect(containsUrl('See redd.it/abc123 for the full thread context.')).toBe(true);
+    expect(containsUrl('Watch youtu.be/dQw4w9WgXcQ for the clip.')).toBe(true);
+  });
+
+  it('detects Reddit image and media URLs with or without a scheme', () => {
+    expect(
+      containsUrl('https://preview.redd.it/photo.jpg?width=640&crop=smart&auto=webp&s=abc')
+    ).toBe(true);
+    expect(containsUrl('Shared image preview.redd.it/photo.jpg?width=640 here.')).toBe(true);
+    expect(containsUrl('Direct link i.redd.it/abc123.png in the comment body.')).toBe(true);
+    expect(containsUrl('Video clip v.redd.it/abc123 shared without a scheme.')).toBe(true);
+  });
+
+  it('detects bare reddit.com links', () => {
+    expect(containsUrl('Crosspost from reddit.com/r/gaming/comments/abc123/title/')).toBe(true);
+  });
+
+  it('returns false for plain text without URLs', () => {
+    expect(containsUrl('This is a valid comment body with enough visible characters.')).toBe(
+      false
+    );
   });
 });
 
@@ -737,6 +773,132 @@ describe('validateComments – maximum comment length', () => {
     const result = await validateComments(validateParams(), reddit, makeBudget());
 
     expect(result.kind).toBe('invalid');
+  });
+});
+
+describe('validateComments – comments with URLs', () => {
+  it('skips comments containing URLs and selects the next eligible roots', async () => {
+    const shortBody = 'This is a valid comment body with enough visible characters.';
+    mockGetComments.mockReturnValue(
+      makeListing([
+        makeComment({
+          id: 'c1',
+          score: 100,
+          body: 'Top comment with a link https://example.com/article in the middle.',
+        }),
+        makeComment({ id: 'c2', score: 50, body: shortBody }),
+        makeComment({
+          id: 'c3',
+          score: 25,
+          body: 'Another one at www.example.com/path for reference here.',
+        }),
+        makeComment({ id: 'c4', score: 10, body: shortBody }),
+        makeComment({ id: 'c5', score: 5, body: shortBody }),
+      ])
+    );
+
+    const reddit = { getComments: mockGetComments };
+    const result = await validateComments(validateParams(), reddit, makeBudget());
+
+    expect(result.kind).toBe('valid');
+    if (result.kind !== 'valid') {
+      return;
+    }
+
+    expect(result.snapshot.comments.map((comment) => comment.id)).toEqual(['t1_c2', 't1_c4', 't1_c5']);
+  });
+
+  it('returns invalid when fewer than three comments remain after URL filtering', async () => {
+    const shortBody = 'This is a valid comment body with enough visible characters.';
+    mockGetComments.mockReturnValue(
+      makeListing([
+        makeComment({
+          id: 'c1',
+          score: 100,
+          body: 'First link https://example.com/one in the comment body here.',
+        }),
+        makeComment({ id: 'c2', score: 50, body: shortBody }),
+        makeComment({
+          id: 'c3',
+          score: 25,
+          body: 'Second link www.example.com/two in the comment body here.',
+        }),
+      ])
+    );
+
+    const reddit = { getComments: mockGetComments };
+    const result = await validateComments(validateParams(), reddit, makeBudget());
+
+    expect(result).toEqual({ kind: 'invalid' });
+  });
+
+  it('filters bare preview.redd.it links without a scheme', async () => {
+    const shortBody = 'This is a valid comment body with enough visible characters.';
+    mockGetComments.mockReturnValue(
+      makeListing([
+        makeComment({
+          id: 'c1',
+          score: 100,
+          body: 'Image dump preview.redd.it/photo.jpg?width=640 in this comment text.',
+        }),
+        makeComment({ id: 'c2', score: 50, body: shortBody }),
+        makeComment({ id: 'c3', score: 25, body: shortBody }),
+        makeComment({ id: 'c4', score: 10, body: shortBody }),
+      ])
+    );
+
+    const reddit = { getComments: mockGetComments };
+    const result = await validateComments(validateParams(), reddit, makeBudget());
+
+    expect(result.kind).toBe('valid');
+    if (result.kind !== 'valid') {
+      return;
+    }
+
+    expect(result.snapshot.comments.map((comment) => comment.id)).toEqual(['t1_c2', 't1_c3', 't1_c4']);
+  });
+});
+
+describe('validateComments – cached snapshot with URL comments', () => {
+  it('re-fetches comments when a cached snapshot contains URLs', async () => {
+    const shortBody = 'This is a valid comment body with enough visible characters.';
+    const cached: PuzzleSnapshot = {
+      sourcePostId: SOURCE_POST_ID,
+      post: { title: 'Cached post' },
+      numberOfComments: 30,
+      comments: [
+        {
+          id: 't1_1',
+          body: 'Cached comment with https://preview.redd.it/old.png in it.',
+          score: 100,
+          createdAt: 1,
+        },
+        { id: 't1_2', body: 'Second cached comment body text.', score: 50, createdAt: 2 },
+        { id: 't1_3', body: 'Third cached comment body text.', score: 25, createdAt: 3 },
+      ],
+      createdAt: 1000,
+      expiresAt: 2000,
+    };
+    mockGetSnapshot.mockResolvedValue(cached);
+    mockGetComments.mockReturnValue(
+      makeListing([
+        makeComment({ id: 'c1', score: 100, body: shortBody }),
+        makeComment({ id: 'c2', score: 50, body: shortBody }),
+        makeComment({ id: 'c3', score: 25, body: shortBody }),
+      ])
+    );
+
+    const reddit = { getComments: mockGetComments };
+    const result = await validateComments(validateParams(), reddit, makeBudget());
+
+    expect(mockGetComments).toHaveBeenCalledTimes(1);
+    expect(result.kind).toBe('valid');
+    if (result.kind !== 'valid') {
+      return;
+    }
+
+    expect(result.snapshot.comments.map((comment) => comment.id)).toEqual(['t1_c1', 't1_c2', 't1_c3']);
+    expect(mockSetSnapshot).toHaveBeenCalledTimes(1);
   });
 });
 

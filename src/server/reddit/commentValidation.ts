@@ -31,9 +31,16 @@ type Reddit = Pick<RedditClient, 'getComments'>;
 
 const COMMENT_FETCH_LIMIT = 25;
 const MIN_BODY_CHARS = 20;
+const URL_PATTERN =
+  /(?:https?:\/\/|www\.)\S+|\b(?:[a-z0-9-]+\.)*redd\.it\/\S+|\b(?:redd|youtu)\.be\/\S+|\breddit(?:media)?\.com\/\S+/i;
 
 export const normalizeBody = (body: string): string =>
   body.trim().replace(/\s+/g, ' ');
+
+export const containsUrl = (body: string): boolean => URL_PATTERN.test(body);
+
+const snapshotHasUrlComments = (snapshot: PuzzleSnapshot): boolean =>
+  snapshot.comments.some((comment) => containsUrl(comment.body));
 
 export const isTopLevel = (comment: Comment, sourcePostId: string): boolean =>
   comment.parentId === sourcePostId;
@@ -99,6 +106,9 @@ const isValidRoot = (comment: Comment, sourcePostId: string): boolean => {
     return false;
   }
   const normalizedBody = normalizeBody(comment.body);
+  if (containsUrl(normalizedBody)) {
+    return false;
+  }
   return isBodyValid(normalizedBody);
 };
 
@@ -118,11 +128,13 @@ export const validateComments = async (
 
   try {
     const cached = await getSnapshot(sourcePostId);
-    if (cached !== null) {
+    if (cached !== null && !snapshotHasUrlComments(cached)) {
       const mergedPost = {
         ...cached.post,
         ...(post.body !== undefined ? { body: post.body } : {}),
-        ...(post.contentBlocks !== undefined ? { contentBlocks: post.contentBlocks } : {}),
+        ...(post.contentBlocks !== undefined
+          ? { contentBlocks: post.contentBlocks }
+          : {}),
         ...(post.imageUrl !== undefined ? { imageUrl: post.imageUrl } : {}),
         ...(post.galleryUrls !== undefined
           ? { galleryUrls: post.galleryUrls }
@@ -175,7 +187,9 @@ export const validateComments = async (
       post: {
         title: post.title,
         ...(post.body !== undefined ? { body: post.body } : {}),
-        ...(post.contentBlocks !== undefined ? { contentBlocks: post.contentBlocks } : {}),
+        ...(post.contentBlocks !== undefined
+          ? { contentBlocks: post.contentBlocks }
+          : {}),
         ...(post.imageUrl !== undefined ? { imageUrl: post.imageUrl } : {}),
         ...(post.galleryUrls !== undefined
           ? { galleryUrls: post.galleryUrls }
