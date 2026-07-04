@@ -23,6 +23,8 @@ const COIN_HEADER_PULSE_MS = 200;
 const COIN_REVEAL_STAGGER_MS = 300;
 const COIN_FLOAT_MS = 800;
 const SKIP_SNOO_RISE_MS = 450;
+const SNOO_CHEER_ENTRANCE_MS = 500;
+const SNOO_CHEER_LEFT_WALL_OFFSET_PX = 5;
 const DEV_RESET_DOUBLE_TAP_MS = 400;
 
 const REDEMPTION_REMARKS = [
@@ -208,6 +210,10 @@ export const RevealScreen = ({
   };
 
   const maxSlotScore = Math.max(...result.slots.map((slot) => slot.score), 0);
+  const showCheerRightSnoo =
+    !isZeroScore && !isSkipped && result.score >= 1 && revealedCoinCount >= 1;
+  const showCheerLeftSnoo =
+    !isZeroScore && !isSkipped && result.score >= 2 && revealedCoinCount >= 2;
 
   useEffect(() => {
     const timers: number[] = [];
@@ -414,7 +420,45 @@ export const RevealScreen = ({
             )}
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="relative flex flex-col gap-3">
+            {!isZeroScore && !isSkipped && result.score >= 1 ? (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute -left-4 -right-4 bottom-full z-10 h-24 sm:h-28"
+              >
+                {result.score >= 3 ? (
+                  <img
+                    src="/snoo-cheer-one.png"
+                    alt=""
+                    className={`absolute bottom-0 h-full w-auto max-w-[45%] object-contain object-left-bottom ${
+                      showCheerLeftSnoo
+                        ? 'animate-[snoo-cheer-slide-left_ease-out_forwards]'
+                        : 'opacity-0 -translate-x-full'
+                    }`}
+                    style={{
+                      left: `-${SNOO_CHEER_LEFT_WALL_OFFSET_PX}px`,
+                      ...(showCheerLeftSnoo
+                        ? { animationDuration: `${SNOO_CHEER_ENTRANCE_MS}ms` }
+                        : undefined),
+                    }}
+                  />
+                ) : null}
+                <img
+                  src="/snoo-cheer-two.png"
+                  alt=""
+                  className={`absolute bottom-0 right-0 h-full w-auto max-w-[38%] object-contain object-right-bottom ${
+                    showCheerRightSnoo
+                      ? 'animate-[snoo-cheer-slide-right_ease-out_forwards]'
+                      : 'opacity-0 translate-x-8 translate-y-4'
+                  }`}
+                  style={
+                    showCheerRightSnoo
+                      ? { animationDuration: `${SNOO_CHEER_ENTRANCE_MS}ms` }
+                      : undefined
+                  }
+                />
+              </div>
+            ) : null}
             {result.slots.map((slot, index) => {
               const isRevealed = index < revealedSlotCount;
               const isFlashing = flashingSlotIndex === index;

@@ -66,6 +66,30 @@
   }
 }
 
+@keyframes snoo-cheer-slide-right {
+  from {
+    opacity: 0;
+    transform: translate(32px, 16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes snoo-cheer-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 @keyframes coin-reward-glow-pulse {
   0%,
   100% {
