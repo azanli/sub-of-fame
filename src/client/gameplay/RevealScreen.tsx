@@ -484,7 +484,7 @@ export const RevealScreen = ({
                   <img
                     src={oneCoinCheerSnoo.src}
                     alt=""
-                    className={`absolute bottom-0 right-0 h-full w-auto max-w-[38%] object-contain object-right-bottom ${
+                    className={`absolute bottom-0 right-4 h-full w-auto max-w-[38%] object-contain object-right-bottom ${
                       showOneCoinCheerSnoo
                         ? 'animate-[snoo-cheer-slide-right_ease-out_forwards]'
                         : 'opacity-0 translate-x-8 translate-y-4'
@@ -496,7 +496,7 @@ export const RevealScreen = ({
                   <img
                     src="/snoo-cheer-two.png"
                     alt=""
-                    className={`absolute bottom-0 right-0 h-full w-auto max-w-[38%] object-contain object-right-bottom ${
+                    className={`absolute bottom-0 right-4 h-full w-auto max-w-[38%] object-contain object-right-bottom ${
                       showCheerRightSnoo
                         ? 'animate-[snoo-cheer-slide-right_ease-out_forwards]'
                         : 'opacity-0 translate-x-8 translate-y-4'
