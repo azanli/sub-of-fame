@@ -3,12 +3,18 @@
 @keyframes countdown-blink {
   0%,
   100% {
-    opacity: 1;
+    background-color: #d93900;
   }
 
   50% {
-    opacity: 0.35;
+    background-color: #ff6b35;
   }
+}
+
+.countdown-blink-urgent {
+  background-color: #d93900;
+  animation: countdown-blink 1s ease-in-out infinite;
+  transform: translateZ(0);
 }
 
 @keyframes float-up {

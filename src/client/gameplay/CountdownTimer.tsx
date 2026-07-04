@@ -21,11 +21,13 @@ export const CountdownTimer = ({
       aria-label="Time remaining"
     >
       <div
-        className={`h-1.5 bg-[#d93900] transition-[width] duration-1000 ease-linear${
-          isUrgent ? ' animate-[countdown-blink_1s_ease-in-out_infinite]' : ''
-        }`}
+        className="h-1.5 transition-[width] duration-1000 ease-linear"
         style={{ width: `${progressPercent}%` }}
-      />
+      >
+        <div
+          className={`h-full ${isUrgent ? 'countdown-blink-urgent' : 'bg-[#d93900]'}`}
+        />
+      </div>
     </div>
   );
 };
