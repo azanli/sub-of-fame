@@ -309,7 +309,7 @@ export const RevealScreen = ({
             </div>
           </div>
 
-          <div className="relative flex min-h-24 flex-col items-center justify-center py-2">
+          <div className="relative flex min-h-16 flex-col items-center justify-center py-2">
             {isZeroScore ? (
               <div
                 className={`w-full px-2 text-center text-lg font-semibold leading-snug text-[#E28743] transition-all ease-out dark:text-[#E28743] ${
@@ -333,7 +333,7 @@ export const RevealScreen = ({
                   </span>
                 ) : null}
                 <div
-                  className={`flex flex-col items-center gap-2 transition-all ease-out ${
+                  className={`flex flex-col items-center transition-all ease-out ${
                     showVerdict
                       ? 'translate-y-0 opacity-100'
                       : 'translate-y-2.5 opacity-0'
@@ -350,11 +350,6 @@ export const RevealScreen = ({
                       className="h-10 w-10"
                     />
                   </div>
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    {result.score === 1
-                      ? 'Coin earned this round'
-                      : 'Coins earned this round'}
-                  </p>
                 </div>
               </>
             )}
