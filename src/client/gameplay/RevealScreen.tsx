@@ -416,6 +416,15 @@ export const RevealScreen = ({
               const upvoteBarWidthPercent =
                 maxSlotScore > 0 ? (slot.score / maxSlotScore) * 100 : 0;
 
+              const rankBadgeBgClass = !isRevealed
+                ? 'bg-gray-200 dark:bg-gray-700'
+                : slot.correct
+                  ? 'bg-green-400'
+                  : 'bg-red-400';
+              const rankBadgeTextClass = isRevealed
+                ? 'text-white'
+                : 'text-gray-500 dark:text-gray-300';
+
               return (
                 <div
                   key={slot.commentId}
@@ -431,10 +440,19 @@ export const RevealScreen = ({
                       : 'border-gray-200 bg-gray-50 opacity-60 dark:border-gray-700 dark:bg-gray-800/60'
                   }`}
                 >
-                  <span className="shrink-0 text-sm font-bold text-gray-400">
-                    #{index + 1}
-                  </span>
-                  <div className="flex flex-col gap-1 flex-1">
+                  <div className="pointer-events-none absolute left-0 top-0 size-11">
+                    <div
+                      aria-hidden="true"
+                      className={`absolute inset-0 ${rankBadgeBgClass}`}
+                      style={{ clipPath: 'polygon(0 0, 100% 0, 0 100%)' }}
+                    />
+                    <span
+                      className={`absolute left-[33%] top-[33%] -translate-x-1/2 -translate-y-1/2 text-sm font-bold leading-none select-none ${rankBadgeTextClass}`}
+                    >
+                      {index + 1}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1 flex-1 ml-4">
                     <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">
                       {slot.body}
                     </p>
