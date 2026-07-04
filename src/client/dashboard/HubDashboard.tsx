@@ -262,7 +262,8 @@ export const HubDashboard = ({
         </form>
       )}
       <img
-        className="mx-auto w-1/2 max-w-[220px] object-contain"
+        className="mx-auto w-1/2 max-w-[220px] object-contain animate-[skip-snoo-rise_ease-out_both]"
+        style={{ animationDuration: '700ms', animationDelay: '150ms' }}
         src="/snoo.png"
         alt="Snoo thinking about the hivemind"
       />

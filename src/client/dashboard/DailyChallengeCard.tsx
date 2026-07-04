@@ -23,7 +23,8 @@ export const DailyChallengeCard = ({
       <img
         src={DAILY_CHALLENGE_ICON_URL}
         alt=""
-        className="h-10 w-10 shrink-0 rounded-full object-cover"
+        className="h-10 w-10 shrink-0 rounded-full object-cover animate-[fade-in_ease-out_both]"
+        style={{ animationDuration: '250ms' }}
       />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="truncate font-semibold text-gray-900 dark:text-white">
