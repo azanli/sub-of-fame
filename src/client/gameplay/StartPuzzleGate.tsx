@@ -33,11 +33,11 @@ export const StartPuzzleGateSkeleton = ({
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="flex flex-col gap-6 p-4 pb-6">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 items-center gap-1">
             <SkeletonBar className="h-8 w-8 shrink-0 rounded-full" />
             {subredditDisplayName !== undefined &&
             subredditDisplayName.length > 0 ? (
-              <p className="truncate text-sm font-medium text-gray-500 dark:text-gray-400 tracking-widest ml-2">
+              <p className="truncate text-sm font-medium text-gray-500 dark:text-gray-400 tracking-widest ml-1">
                 {formatSubredditLabel(subredditDisplayName)}
               </p>
             ) : (
