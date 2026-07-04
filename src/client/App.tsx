@@ -13,6 +13,7 @@ import { GameplayRound } from './gameplay/GameplayRound';
 import { PuzzleGateFromPromise } from './gameplay/PuzzleGateFromPromise';
 import { PuzzleLoadTransition } from './gameplay/PuzzleLoadTransition';
 import { RevealScreen } from './gameplay/RevealScreen';
+import { resolveLoadingCard } from './gameplay/resolveLoadingCard';
 import { StartPuzzleGateSkeleton } from './gameplay/StartPuzzleGate';
 import type { ReadyPuzzle } from './gameplay/types';
 import { trpcClient } from './trpc';
@@ -661,7 +662,12 @@ export const App = ({ preloadedInit }: AppProps) => {
               />
             ) : (
               <StartPuzzleGateSkeleton
-                subredditDisplayName={state.subredditDisplayName}
+                subredditDisplayName={
+                  state.subredditDisplayName.length > 0
+                    ? resolveLoadingCard(state.subredditDisplayName, initData)
+                        .card.displayName
+                    : ''
+                }
               />
             )
           }
