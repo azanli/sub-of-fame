@@ -492,7 +492,7 @@ export const RevealScreen = ({
           <button
             type="button"
             onClick={() => navigateTo(puzzle.postUrl)}
-            className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold rounded-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+            className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm sm:text-base font-semibold rounded-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
           >
             <div className="flex items-center justify-center gap-2">
               Open Post
@@ -503,7 +503,7 @@ export const RevealScreen = ({
         <button
           type="button"
           onClick={onNextLevel}
-          className="bg-[#d93900] hover:bg-[#c23300] text-white font-semibold rounded-full px-6 py-2 transition-colors cursor-pointer"
+          className="bg-[#d93900] hover:bg-[#c23300] text-white text-sm sm:text-base font-semibold rounded-full px-6 py-2 transition-colors cursor-pointer"
         >
           <div className="flex items-center justify-center gap-1.5">
             Next Challenge
