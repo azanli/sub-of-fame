@@ -1,6 +1,9 @@
+import { useEffect, useRef } from 'react';
 import { CommentRankCard } from './CommentRankCard';
 import { CountdownTimer } from './CountdownTimer';
 import type { RankAssignments, ReadyPuzzle } from './types';
+
+const SKIP_ANIMATION_MS = 700;
 
 type CommentsModalProps = {
   comments: ReadyPuzzle['comments'];
@@ -8,7 +11,9 @@ type CommentsModalProps = {
   totalSeconds: number;
   assignments: RankAssignments;
   onTap: (commentId: string) => void;
+  onSkipAnimationStart: () => void;
   onSkip: () => void;
+  isSkipAnimating: boolean;
   isSkipping: boolean;
   /** Logged-in wallet balance; null for guests (skip is free). */
   coinBalance: number | null;
@@ -24,12 +29,35 @@ export const CommentsModal = ({
   totalSeconds,
   assignments,
   onTap,
+  onSkipAnimationStart,
   onSkip,
+  isSkipAnimating,
   isSkipping,
   coinBalance,
 }: CommentsModalProps) => {
-  const skipCostsCoin = coinBalance !== null;
-  const cannotAffordSkip = skipCostsCoin && coinBalance < 1;
+  const skipTimeoutRef = useRef<number | null>(null);
+  const cannotAffordSkip = (coinBalance ?? 0) < 1;
+  const skipDisabled = isSkipping || isSkipAnimating || cannotAffordSkip;
+
+  useEffect(() => {
+    return () => {
+      if (skipTimeoutRef.current !== null) {
+        window.clearTimeout(skipTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleSkipClick = () => {
+    if (skipDisabled) {
+      return;
+    }
+
+    onSkipAnimationStart();
+    skipTimeoutRef.current = window.setTimeout(() => {
+      skipTimeoutRef.current = null;
+      onSkip();
+    }, SKIP_ANIMATION_MS);
+  };
 
   return (
     <div className="fixed inset-0 z-20 flex flex-col overflow-hidden bg-white dark:bg-gray-900">
@@ -45,17 +73,29 @@ export const CommentsModal = ({
           <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
-              onClick={onSkip}
-              disabled={isSkipping || cannotAffordSkip}
+              onClick={handleSkipClick}
+              disabled={skipDisabled}
               aria-label="Skip puzzle for 1 Karma Coin"
+              aria-busy={isSkipAnimating}
               className={`flex h-8 shrink-0 items-center justify-center gap-1 rounded-full border px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer ${
                 cannotAffordSkip
                   ? 'border-red-300 text-red-500 dark:border-red-800 dark:text-red-400'
                   : 'border-gray-300 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200'
               }`}
             >
-              Skip
-              {skipCostsCoin ? <CoinIcon className="h-4 w-4" /> : null}
+              <span className="inline-flex min-w-[2.25rem] items-center justify-center">
+                {isSkipAnimating ? (
+                  <span
+                    className="inline-block animate-[skip-cost-pop_700ms_ease-out_forwards]"
+                    aria-hidden="true"
+                  >
+                    -1
+                  </span>
+                ) : (
+                  'Skip'
+                )}
+              </span>
+              <CoinIcon className="h-4 w-4 shrink-0" />
             </button>
           </div>
         </div>

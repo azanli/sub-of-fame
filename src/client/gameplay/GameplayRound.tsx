@@ -37,6 +37,7 @@ const GameplayRoundInner = ({
 
   const hasSubmittedRef = useRef(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [isSkipAnimating, setIsSkipAnimating] = useState(false);
   const [assignments, setAssignments] = useState<RankAssignments>(new Map());
   const [secondsRemaining, setSecondsRemaining] = useState(allottedSeconds);
 
@@ -45,7 +46,13 @@ const GameplayRoundInner = ({
   }, [puzzle.attemptId]);
 
   useEffect(() => {
-    if (!hasStarted || secondsRemaining <= 0 || isSubmitting || isSkipping) {
+    if (
+      !hasStarted ||
+      secondsRemaining <= 0 ||
+      isSubmitting ||
+      isSkipping ||
+      isSkipAnimating
+    ) {
       return;
     }
 
@@ -54,10 +61,15 @@ const GameplayRoundInner = ({
     }, 1000);
 
     return () => window.clearInterval(intervalId);
-  }, [hasStarted, secondsRemaining, isSubmitting, isSkipping]);
+  }, [hasStarted, secondsRemaining, isSubmitting, isSkipping, isSkipAnimating]);
 
   useEffect(() => {
-    if (isSubmitting || isSkipping || hasSubmittedRef.current) {
+    if (
+      isSubmitting ||
+      isSkipping ||
+      isSkipAnimating ||
+      hasSubmittedRef.current
+    ) {
       return;
     }
     if (!isAllRanksAssigned(assignments)) {
@@ -71,10 +83,21 @@ const GameplayRoundInner = ({
 
     hasSubmittedRef.current = true;
     onSubmit(slots);
-  }, [assignments, isSubmitting, isSkipping, onSubmit, puzzle.comments]);
+  }, [
+    assignments,
+    isSubmitting,
+    isSkipping,
+    isSkipAnimating,
+    onSubmit,
+    puzzle.comments,
+  ]);
 
   useEffect(() => {
-    if (isSubmitting || hasSubmittedRef.current) {
+    if (
+      isSubmitting ||
+      isSkipAnimating ||
+      hasSubmittedRef.current
+    ) {
       return;
     }
     if (!hasStarted || secondsRemaining > 0) {
@@ -102,12 +125,21 @@ const GameplayRoundInner = ({
     setAssignments((current) => applyTapRank(current, commentId));
   };
 
-  const handleSkip = () => {
-    if (isSubmitting || isSkipping || hasSubmittedRef.current) {
+  const handleSkipAnimationStart = () => {
+    if (isSubmitting || isSkipping || isSkipAnimating || hasSubmittedRef.current) {
       return;
     }
 
     hasSubmittedRef.current = true;
+    setIsSkipAnimating(true);
+  };
+
+  const handleSkip = () => {
+    if (isSubmitting || isSkipping) {
+      return;
+    }
+
+    setIsSkipAnimating(false);
     onSkip();
   };
 
@@ -129,8 +161,14 @@ const GameplayRoundInner = ({
       secondsRemaining={secondsRemaining}
       totalSeconds={allottedSeconds}
       assignments={assignments}
-      onTap={isSubmitting || isSkipping ? () => undefined : handleTap}
+      onTap={
+        isSubmitting || isSkipping || isSkipAnimating
+          ? () => undefined
+          : handleTap
+      }
+      onSkipAnimationStart={handleSkipAnimationStart}
       onSkip={handleSkip}
+      isSkipAnimating={isSkipAnimating}
       isSkipping={isSubmitting || isSkipping}
       coinBalance={coinBalance}
     />
