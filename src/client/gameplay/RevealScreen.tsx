@@ -45,6 +45,22 @@ const REDEMPTION_REMARKS = [
   'The algorithms are just as confused by these upvote ratios as you are.',
 ] as const;
 
+type CheerSnooSide = 'left' | 'right';
+
+type CheerSnooConfig = {
+  src: string;
+  side: CheerSnooSide;
+};
+
+const CHEER_SNOOS: CheerSnooConfig[] = [
+  { src: '/snoo-cheer-one.png', side: 'left' },
+  { src: '/snoo-cheer-two.png', side: 'right' },
+];
+
+const pickRandomCheerSnoo = (): CheerSnooConfig =>
+  CHEER_SNOOS[Math.floor(Math.random() * CHEER_SNOOS.length)] ??
+  CHEER_SNOOS[0]!;
+
 const pickRedemptionRemarkIndex = (
   lastIndex: number | null,
   remarkCount: number
@@ -166,6 +182,10 @@ export const RevealScreen = ({
     null
   );
 
+  const [oneCoinCheerSnoo] = useState(() =>
+    result.score === 1 ? pickRandomCheerSnoo() : null
+  );
+
   const [redemptionRemark] = useState(() => {
     if (!isZeroScore || isSkipped) {
       return null;
@@ -210,10 +230,12 @@ export const RevealScreen = ({
   };
 
   const maxSlotScore = Math.max(...result.slots.map((slot) => slot.score), 0);
-  const showCheerRightSnoo =
+  const showCheerSnoo =
     !isZeroScore && !isSkipped && result.score >= 1 && revealedCoinCount >= 1;
+  const showCheerRightSnoo = showCheerSnoo && result.score !== 1;
   const showCheerLeftSnoo =
-    !isZeroScore && !isSkipped && result.score >= 2 && revealedCoinCount >= 2;
+    showCheerSnoo && result.score >= 3 && revealedCoinCount >= 2;
+  const showOneCoinCheerSnoo = showCheerSnoo && result.score === 1;
 
   useEffect(() => {
     const timers: number[] = [];
@@ -443,20 +465,49 @@ export const RevealScreen = ({
                     }}
                   />
                 ) : null}
-                <img
-                  src="/snoo-cheer-two.png"
-                  alt=""
-                  className={`absolute bottom-0 right-0 h-full w-auto max-w-[38%] object-contain object-right-bottom ${
-                    showCheerRightSnoo
-                      ? 'animate-[snoo-cheer-slide-right_ease-out_forwards]'
-                      : 'opacity-0 translate-x-8 translate-y-4'
-                  }`}
-                  style={
-                    showCheerRightSnoo
-                      ? { animationDuration: `${SNOO_CHEER_ENTRANCE_MS}ms` }
-                      : undefined
-                  }
-                />
+                {showOneCoinCheerSnoo && oneCoinCheerSnoo?.side === 'left' ? (
+                  <img
+                    src={oneCoinCheerSnoo.src}
+                    alt=""
+                    className={`absolute bottom-0 h-full w-auto max-w-[45%] object-contain object-left-bottom ${
+                      showOneCoinCheerSnoo
+                        ? 'animate-[snoo-cheer-slide-left_ease-out_forwards]'
+                        : 'opacity-0 -translate-x-full'
+                    }`}
+                    style={{
+                      left: `-${SNOO_CHEER_LEFT_WALL_OFFSET_PX}px`,
+                      animationDuration: `${SNOO_CHEER_ENTRANCE_MS}ms`,
+                    }}
+                  />
+                ) : null}
+                {showOneCoinCheerSnoo && oneCoinCheerSnoo?.side === 'right' ? (
+                  <img
+                    src={oneCoinCheerSnoo.src}
+                    alt=""
+                    className={`absolute bottom-0 right-0 h-full w-auto max-w-[38%] object-contain object-right-bottom ${
+                      showOneCoinCheerSnoo
+                        ? 'animate-[snoo-cheer-slide-right_ease-out_forwards]'
+                        : 'opacity-0 translate-x-8 translate-y-4'
+                    }`}
+                    style={{ animationDuration: `${SNOO_CHEER_ENTRANCE_MS}ms` }}
+                  />
+                ) : null}
+                {result.score >= 2 ? (
+                  <img
+                    src="/snoo-cheer-two.png"
+                    alt=""
+                    className={`absolute bottom-0 right-0 h-full w-auto max-w-[38%] object-contain object-right-bottom ${
+                      showCheerRightSnoo
+                        ? 'animate-[snoo-cheer-slide-right_ease-out_forwards]'
+                        : 'opacity-0 translate-x-8 translate-y-4'
+                    }`}
+                    style={
+                      showCheerRightSnoo
+                        ? { animationDuration: `${SNOO_CHEER_ENTRANCE_MS}ms` }
+                        : undefined
+                    }
+                  />
+                ) : null}
               </div>
             ) : null}
             {result.slots.map((slot, index) => {
