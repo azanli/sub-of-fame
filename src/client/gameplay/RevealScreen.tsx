@@ -13,6 +13,7 @@ type RevealScreenProps = {
   coinBalance: number | null;
   lastRedemptionRemarkIndex: number | null;
   onRedemptionRemarkUsed: (index: number) => void;
+  onDevResetRankIndex?: () => void | Promise<void>;
 };
 
 const SLOT_REVEAL_STAGGER_MS = 500;
@@ -20,6 +21,7 @@ const VERDICT_DELAY_AFTER_LAST_SLOT_MS = 150;
 const REMARK_ENTRANCE_MS = 300;
 const COIN_HEADER_PULSE_MS = 200;
 const COIN_COUNT_UP_MS = 400;
+const DEV_RESET_DOUBLE_TAP_MS = 400;
 
 const REDEMPTION_REMARKS = [
   'The Hivemind is unpredictable today.',
@@ -120,6 +122,7 @@ export const RevealScreen = ({
   coinBalance,
   lastRedemptionRemarkIndex,
   onRedemptionRemarkUsed,
+  onDevResetRankIndex,
 }: RevealScreenProps) => {
   const isZeroScore = result.score === 0;
   const [revealedSlotCount, setRevealedSlotCount] = useState(0);
@@ -161,6 +164,25 @@ export const RevealScreen = ({
   }, [redemptionRemark, onRedemptionRemarkUsed]);
 
   const countUpFrameRef = useRef<number | undefined>(undefined);
+  const lastDevResetTapRef = useRef<number | null>(null);
+
+  const handleDevResetTap = () => {
+    if (onDevResetRankIndex === undefined) {
+      return;
+    }
+
+    const now = Date.now();
+    if (
+      lastDevResetTapRef.current !== null &&
+      now - lastDevResetTapRef.current <= DEV_RESET_DOUBLE_TAP_MS
+    ) {
+      lastDevResetTapRef.current = null;
+      void onDevResetRankIndex();
+      return;
+    }
+
+    lastDevResetTapRef.current = now;
+  };
 
   useEffect(() => {
     const timers: number[] = [];
@@ -271,10 +293,18 @@ export const RevealScreen = ({
               ) : null}
               <span
                 aria-label="Post comment count"
-                className="flex shrink-0 items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
+                className="relative flex shrink-0 items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
               >
                 <CommentIcon />
                 {formatCompactNumber(puzzle.numberOfComments)} comments
+                {onDevResetRankIndex ? (
+                  <button
+                    type="button"
+                    onClick={handleDevResetTap}
+                    aria-label="Dev: reset rank index to replay this puzzle"
+                    className="absolute inset-0 cursor-default opacity-0"
+                  />
+                ) : null}
               </span>
             </div>
           </div>

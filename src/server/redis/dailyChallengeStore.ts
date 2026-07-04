@@ -52,3 +52,13 @@ export const incrementDailyProgress = async (userId: string): Promise<number> =>
   await redis.expire(key, DAILY_PROGRESS_TTL_S);
   return next;
 };
+
+/** Overwrite today's Daily Challenge rankIndex (dev recovery only). */
+export const setDailyProgress = async (
+  userId: string,
+  rankIndex: number
+): Promise<void> => {
+  const key = dailyProgressKey(userId, currentUtcDateStamp());
+  await redis.hSet(key, { [DAILY_CHALLENGE_SUBREDDIT]: String(rankIndex) });
+  await redis.expire(key, DAILY_PROGRESS_TTL_S);
+};

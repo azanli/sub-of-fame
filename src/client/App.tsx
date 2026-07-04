@@ -587,6 +587,30 @@ export const App = ({ preloadedInit }: AppProps) => {
     );
   };
 
+  const handleDevResetRankIndex = useCallback(() => {
+    if (state.phase !== 'revealed') {
+      return;
+    }
+
+    const { puzzle } = state;
+    const rankIndex = puzzle.rankIndex;
+
+    if (session?.isLoggedIn) {
+      const subreddit = session.campaignSubreddit;
+      if (subreddit === null) {
+        return;
+      }
+
+      void trpcClient.puzzle.devResetRankIndex.mutate({
+        subreddit,
+        rankIndex,
+      });
+      return;
+    }
+
+    guestRankIndexRef.current = rankIndex;
+  }, [session, state]);
+
   const refreshHubDashboard = useCallback(() => {
     setSelectionError(null);
     beginHubLoad(trpcClient.init.query());
@@ -728,6 +752,7 @@ export const App = ({ preloadedInit }: AppProps) => {
           coinBalance={initData?.coins ?? null}
           lastRedemptionRemarkIndex={lastRedemptionRemarkIndex}
           onRedemptionRemarkUsed={setLastRedemptionRemarkIndex}
+          onDevResetRankIndex={handleDevResetRankIndex}
         />
       </div>
     );

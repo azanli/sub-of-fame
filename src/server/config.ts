@@ -7,7 +7,8 @@
  * Override at runtime via the HUB_SUBREDDITS env var (comma-separated):
  *   HUB_SUBREDDITS=suboffame,sub_of_fame_dev devvit playtest
  */
-const rawHubSubreddits = process.env['HUB_SUBREDDITS'] ?? 'suboffame,sub_of_fame_dev';
+const rawHubSubreddits =
+  process.env['HUB_SUBREDDITS'] ?? 'suboffame,sub_of_fame_dev';
 
 export const HUB_SUBREDDITS: ReadonlySet<string> = new Set(
   rawHubSubreddits
@@ -15,6 +16,12 @@ export const HUB_SUBREDDITS: ReadonlySet<string> = new Set(
     .map((s) => s.trim().toLowerCase())
     .filter((s) => s.length > 0)
 );
+
+/** Playtest host where dev-only tooling (e.g. rank reset) is permitted. */
+export const DEV_PLAYTEST_HOST_SUBREDDIT = 'suboffame';
+
+export const isDevPlaytestHost = (subredditName: string): boolean =>
+  subredditName.toLowerCase() === DEV_PLAYTEST_HOST_SUBREDDIT;
 
 /** Maximum normalized comment body length for puzzle eligibility (all three comments). */
 export const MAX_COMMENT_LENGTH = 180;

@@ -4,8 +4,12 @@
 // importing progressStore/dailyChallengeStore directly, so the two stores never need to
 // know about each other's existence.
 import { isDailyChallengeSubreddit } from '../../shared/dailyChallenge';
-import { getDailyProgress, incrementDailyProgress } from './dailyChallengeStore';
-import { getProgress, incrementProgress } from './progressStore';
+import {
+  getDailyProgress,
+  incrementDailyProgress,
+  setDailyProgress,
+} from './dailyChallengeStore';
+import { getProgress, incrementProgress, setProgress } from './progressStore';
 
 export const getRankIndex = (userId: string, subredditName: string): Promise<number> =>
   isDailyChallengeSubreddit(subredditName)
@@ -16,3 +20,12 @@ export const advanceRankIndex = (userId: string, subredditName: string): Promise
   isDailyChallengeSubreddit(subredditName)
     ? incrementDailyProgress(userId)
     : incrementProgress(userId, subredditName);
+
+export const setRankIndex = (
+  userId: string,
+  subredditName: string,
+  rankIndex: number
+): Promise<void> =>
+  isDailyChallengeSubreddit(subredditName)
+    ? setDailyProgress(userId, rankIndex)
+    : setProgress(userId, subredditName, rankIndex);

@@ -1,7 +1,13 @@
 import { randomUUID } from 'node:crypto';
+import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { router, publicProcedure } from '../trpc';
-import { deriveLaunchContext, resolveRequestedSubreddit } from '../launchContext';
+import { isDevPlaytestHost } from '../config';
+import {
+  deriveLaunchContext,
+  normalizeSubredditName,
+  resolveRequestedSubreddit,
+} from '../launchContext';
 import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
 import {
   fastFilterEligible,
@@ -14,11 +20,24 @@ import {
 import { resolvePostContent } from '../reddit/postContent';
 import { validateComments } from '../reddit/commentValidation';
 import { resolveLadderPageSize } from '../redis/keys';
-import { getRankIndex, advanceRankIndex } from '../redis/rankProgress';
-import { getAttempt, markAttemptSubmitted, setAttempt } from '../redis/attemptStore';
+import {
+  advanceRankIndex,
+  getRankIndex,
+  setRankIndex,
+} from '../redis/rankProgress';
+import {
+  getAttempt,
+  markAttemptSubmitted,
+  setAttempt,
+} from '../redis/attemptStore';
 import { getSnapshot } from '../redis/snapshotStore';
 import { acquireSubmitLock } from '../redis/submitLockStore';
-import { computeHiveIQ, deductCoin, getStats, incrementStats } from '../redis/statsStore';
+import {
+  computeHiveIQ,
+  deductCoin,
+  getStats,
+  incrementStats,
+} from '../redis/statsStore';
 import { updateLeaderboard } from '../redis/leaderboardStore';
 import { ATTEMPT_TTL_S } from '../redis/keys';
 import type { PuzzleAttemptOwner, PuzzleSnapshot } from '../redis/types';
@@ -40,7 +59,8 @@ import { CURATED_SUBREDDITS } from '../../shared/subreddits';
 
 const UNPLAYABLE_MESSAGE =
   'Could not find a playable puzzle within the current request budget. Retry to continue.';
-const EXHAUSTED_MESSAGE = 'No more playable posts remain on this subreddit ladder.';
+const EXHAUSTED_MESSAGE =
+  'No more playable posts remain on this subreddit ladder.';
 
 const resolveSubredditDisplayName = async (
   subredditName: string,
@@ -49,12 +69,15 @@ const resolveSubredditDisplayName = async (
   const metadata = await resolveSubredditMetadata(subredditName, reddit);
   return (
     metadata?.displayName ??
-    CURATED_SUBREDDITS.find((entry) => entry.name === subredditName)?.displayName ??
+    CURATED_SUBREDDITS.find((entry) => entry.name === subredditName)
+      ?.displayName ??
     subredditName
   );
 };
 
-const shuffleCommentIds = (ids: [string, string, string]): [string, string, string] => {
+const shuffleCommentIds = (
+  ids: [string, string, string]
+): [string, string, string] => {
   const shuffled = [ids[0], ids[1], ids[2]];
   for (let index = shuffled.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(Math.random() * (index + 1));
@@ -117,7 +140,12 @@ const isIssuedCommentPermutation = (
 const buildRevealSlots = (
   slots: [string, string, string],
   snapshot: PuzzleSnapshot
-): Array<{ commentId: string; body: string; score: number; correct: boolean }> =>
+): Array<{
+  commentId: string;
+  body: string;
+  score: number;
+  correct: boolean;
+}> =>
   slots.map((commentId, index) => {
     const truth = snapshot.comments[index];
     if (truth === undefined) {
@@ -154,7 +182,10 @@ const enrichSnapshotMedia = (
     post.imageUrl = resolvedMedia.imageUrl;
     post.isVideo = true;
     delete post.galleryUrls;
-  } else if (resolvedMedia.galleryUrls !== undefined && resolvedMedia.galleryUrls.length > 0) {
+  } else if (
+    resolvedMedia.galleryUrls !== undefined &&
+    resolvedMedia.galleryUrls.length > 0
+  ) {
     post.galleryUrls = resolvedMedia.galleryUrls;
     post.imageUrl = resolvedMedia.galleryUrls[0];
     delete post.isVideo;
@@ -177,7 +208,9 @@ const buildReadyResponse = (
   snapshot: PuzzleSnapshot,
   commentOrder: [string, string, string]
 ): Extract<PuzzleNextResponse, { status: 'ready' }> => {
-  const commentById = new Map(snapshot.comments.map((comment) => [comment.id, comment]));
+  const commentById = new Map(
+    snapshot.comments.map((comment) => [comment.id, comment])
+  );
 
   const post: Extract<PuzzleNextResponse, { status: 'ready' }>['post'] = {
     title: snapshot.post.title,
@@ -226,7 +259,10 @@ export const puzzleRouter = router({
     )
     .mutation(async ({ input, ctx }): Promise<PuzzleNextResponse> => {
       const launchContext = deriveLaunchContext(ctx.subredditName, ctx.surface);
-      const subredditResult = resolveRequestedSubreddit(launchContext, input.subreddit);
+      const subredditResult = resolveRequestedSubreddit(
+        launchContext,
+        input.subreddit
+      );
 
       if (!subredditResult.ok) {
         return {
@@ -252,7 +288,8 @@ export const puzzleRouter = router({
 
       const campaignDisplayName =
         metadata?.displayName ??
-        CURATED_SUBREDDITS.find((entry) => entry.name === subreddit)?.displayName ??
+        CURATED_SUBREDDITS.find((entry) => entry.name === subreddit)
+          ?.displayName ??
         subreddit;
 
       let rankIndex =
@@ -267,7 +304,12 @@ export const puzzleRouter = router({
       };
 
       while (budget.itemsCheckedRemaining > 0) {
-        const ladderResult = await resolveLadderPage(subreddit, rankIndex, budget, ctx.reddit);
+        const ladderResult = await resolveLadderPage(
+          subreddit,
+          rankIndex,
+          budget,
+          ctx.reddit
+        );
 
         if (ladderResult.kind === 'unplayable') {
           return {
@@ -298,7 +340,8 @@ export const puzzleRouter = router({
 
         if (post === undefined) {
           const isTerminal =
-            page.nextAfter === null || page.posts.length < resolveLadderPageSize(subreddit);
+            page.nextAfter === null ||
+            page.posts.length < resolveLadderPageSize(subreddit);
           if (isTerminal) {
             return {
               status: 'exhausted',
@@ -322,7 +365,10 @@ export const puzzleRouter = router({
         const postPayload: {
           title: string;
           body?: string;
-          contentBlocks?: Extract<PuzzleNextResponse, { status: 'ready' }>['post']['contentBlocks'];
+          contentBlocks?: Extract<
+            PuzzleNextResponse,
+            { status: 'ready' }
+          >['post']['contentBlocks'];
           imageUrl?: string;
           galleryUrls?: string[];
           isVideo?: boolean;
@@ -372,7 +418,11 @@ export const puzzleRouter = router({
               postPayload.galleryUrls = galleryUrls;
             }
           } else {
-            const imageUrl = await resolvePostImageUrl(post.imageUrl, post.id, ctx.reddit);
+            const imageUrl = await resolvePostImageUrl(
+              post.imageUrl,
+              post.id,
+              ctx.reddit
+            );
             if (imageUrl !== undefined) {
               postPayload.imageUrl = imageUrl;
             }
@@ -431,7 +481,10 @@ export const puzzleRouter = router({
         });
 
         const subredditDisplayName = isDailyChallengeSubreddit(subreddit)
-          ? await resolveSubredditDisplayName(post.sourceSubredditName, ctx.reddit)
+          ? await resolveSubredditDisplayName(
+              post.sourceSubredditName,
+              ctx.reddit
+            )
           : campaignDisplayName;
 
         return buildReadyResponse(
@@ -455,7 +508,11 @@ export const puzzleRouter = router({
     .input(
       z.object({
         attemptId: z.string().min(1),
-        slots: z.tuple([z.string().min(1), z.string().min(1), z.string().min(1)]),
+        slots: z.tuple([
+          z.string().min(1),
+          z.string().min(1),
+          z.string().min(1),
+        ]),
       })
     )
     .mutation(async ({ input, ctx }): Promise<PuzzleSubmitResponse> => {
@@ -505,7 +562,10 @@ export const puzzleRouter = router({
           );
         }
 
-        const currentRankIndex = await getRankIndex(attempt.owner.userId, attempt.subreddit);
+        const currentRankIndex = await getRankIndex(
+          attempt.owner.userId,
+          attempt.subreddit
+        );
         if (currentRankIndex !== attempt.rankIndex) {
           return submitError(
             'STALE_PROGRESS',
@@ -549,10 +609,21 @@ export const puzzleRouter = router({
       let coins: number | null = null;
 
       if (attempt.owner.kind === 'user') {
-        const updatedCoins = await incrementStats(attempt.owner.userId, attempt.subreddit, score);
+        const updatedCoins = await incrementStats(
+          attempt.owner.userId,
+          attempt.subreddit,
+          score
+        );
         coins = updatedCoins;
-        nextRankIndex = await advanceRankIndex(attempt.owner.userId, attempt.subreddit);
-        await updateLeaderboard(attempt.subreddit, attempt.owner.userId, attempt.rankIndex);
+        nextRankIndex = await advanceRankIndex(
+          attempt.owner.userId,
+          attempt.subreddit
+        );
+        await updateLeaderboard(
+          attempt.subreddit,
+          attempt.owner.userId,
+          attempt.rankIndex
+        );
 
         const stats = await getStats(attempt.owner.userId);
         const subStats = stats.bySubreddit[attempt.subreddit] ?? {
@@ -560,7 +631,10 @@ export const puzzleRouter = router({
           totalSlots: 0,
         };
         userHiveIQ = {
-          userSubredditHiveIQ: computeHiveIQ(subStats.correctSlots, subStats.totalSlots),
+          userSubredditHiveIQ: computeHiveIQ(
+            subStats.correctSlots,
+            subStats.totalSlots
+          ),
           currentRankIndex: nextRankIndex,
         };
       } else {
@@ -623,7 +697,10 @@ export const puzzleRouter = router({
           );
         }
 
-        const currentRankIndex = await getRankIndex(attempt.owner.userId, attempt.subreddit);
+        const currentRankIndex = await getRankIndex(
+          attempt.owner.userId,
+          attempt.subreddit
+        );
         if (currentRankIndex !== attempt.rankIndex) {
           return skipError(
             'STALE_PROGRESS',
@@ -680,5 +757,39 @@ export const puzzleRouter = router({
         nextRankIndex,
         coins,
       };
+    }),
+
+  devResetRankIndex: publicProcedure
+    .input(
+      z.object({
+        subreddit: z.string(),
+        rankIndex: z.number().int().min(1),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      if (!isDevPlaytestHost(ctx.subredditName)) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Dev-only endpoint',
+        });
+      }
+
+      if (ctx.userId === undefined) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Login required',
+        });
+      }
+
+      const subreddit = normalizeSubredditName(input.subreddit);
+      if (!subreddit) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Invalid subreddit',
+        });
+      }
+
+      await setRankIndex(ctx.userId, subreddit, input.rankIndex);
+      return { ok: true as const };
     }),
 });
