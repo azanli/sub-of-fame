@@ -1,5 +1,5 @@
 import { navigateTo } from '@devvit/web/client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { PuzzleSubmitSuccess } from '../../shared/api';
 import { formatCompactNumber } from '../../shared/formatNumber';
 import { formatSubredditLabel } from '../../shared/subreddits';
@@ -20,7 +20,8 @@ const SLOT_REVEAL_STAGGER_MS = 500;
 const VERDICT_DELAY_AFTER_LAST_SLOT_MS = 150;
 const REMARK_ENTRANCE_MS = 300;
 const COIN_HEADER_PULSE_MS = 200;
-const COIN_COUNT_UP_MS = 400;
+const COIN_REVEAL_STAGGER_MS = 300;
+const COIN_FLOAT_MS = 800;
 const DEV_RESET_DOUBLE_TAP_MS = 400;
 
 const REDEMPTION_REMARKS = [
@@ -98,6 +99,24 @@ const ExternalLinkIcon = () => (
   </svg>
 );
 
+const CoinIcon = ({
+  className,
+  alt,
+  style,
+}: {
+  className: string;
+  alt?: string;
+  style?: CSSProperties;
+}) => (
+  <img
+    src="/coin.svg"
+    alt={alt ?? ''}
+    aria-hidden={alt === undefined}
+    className={className}
+    style={style}
+  />
+);
+
 const RightArrowIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -128,7 +147,10 @@ export const RevealScreen = ({
   const [revealedSlotCount, setRevealedSlotCount] = useState(0);
   const [showVerdict, setShowVerdict] = useState(false);
   const [coinHeaderPulse, setCoinHeaderPulse] = useState(false);
-  const [showFloatingCoin, setShowFloatingCoin] = useState(false);
+  const [revealedCoinCount, setRevealedCoinCount] = useState(0);
+  const [activeFloatingCoinIndices, setActiveFloatingCoinIndices] = useState<
+    number[]
+  >([]);
   const [displayedCoinBalance, setDisplayedCoinBalance] = useState<
     number | null
   >(
@@ -163,7 +185,6 @@ export const RevealScreen = ({
     }
   }, [redemptionRemark, onRedemptionRemarkUsed]);
 
-  const countUpFrameRef = useRef<number | undefined>(undefined);
   const lastDevResetTapRef = useRef<number | null>(null);
 
   const handleDevResetTap = () => {
@@ -219,33 +240,39 @@ export const RevealScreen = ({
           return;
         }
 
-        if (!isZeroScore && coinBalance !== null) {
-          setShowFloatingCoin(true);
-          const startBalance = coinBalance - result.score;
-          const endBalance = coinBalance;
-          const startTime = performance.now();
+        if (!isZeroScore) {
+          const startBalance =
+            coinBalance !== null ? coinBalance - result.score : null;
 
-          const tick = (now: number) => {
-            const progress = Math.min(1, (now - startTime) / COIN_COUNT_UP_MS);
-            setDisplayedCoinBalance(
-              Math.round(startBalance + (endBalance - startBalance) * progress)
+          for (let coinIndex = 0; coinIndex < result.score; coinIndex += 1) {
+            timers.push(
+              window.setTimeout(() => {
+                setRevealedCoinCount(coinIndex + 1);
+                setActiveFloatingCoinIndices((current) => [
+                  ...current,
+                  coinIndex,
+                ]);
+                if (startBalance !== null) {
+                  setDisplayedCoinBalance(startBalance + coinIndex + 1);
+                }
+                timers.push(
+                  window.setTimeout(
+                    () =>
+                      setActiveFloatingCoinIndices((current) =>
+                        current.filter((index) => index !== coinIndex)
+                      ),
+                    COIN_FLOAT_MS
+                  )
+                );
+              }, coinIndex * COIN_REVEAL_STAGGER_MS)
             );
-            if (progress < 1) {
-              countUpFrameRef.current = window.requestAnimationFrame(tick);
-            }
-          };
-
-          countUpFrameRef.current = window.requestAnimationFrame(tick);
-          timers.push(window.setTimeout(() => setShowFloatingCoin(false), 800));
+          }
         }
       }, lastSlotRevealMs + VERDICT_DELAY_AFTER_LAST_SLOT_MS)
     );
 
     return () => {
       timers.forEach((timerId) => window.clearTimeout(timerId));
-      if (countUpFrameRef.current !== undefined) {
-        window.cancelAnimationFrame(countUpFrameRef.current);
-      }
     };
   }, [result.slots, isZeroScore, coinBalance, result.score]);
 
@@ -280,12 +307,7 @@ export const RevealScreen = ({
                   }`}
                   aria-label="Karma Coin balance"
                 >
-                  <img
-                    src="/coin.svg"
-                    alt=""
-                    aria-hidden="true"
-                    className="h-5 w-5"
-                  />
+                  <CoinIcon className="h-5 w-5" />
                   <span className="tabular-nums">
                     {displayedCoinBalance ?? coinBalance}
                   </span>
@@ -324,14 +346,15 @@ export const RevealScreen = ({
               </div>
             ) : (
               <>
-                {showFloatingCoin ? (
-                  <span
-                    className="pointer-events-none absolute top-6 z-10 text-2xl font-bold text-[#E28743] animate-[float-up_800ms_ease-out_forwards]"
-                    aria-hidden="true"
-                  >
-                    +{result.score}
-                  </span>
-                ) : null}
+                {activeFloatingCoinIndices.map((coinIndex) => (
+                  <CoinIcon
+                    key={`float-${coinIndex}`}
+                    className="pointer-events-none absolute top-6 z-10 h-8 w-8 -translate-x-1/2 animate-[float-up_800ms_ease-out_forwards]"
+                    style={{
+                      left: `calc(50% + ${(coinIndex - (result.score - 1) / 2) * 28}px)`,
+                    }}
+                  />
+                ))}
                 <div
                   className={`flex flex-col items-center transition-all ease-out ${
                     showVerdict
@@ -339,16 +362,20 @@ export const RevealScreen = ({
                       : 'translate-y-2.5 opacity-0'
                   }`}
                   style={{ transitionDuration: `${REMARK_ENTRANCE_MS}ms` }}
+                  aria-live="polite"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="text-4xl font-bold text-gray-900 dark:text-white">
-                      +{result.score}
-                    </span>
-                    <img
-                      src="/coin.svg"
-                      alt="Karma Coin"
-                      className="h-10 w-10"
-                    />
+                  <div className="flex min-h-10 items-center justify-center gap-2">
+                    {Array.from({ length: revealedCoinCount }, (_, coinIndex) => (
+                      <CoinIcon
+                        key={coinIndex}
+                        className="h-10 w-10 animate-[skip-cost-pop_350ms_ease-out_forwards]"
+                        {...(coinIndex === 0
+                          ? {
+                              alt: `${result.score} Karma Coin${result.score === 1 ? '' : 's'} earned`,
+                            }
+                          : {})}
+                      />
+                    ))}
                   </div>
                 </div>
               </>
