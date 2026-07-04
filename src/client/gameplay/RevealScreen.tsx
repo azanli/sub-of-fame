@@ -297,7 +297,7 @@ export const RevealScreen = ({
                 : 'flex items-center justify-between gap-3'
             }
           >
-            <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1">
               <button
                 type="button"
                 onClick={onExit}
@@ -311,7 +311,7 @@ export const RevealScreen = ({
                   ×
                 </span>
               </button>
-              <p className="truncate text-sm font-medium text-gray-500 dark:text-gray-400 tracking-widest ml-2">
+              <p className="truncate text-sm font-medium text-gray-500 dark:text-gray-400 tracking-widest ml-1">
                 {formatSubredditLabel(puzzle.subredditDisplayName)}
               </p>
             </div>
