@@ -113,7 +113,6 @@ export const HubDashboard = ({
               className="h-5 w-5"
             />
             <span className="tabular-nums">{initData.coins}</span>
-            <span>Coins</span>
           </span>
         )}
         <button
