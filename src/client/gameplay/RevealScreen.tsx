@@ -426,7 +426,7 @@ export const RevealScreen = ({
                 ? 'bg-gray-200 dark:bg-gray-700'
                 : slot.correct
                   ? 'bg-green-400'
-                  : 'bg-red-400';
+                  : 'bg-amber-400';
               const rankBadgeTextClass = isRevealed
                 ? 'text-white'
                 : 'text-gray-500 dark:text-gray-300';
@@ -442,7 +442,7 @@ export const RevealScreen = ({
                               ? 'scale-[1.02] ring-2 ring-green-300'
                               : ''
                           }`
-                        : 'border-red-400 bg-red-50 dark:bg-red-950'
+                        : 'border-amber-400 bg-amber-50 dark:bg-amber-950'
                       : 'border-gray-200 bg-gray-50 opacity-60 dark:border-gray-700 dark:bg-gray-800/60'
                   }`}
                 >
@@ -476,7 +476,7 @@ export const RevealScreen = ({
                       className={`absolute bottom-0 left-0 h-1 transition-[width] duration-500 ease-out ${
                         slot.correct
                           ? 'bg-green-400 dark:bg-green-400'
-                          : 'bg-red-400 dark:bg-red-400'
+                          : 'bg-amber-400 dark:bg-amber-400'
                       }`}
                       style={{ width: `${upvoteBarWidthPercent}%` }}
                     />
