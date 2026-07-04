@@ -205,6 +205,8 @@ export const RevealScreen = ({
     lastDevResetTapRef.current = now;
   };
 
+  const maxSlotScore = Math.max(...result.slots.map((slot) => slot.score), 0);
+
   useEffect(() => {
     const timers: number[] = [];
 
@@ -365,17 +367,20 @@ export const RevealScreen = ({
                   aria-live="polite"
                 >
                   <div className="flex min-h-10 items-center justify-center gap-2">
-                    {Array.from({ length: revealedCoinCount }, (_, coinIndex) => (
-                      <CoinIcon
-                        key={coinIndex}
-                        className="h-10 w-10 animate-[skip-cost-pop_350ms_ease-out_forwards]"
-                        {...(coinIndex === 0
-                          ? {
-                              alt: `${result.score} Karma Coin${result.score === 1 ? '' : 's'} earned`,
-                            }
-                          : {})}
-                      />
-                    ))}
+                    {Array.from(
+                      { length: revealedCoinCount },
+                      (_, coinIndex) => (
+                        <CoinIcon
+                          key={coinIndex}
+                          className="h-10 w-10 animate-[skip-cost-pop_350ms_ease-out_forwards]"
+                          {...(coinIndex === 0
+                            ? {
+                                alt: `${result.score} Karma Coin${result.score === 1 ? '' : 's'} earned`,
+                              }
+                            : {})}
+                        />
+                      )
+                    )}
                   </div>
                 </div>
               </>
@@ -387,10 +392,13 @@ export const RevealScreen = ({
               const isRevealed = index < revealedSlotCount;
               const isFlashing = flashingSlotIndex === index;
 
+              const upvoteBarWidthPercent =
+                maxSlotScore > 0 ? (slot.score / maxSlotScore) * 100 : 0;
+
               return (
                 <div
                   key={slot.commentId}
-                  className={`rounded-xl border px-4 py-3 flex items-start gap-3 transition-all duration-300 ease-out ${
+                  className={`relative overflow-hidden rounded-xl border px-4 py-3 flex items-start gap-3 transition-all duration-300 ease-out ${
                     isRevealed
                       ? slot.correct
                         ? `border-green-400 bg-green-50 dark:bg-green-950 ${
@@ -417,6 +425,17 @@ export const RevealScreen = ({
                       {slot.score.toLocaleString()} upvotes
                     </p>
                   </div>
+                  {isRevealed && maxSlotScore > 0 ? (
+                    <div
+                      aria-hidden="true"
+                      className={`absolute bottom-0 left-0 h-1 transition-[width] duration-500 ease-out ${
+                        slot.correct
+                          ? 'bg-green-400 dark:bg-green-400'
+                          : 'bg-red-400 dark:bg-red-400'
+                      }`}
+                      style={{ width: `${upvoteBarWidthPercent}%` }}
+                    />
+                  ) : null}
                 </div>
               );
             })}
