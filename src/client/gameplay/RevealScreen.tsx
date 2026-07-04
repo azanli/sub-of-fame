@@ -384,21 +384,24 @@ export const RevealScreen = ({
                   style={{ transitionDuration: `${REMARK_ENTRANCE_MS}ms` }}
                   aria-live="polite"
                 >
-                  <div className="flex min-h-10 items-center justify-center gap-2">
-                    {Array.from(
-                      { length: revealedCoinCount },
-                      (_, coinIndex) => (
-                        <CoinIcon
-                          key={coinIndex}
-                          className="h-10 w-10 animate-[skip-cost-pop_350ms_ease-out_forwards]"
-                          {...(coinIndex === 0
-                            ? {
-                                alt: `${result.score} Karma Coin${result.score === 1 ? '' : 's'} earned`,
-                              }
-                            : {})}
-                        />
-                      )
-                    )}
+                  <div className="relative px-4 py-3">
+                    <div aria-hidden="true" className="coin-reward-glow" />
+                    <div className="relative flex min-h-10 items-center justify-center gap-2">
+                      {Array.from(
+                        { length: revealedCoinCount },
+                        (_, coinIndex) => (
+                          <CoinIcon
+                            key={coinIndex}
+                            className="h-10 w-10 animate-[skip-cost-pop_350ms_ease-out_forwards]"
+                            {...(coinIndex === 0
+                              ? {
+                                  alt: `${result.score} Karma Coin${result.score === 1 ? '' : 's'} earned`,
+                                }
+                              : {})}
+                          />
+                        )
+                      )}
+                    </div>
                   </div>
                 </div>
               </>

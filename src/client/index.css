@@ -56,6 +56,51 @@
   }
 }
 
+@keyframes coin-reward-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+
+  50% {
+    opacity: 0.88;
+    transform: translate(-50%, -50%) scale(1.14);
+  }
+}
+
+.coin-reward-glow {
+  pointer-events: none;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 13rem;
+  height: 13rem;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    circle,
+    rgba(255, 224, 140, 0.55) 0%,
+    rgba(255, 200, 70, 0.32) 24%,
+    rgba(255, 193, 7, 0.14) 44%,
+    rgba(255, 193, 7, 0.05) 58%,
+    transparent 72%
+  );
+  animation: coin-reward-glow-pulse 2.8s ease-in-out infinite;
+}
+
+@media (prefers-color-scheme: dark) {
+  .coin-reward-glow {
+    background: radial-gradient(
+      circle,
+      rgba(255, 193, 7, 0.34) 0%,
+      rgba(220, 150, 20, 0.2) 24%,
+      rgba(180, 120, 10, 0.1) 44%,
+      rgba(140, 90, 5, 0.04) 58%,
+      transparent 72%
+    );
+  }
+}
+
 @layer base {
   * {
     -webkit-touch-callout: none;
