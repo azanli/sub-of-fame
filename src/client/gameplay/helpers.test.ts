@@ -5,6 +5,7 @@ import {
   buildSubmitSlots,
   getCasualRevealCaption,
   isAllRanksAssigned,
+  resolveCasualSlotHighlight,
 } from './helpers';
 import type { RankAssignments } from './types';
 
@@ -99,5 +100,25 @@ describe('getCasualRevealCaption', () => {
   it('returns null for unsupported scores', () => {
     expect(getCasualRevealCaption(2)).toBeNull();
     expect(getCasualRevealCaption(-1)).toBeNull();
+  });
+});
+
+describe('resolveCasualSlotHighlight', () => {
+  it('marks only the top slot correct on a perfect pick', () => {
+    expect(resolveCasualSlotHighlight(0, { correct: true }, 3)).toBe('correct');
+    expect(resolveCasualSlotHighlight(1, { correct: false }, 3)).toBe('neutral');
+    expect(resolveCasualSlotHighlight(2, { correct: false }, 3)).toBe('neutral');
+  });
+
+  it('marks only the middle slot incorrect on a #2 pick', () => {
+    expect(resolveCasualSlotHighlight(0, { correct: false }, 1)).toBe('neutral');
+    expect(resolveCasualSlotHighlight(1, { correct: false }, 1)).toBe('incorrect');
+    expect(resolveCasualSlotHighlight(2, { correct: false }, 1)).toBe('neutral');
+  });
+
+  it('marks only the bottom slot incorrect on a #3 pick', () => {
+    expect(resolveCasualSlotHighlight(0, { correct: false }, 0)).toBe('neutral');
+    expect(resolveCasualSlotHighlight(1, { correct: false }, 0)).toBe('neutral');
+    expect(resolveCasualSlotHighlight(2, { correct: false }, 0)).toBe('incorrect');
   });
 });

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { GameMode, PuzzleRevealResult } from '../../shared/api';
 import { formatCompactNumber } from '../../shared/formatNumber';
 import { formatSubredditLabel } from '../../shared/subreddits';
-import { getCasualRevealCaption } from './helpers';
+import { getCasualRevealCaption, resolveCasualSlotHighlight } from './helpers';
 import type { ReadyPuzzle } from './types';
 
 type RevealScreenProps = {
@@ -629,27 +629,47 @@ export const RevealScreen = ({
               const upvoteBarWidthPercent =
                 maxSlotScore > 0 ? (slot.score / maxSlotScore) * 100 : 0;
 
+              const slotHighlight =
+                isCasualMode && !isSkipped
+                  ? resolveCasualSlotHighlight(index, slot, result.score)
+                  : slot.correct
+                    ? 'correct'
+                    : 'incorrect';
+
               const rankBadgeBgClass = !isRevealed
                 ? 'bg-gray-200 dark:bg-gray-700'
-                : slot.correct
+                : slotHighlight === 'correct'
                   ? 'bg-green-400'
-                  : 'bg-amber-400';
-              const rankBadgeTextClass = isRevealed
-                ? 'text-white'
-                : 'text-gray-500 dark:text-gray-300';
+                  : slotHighlight === 'incorrect'
+                    ? 'bg-amber-400'
+                    : 'bg-gray-200 dark:bg-gray-700';
+              const rankBadgeTextClass =
+                isRevealed && slotHighlight !== 'neutral'
+                  ? 'text-white'
+                  : 'text-gray-500 dark:text-gray-300';
+
+              const revealedCardClass =
+                slotHighlight === 'correct'
+                  ? `border-green-400 bg-green-50 dark:bg-green-950 ${
+                      isFlashing ? 'scale-[1.02] ring-2 ring-green-300' : ''
+                    }`
+                  : slotHighlight === 'incorrect'
+                    ? 'border-amber-400 bg-amber-50 dark:bg-amber-950'
+                    : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/60';
+
+              const upvoteBarClass =
+                slotHighlight === 'correct'
+                  ? 'bg-green-400 dark:bg-green-400'
+                  : slotHighlight === 'incorrect'
+                    ? 'bg-amber-400 dark:bg-amber-400'
+                    : 'bg-gray-300 dark:bg-gray-600';
 
               return (
                 <div
                   key={slot.commentId}
                   className={`relative overflow-hidden rounded-xl border px-4 py-3 flex items-start gap-3 transition-all duration-300 ease-out ${
                     isRevealed
-                      ? slot.correct
-                        ? `border-green-400 bg-green-50 dark:bg-green-950 ${
-                            isFlashing
-                              ? 'scale-[1.02] ring-2 ring-green-300'
-                              : ''
-                          }`
-                        : 'border-amber-400 bg-amber-50 dark:bg-amber-950'
+                      ? revealedCardClass
                       : 'border-gray-200 bg-gray-50 opacity-60 dark:border-gray-700 dark:bg-gray-800/60'
                   }`}
                 >
@@ -680,11 +700,7 @@ export const RevealScreen = ({
                   {isRevealed && maxSlotScore > 0 ? (
                     <div
                       aria-hidden="true"
-                      className={`absolute bottom-0 left-0 h-1 transition-[width] duration-500 ease-out ${
-                        slot.correct
-                          ? 'bg-green-400 dark:bg-green-400'
-                          : 'bg-amber-400 dark:bg-amber-400'
-                      }`}
+                      className={`absolute bottom-0 left-0 h-1 transition-[width] duration-500 ease-out ${upvoteBarClass}`}
                       style={{ width: `${upvoteBarWidthPercent}%` }}
                     />
                   ) : null}

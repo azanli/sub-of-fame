@@ -89,3 +89,22 @@ const isCasualRevealScore = (score: number): score is CasualRevealScore =>
 
 export const getCasualRevealCaption = (score: number): string | null =>
   isCasualRevealScore(score) ? CASUAL_REVEAL_CAPTIONS[score] : null;
+
+export type CasualSlotHighlight = 'correct' | 'incorrect' | 'neutral';
+
+export const resolveCasualSlotHighlight = (
+  slotIndex: number,
+  slot: { correct: boolean },
+  score: number
+): CasualSlotHighlight => {
+  if (slot.correct) {
+    return 'correct';
+  }
+  if (score === 1 && slotIndex === 1) {
+    return 'incorrect';
+  }
+  if (score === 0 && slotIndex === 2) {
+    return 'incorrect';
+  }
+  return 'neutral';
+};
