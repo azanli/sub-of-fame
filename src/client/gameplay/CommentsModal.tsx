@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { GameMode } from '../../shared/api';
 import { CommentRankCard } from './CommentRankCard';
 import { CountdownTimer } from './CountdownTimer';
 import type { RankAssignments, ReadyPuzzle } from './types';
@@ -7,6 +8,7 @@ const SKIP_ANIMATION_MS = 700;
 
 type CommentsModalProps = {
   comments: ReadyPuzzle['comments'];
+  gameMode: GameMode;
   secondsRemaining: number;
   totalSeconds: number;
   assignments: RankAssignments;
@@ -25,6 +27,7 @@ const CoinIcon = ({ className }: { className: string }) => (
 
 export const CommentsModal = ({
   comments,
+  gameMode,
   secondsRemaining,
   totalSeconds,
   assignments,
@@ -38,6 +41,7 @@ export const CommentsModal = ({
   const skipTimeoutRef = useRef<number | null>(null);
   const cannotAffordSkip = (coinBalance ?? 0) < 1;
   const skipDisabled = isSkipping || isSkipAnimating || cannotAffordSkip;
+  const isCasualMode = gameMode === 'casual';
 
   useEffect(() => {
     return () => {
@@ -68,7 +72,7 @@ export const CommentsModal = ({
       <div className="mx-auto flex h-full w-full max-w-lg flex-col">
         <div className="flex shrink-0 items-center justify-between gap-3 p-4">
           <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-            Rank the comments
+            {isCasualMode ? 'Pick the #1 comment' : 'Rank the comments'}
           </h3>
           <div className="flex shrink-0 items-center gap-2">
             <button
@@ -105,7 +109,8 @@ export const CommentsModal = ({
               key={comment.id}
               commentId={comment.id}
               body={comment.body}
-              rank={assignments.get(comment.id)}
+              gameMode={gameMode}
+              rank={isCasualMode ? undefined : assignments.get(comment.id)}
               onTap={onTap}
             />
           ))}

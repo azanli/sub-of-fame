@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { GameMode } from '../../shared/api';
 import {
   applyTapRank,
   buildSubmitSlots,
@@ -7,11 +8,12 @@ import {
 } from './helpers';
 import { CommentsModal } from './CommentsModal';
 import { StartPuzzleGate } from './StartPuzzleGate';
-import type { RankAssignments, ReadyPuzzle } from './types';
+import type { GameplaySubmitPayload, RankAssignments, ReadyPuzzle } from './types';
 
 type GameplayRoundProps = {
   puzzle: ReadyPuzzle;
-  onSubmit: (slots: [string, string, string]) => void;
+  gameMode: GameMode;
+  onSubmit: (payload: GameplaySubmitPayload) => void;
   onSkip: () => void;
   isSubmitting: boolean;
   isSkipping: boolean;
@@ -23,6 +25,7 @@ type GameplayRoundInnerProps = GameplayRoundProps;
 
 const GameplayRoundInner = ({
   puzzle,
+  gameMode,
   onSubmit,
   onSkip,
   isSubmitting,
@@ -30,6 +33,7 @@ const GameplayRoundInner = ({
   onDashboard,
   coinBalance,
 }: GameplayRoundInnerProps) => {
+  const isExpertMode = gameMode === 'expert';
   const allottedSeconds = useMemo(
     () => calculatePuzzleTimer(puzzle.comments),
     [puzzle.comments]
@@ -64,6 +68,10 @@ const GameplayRoundInner = ({
   }, [hasStarted, secondsRemaining, isSubmitting, isSkipping, isSkipAnimating]);
 
   useEffect(() => {
+    if (!isExpertMode) {
+      return;
+    }
+
     if (
       isSubmitting ||
       isSkipping ||
@@ -82,9 +90,10 @@ const GameplayRoundInner = ({
     }
 
     hasSubmittedRef.current = true;
-    onSubmit(slots);
+    onSubmit({ gameMode: 'expert', slots });
   }, [
     assignments,
+    isExpertMode,
     isSubmitting,
     isSkipping,
     isSkipAnimating,
@@ -93,6 +102,10 @@ const GameplayRoundInner = ({
   ]);
 
   useEffect(() => {
+    if (!isExpertMode) {
+      return;
+    }
+
     if (
       isSubmitting ||
       isSkipAnimating ||
@@ -110,20 +123,37 @@ const GameplayRoundInner = ({
     }
 
     hasSubmittedRef.current = true;
-    onSubmit(slots);
+    onSubmit({ gameMode: 'expert', slots });
   }, [
+    assignments,
+    isExpertMode,
     secondsRemaining,
     isSubmitting,
     isSkipping,
     hasStarted,
     onSubmit,
     puzzle.comments,
-    assignments,
   ]);
 
-  const handleTap = (commentId: string) => {
+  const handleExpertTap = (commentId: string) => {
     setAssignments((current) => applyTapRank(current, commentId));
   };
+
+  const handleCasualTap = (commentId: string) => {
+    if (
+      isSubmitting ||
+      isSkipping ||
+      isSkipAnimating ||
+      hasSubmittedRef.current
+    ) {
+      return;
+    }
+
+    hasSubmittedRef.current = true;
+    onSubmit({ gameMode: 'casual', selectedCommentId: commentId });
+  };
+
+  const handleTap = isExpertMode ? handleExpertTap : handleCasualTap;
 
   const handleSkipAnimationStart = () => {
     if (isSubmitting || isSkipping || isSkipAnimating || hasSubmittedRef.current) {
@@ -158,6 +188,7 @@ const GameplayRoundInner = ({
   return (
     <CommentsModal
       comments={puzzle.comments}
+      gameMode={gameMode}
       secondsRemaining={secondsRemaining}
       totalSeconds={allottedSeconds}
       assignments={assignments}
@@ -177,6 +208,7 @@ const GameplayRoundInner = ({
 
 export const GameplayRound = ({
   puzzle,
+  gameMode,
   onSubmit,
   onSkip,
   isSubmitting,
@@ -187,6 +219,7 @@ export const GameplayRound = ({
   <GameplayRoundInner
     key={puzzle.attemptId}
     puzzle={puzzle}
+    gameMode={gameMode}
     onSubmit={onSubmit}
     onSkip={onSkip}
     isSubmitting={isSubmitting}

@@ -1,4 +1,8 @@
 import type { RankAssignments, RankValue, ReadyPuzzle } from './types';
+import {
+  CASUAL_REVEAL_CAPTIONS,
+  type CasualRevealScore,
+} from '../../shared/api';
 
 export const calculatePuzzleTimer = (comments: ReadyPuzzle['comments']): number => {
   const combinedText = comments.map((comment) => comment.body).join(' ');
@@ -79,3 +83,9 @@ export const buildSubmitSlots = (
 
   return [first, second, third];
 };
+
+const isCasualRevealScore = (score: number): score is CasualRevealScore =>
+  score === 0 || score === 1 || score === 3;
+
+export const getCasualRevealCaption = (score: number): string | null =>
+  isCasualRevealScore(score) ? CASUAL_REVEAL_CAPTIONS[score] : null;

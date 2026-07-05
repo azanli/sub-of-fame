@@ -1,8 +1,10 @@
+import type { GameMode } from '../../shared/api';
 import type { RankValue } from './types';
 
 type CommentRankCardProps = {
   commentId: string;
   body: string;
+  gameMode: GameMode;
   rank: RankValue | undefined;
   onTap: (commentId: string) => void;
 };
@@ -10,10 +12,12 @@ type CommentRankCardProps = {
 export const CommentRankCard = ({
   commentId,
   body,
+  gameMode,
   rank,
   onTap,
 }: CommentRankCardProps) => {
-  const isRanked = rank !== undefined;
+  const isExpertMode = gameMode === 'expert';
+  const isRanked = isExpertMode && rank !== undefined;
 
   return (
     <button
@@ -22,7 +26,9 @@ export const CommentRankCard = ({
       className={`relative w-full overflow-hidden rounded-xl border bg-white px-4 py-3 text-left transition-colors cursor-pointer dark:bg-gray-800 ${
         isRanked
           ? 'border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/30'
-          : 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700'
+          : isExpertMode
+            ? 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700'
+            : 'border-gray-200 hover:border-orange-400 hover:bg-orange-50/60 dark:border-gray-700 dark:hover:border-orange-600 dark:hover:bg-orange-950/20'
       }`}
     >
       {isRanked && (

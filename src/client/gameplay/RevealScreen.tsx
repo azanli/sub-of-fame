@@ -1,13 +1,15 @@
 import { navigateTo } from '@devvit/web/client';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import type { PuzzleRevealResult } from '../../shared/api';
+import type { GameMode, PuzzleRevealResult } from '../../shared/api';
 import { formatCompactNumber } from '../../shared/formatNumber';
 import { formatSubredditLabel } from '../../shared/subreddits';
+import { getCasualRevealCaption } from './helpers';
 import type { ReadyPuzzle } from './types';
 
 type RevealScreenProps = {
   result: PuzzleRevealResult;
   puzzle: ReadyPuzzle;
+  gameMode: GameMode;
   onNextLevel: () => void;
   onExit: () => void;
   coinBalance: number | null;
@@ -155,6 +157,7 @@ const RightArrowIcon = () => (
 export const RevealScreen = ({
   result,
   puzzle,
+  gameMode,
   onNextLevel,
   onExit,
   coinBalance,
@@ -164,6 +167,9 @@ export const RevealScreen = ({
 }: RevealScreenProps) => {
   const isSkipped = result.status === 'skipped';
   const isZeroScore = result.score === 0;
+  const isCasualMode = gameMode === 'casual';
+  const casualCaption =
+    isCasualMode && !isSkipped ? getCasualRevealCaption(result.score) : null;
   const [revealedSlotCount, setRevealedSlotCount] = useState(0);
   const [showVerdict, setShowVerdict] = useState(false);
   const [coinHeaderPulse, setCoinHeaderPulse] = useState(false);
@@ -187,7 +193,7 @@ export const RevealScreen = ({
   );
 
   const [redemptionRemark] = useState(() => {
-    if (!isZeroScore || isSkipped) {
+    if (!isZeroScore || isSkipped || gameMode === 'casual') {
       return null;
     }
     const index = pickRedemptionRemarkIndex(
@@ -261,6 +267,49 @@ export const RevealScreen = ({
       window.setTimeout(() => {
         setShowVerdict(true);
 
+        if (isCasualMode) {
+          if (result.score === 0 && coinBalance !== null) {
+            setCoinHeaderPulse(true);
+            timers.push(
+              window.setTimeout(
+                () => setCoinHeaderPulse(false),
+                COIN_HEADER_PULSE_MS
+              )
+            );
+            return;
+          }
+
+          if (result.score > 0) {
+            const startBalance =
+              coinBalance !== null ? coinBalance - result.score : null;
+
+            for (let coinIndex = 0; coinIndex < result.score; coinIndex += 1) {
+              timers.push(
+                window.setTimeout(() => {
+                  setRevealedCoinCount(coinIndex + 1);
+                  setActiveFloatingCoinIndices((current) => [
+                    ...current,
+                    coinIndex,
+                  ]);
+                  if (startBalance !== null) {
+                    setDisplayedCoinBalance(startBalance + coinIndex + 1);
+                  }
+                  timers.push(
+                    window.setTimeout(
+                      () =>
+                        setActiveFloatingCoinIndices((current) =>
+                          current.filter((index) => index !== coinIndex)
+                        ),
+                      COIN_FLOAT_MS
+                    )
+                  );
+                }, coinIndex * COIN_REVEAL_STAGGER_MS)
+              );
+            }
+          }
+          return;
+        }
+
         if (isZeroScore && !isSkipped && coinBalance !== null) {
           setCoinHeaderPulse(true);
           timers.push(
@@ -306,7 +355,14 @@ export const RevealScreen = ({
     return () => {
       timers.forEach((timerId) => window.clearTimeout(timerId));
     };
-  }, [result.slots, isZeroScore, isSkipped, coinBalance, result.score]);
+  }, [
+    result.slots,
+    isZeroScore,
+    isSkipped,
+    isCasualMode,
+    coinBalance,
+    result.score,
+  ]);
 
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden">
@@ -386,6 +442,18 @@ export const RevealScreen = ({
                     : undefined
                 }
               />
+            ) : isCasualMode && isZeroScore && casualCaption !== null ? (
+              <div
+                className={`w-full px-2 text-center text-lg font-semibold leading-snug text-[#E28743] transition-all ease-out dark:text-[#E28743] ${
+                  showVerdict
+                    ? 'translate-y-0 opacity-100'
+                    : 'translate-y-2.5 opacity-0'
+                }`}
+                style={{ transitionDuration: `${REMARK_ENTRANCE_MS}ms` }}
+                aria-live="polite"
+              >
+                {casualCaption}
+              </div>
             ) : isZeroScore ? (
               <div
                 className={`w-full px-2 text-center text-lg font-semibold leading-snug text-[#E28743] transition-all ease-out dark:text-[#E28743] ${
@@ -398,6 +466,50 @@ export const RevealScreen = ({
               >
                 {redemptionRemark?.text}
               </div>
+            ) : isCasualMode && casualCaption !== null ? (
+              <>
+                {activeFloatingCoinIndices.map((coinIndex) => (
+                  <CoinIcon
+                    key={`float-${coinIndex}`}
+                    className="pointer-events-none absolute top-6 z-10 h-8 w-8 -translate-x-1/2 animate-[float-up_800ms_ease-out_forwards]"
+                    style={{
+                      left: `calc(50% + ${(coinIndex - (result.score - 1) / 2) * 28}px)`,
+                    }}
+                  />
+                ))}
+                <div
+                  className={`flex flex-col items-center gap-2 transition-all ease-out ${
+                    showVerdict
+                      ? 'translate-y-0 opacity-100'
+                      : 'translate-y-2.5 opacity-0'
+                  }`}
+                  style={{ transitionDuration: `${REMARK_ENTRANCE_MS}ms` }}
+                  aria-live="polite"
+                >
+                  <p className="px-2 text-center text-lg font-semibold leading-snug text-[#E28743] dark:text-[#E28743]">
+                    {casualCaption}
+                  </p>
+                  <div className="relative px-4 py-3">
+                    <div aria-hidden="true" className="coin-reward-glow" />
+                    <div className="relative flex min-h-10 items-center justify-center gap-2">
+                      {Array.from(
+                        { length: revealedCoinCount },
+                        (_, coinIndex) => (
+                          <CoinIcon
+                            key={coinIndex}
+                            className="h-10 w-10 animate-[skip-cost-pop_350ms_ease-out_forwards]"
+                            {...(coinIndex === 0
+                              ? {
+                                  alt: `${result.score} Karma Coin${result.score === 1 ? '' : 's'} earned`,
+                                }
+                              : {})}
+                          />
+                        )
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
             ) : (
               <>
                 {activeFloatingCoinIndices.map((coinIndex) => (

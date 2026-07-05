@@ -1,10 +1,12 @@
 import { use } from 'react';
+import type { GameMode } from '../../shared/api';
 import { GameplayRound } from './GameplayRound';
-import type { ReadyPuzzle } from './types';
+import type { GameplaySubmitPayload, ReadyPuzzle } from './types';
 
 type PuzzleGateFromPromiseProps = {
   puzzlePromise: Promise<ReadyPuzzle>;
-  onSubmit: (slots: [string, string, string]) => void;
+  gameMode: GameMode;
+  onSubmit: (payload: GameplaySubmitPayload) => void;
   onSkip: () => void;
   isSubmitting: boolean;
   isSkipping: boolean;
@@ -14,6 +16,7 @@ type PuzzleGateFromPromiseProps = {
 
 export const PuzzleGateFromPromise = ({
   puzzlePromise,
+  gameMode,
   onSubmit,
   onSkip,
   isSubmitting,
@@ -26,6 +29,7 @@ export const PuzzleGateFromPromise = ({
   return (
     <GameplayRound
       puzzle={puzzle}
+      gameMode={gameMode}
       onSubmit={onSubmit}
       onSkip={onSkip}
       isSubmitting={isSubmitting}

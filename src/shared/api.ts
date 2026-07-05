@@ -31,6 +31,14 @@ export type SetGameModeResponse = {
 /** Coin awards by true rank index (0 = #1, 1 = #2, 2 = #3) for casual mode. */
 export const CASUAL_COIN_AWARDS = [3, 1, 0] as const;
 
+export type CasualRevealScore = 0 | 1 | 3;
+
+export const CASUAL_REVEAL_CAPTIONS: Record<CasualRevealScore, string> = {
+  3: 'Perfect Prediction! 🪙🪙🪙 (+3)',
+  1: 'So Close! Consolation Prize. 🪙 (+1)',
+  0: 'The Hivemind is unpredictable! 🪙0 (+0)',
+};
+
 export type RoundStatsDelta = {
   /** Hive IQ correct-slot counter; expert 0–3, casual 1 on perfect #1 pick else 0. */
   correctSlots: number;

@@ -1,4 +1,10 @@
-import type { GameMode, InitResponse, PuzzleNextRequest, PuzzleRevealResult } from '../shared/api';
+import {
+  DEFAULT_GAME_MODE,
+  type GameMode,
+  type InitResponse,
+  type PuzzleNextRequest,
+  type PuzzleRevealResult,
+} from '../shared/api';
 import { SUBREDDIT_UNLOCK_COST } from '../shared/coins';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { TRPCClientError } from '@trpc/client';
@@ -12,7 +18,7 @@ import { PuzzleLoadTransition } from './gameplay/PuzzleLoadTransition';
 import { RevealScreen } from './gameplay/RevealScreen';
 import { resolveLoadingCard } from './gameplay/resolveLoadingCard';
 import { StartPuzzleGateSkeleton } from './gameplay/StartPuzzleGate';
-import type { ReadyPuzzle } from './gameplay/types';
+import type { GameplaySubmitPayload, ReadyPuzzle } from './gameplay/types';
 import { trpcClient } from './trpc';
 
 type PuzzleLoadFailure =
@@ -531,7 +537,7 @@ export const App = ({ preloadedInit }: AppProps) => {
   );
 
   const handleSubmit = useCallback(
-    async (slots: [string, string, string]) => {
+    async (payload: GameplaySubmitPayload) => {
       const puzzle = activePuzzleRef.current;
       if (puzzle === null) {
         return;
@@ -540,18 +546,17 @@ export const App = ({ preloadedInit }: AppProps) => {
       setState({ phase: 'submitting', puzzle });
 
       try {
-        const gameMode = initDataRef.current?.gameMode ?? 'expert';
         const result = await trpcClient.puzzle.submit.mutate(
-          gameMode === 'expert'
+          payload.gameMode === 'expert'
             ? {
                 gameMode: 'expert',
                 attemptId: puzzle.attemptId,
-                slots,
+                slots: payload.slots,
               }
             : {
                 gameMode: 'casual',
                 attemptId: puzzle.attemptId,
-                selectedCommentId: slots[0] ?? puzzle.comments[0]?.id ?? '',
+                selectedCommentId: payload.selectedCommentId,
               }
         );
 
@@ -735,8 +740,9 @@ export const App = ({ preloadedInit }: AppProps) => {
         >
           <PuzzleGateFromPromise
             puzzlePromise={state.puzzlePromise}
-            onSubmit={(slots) => {
-              void handleSubmit(slots);
+            gameMode={initData?.gameMode ?? DEFAULT_GAME_MODE}
+            onSubmit={(payload) => {
+              void handleSubmit(payload);
             }}
             onSkip={() => {
               void handleSkip();
@@ -822,6 +828,7 @@ export const App = ({ preloadedInit }: AppProps) => {
         <RevealScreen
           result={state.result}
           puzzle={state.puzzle}
+          gameMode={initData?.gameMode ?? DEFAULT_GAME_MODE}
           onNextLevel={handleNextLevel}
           onExit={handleDashboard}
           coinBalance={initData?.coins ?? null}
@@ -842,8 +849,9 @@ export const App = ({ preloadedInit }: AppProps) => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <GameplayRound
           puzzle={state.puzzle}
-          onSubmit={(slots) => {
-            void handleSubmit(slots);
+          gameMode={initData?.gameMode ?? DEFAULT_GAME_MODE}
+          onSubmit={(payload) => {
+            void handleSubmit(payload);
           }}
           onSkip={() => {
             void handleSkip();
