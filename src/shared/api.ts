@@ -4,6 +4,16 @@ export type GameMode = 'casual' | 'expert';
 
 export const DEFAULT_GAME_MODE: GameMode = 'casual';
 
+/** Coin awards by true rank index (0 = #1, 1 = #2, 2 = #3) for casual mode. */
+export const CASUAL_COIN_AWARDS = [3, 1, 0] as const;
+
+export type RoundStatsDelta = {
+  /** Hive IQ correct-slot counter; expert 0–3, casual 1 on perfect #1 pick else 0. */
+  correctSlots: number;
+  /** Karma Coins earned this round; expert matches correctSlots, casual uses CASUAL_COIN_AWARDS. */
+  coinAward: number;
+};
+
 type PerformanceCounters = {
   correctSlots: number;
   totalSlots: number;
@@ -174,6 +184,7 @@ export type PuzzleSubmitErrorCode =
   | 'ATTEMPT_EXPIRED'
   | 'ATTEMPT_ALREADY_SUBMITTED'
   | 'INVALID_SLOT_PERMUTATION'
+  | 'INVALID_SELECTED_COMMENT'
   | 'HOST_SUBREDDIT_LOCKED'
   | 'WRONG_USER'
   | 'SNAPSHOT_MISSING'
@@ -206,7 +217,7 @@ export type PuzzleSkipSuccess = {
 export type PuzzleRevealResult = PuzzleSubmitSuccess | PuzzleSkipSuccess;
 
 export type PuzzleSkipErrorCode =
-  | Exclude<PuzzleSubmitErrorCode, 'INVALID_SLOT_PERMUTATION'>
+  | Exclude<PuzzleSubmitErrorCode, 'INVALID_SLOT_PERMUTATION' | 'INVALID_SELECTED_COMMENT'>
   | 'INSUFFICIENT_COINS';
 
 export type PuzzleSkipError = {

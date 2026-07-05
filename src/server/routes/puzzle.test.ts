@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { TRPCContext } from '../trpc';
 import type { PuzzleAttempt, PuzzleSnapshot } from '../redis/types';
+import { DEFAULT_GAME_MODE } from '../../shared/api';
 
 const {
   mockResolveSubredditMetadata,
@@ -176,6 +177,7 @@ const makeAttempt = (overrides: Partial<PuzzleAttempt> = {}): PuzzleAttempt => (
   rankIndex: 3,
   owner: { kind: 'user', userId: 'user-1' },
   commentOrder: ['t1_c1', 't1_c2', 't1_c3'],
+  gameMode: 'expert',
   submitted: false,
   createdAt: 1000,
   expiresAt: 9000,
@@ -183,8 +185,15 @@ const makeAttempt = (overrides: Partial<PuzzleAttempt> = {}): PuzzleAttempt => (
 });
 
 const makeSubmitInput = (slots: [string, string, string] = ['t1_c1', 't1_c2', 't1_c3']) => ({
+  gameMode: 'expert' as const,
   attemptId: 'attempt-1',
   slots,
+});
+
+const makeCasualSubmitInput = (selectedCommentId = 't1_c1') => ({
+  gameMode: 'casual' as const,
+  attemptId: 'attempt-1',
+  selectedCommentId,
 });
 
 const makeSkipInput = () => ({
@@ -409,6 +418,7 @@ describe('puzzle.next', () => {
         rankIndex: 3,
         owner: { kind: 'user', userId: 'user-1' },
         submitted: false,
+        gameMode: DEFAULT_GAME_MODE,
         commentOrder: expect.arrayContaining(['t1_c1', 't1_c2', 't1_c3']),
       })
     );
@@ -706,7 +716,10 @@ describe('puzzle.submit', () => {
 
     const result = await caller.puzzle.submit(makeSubmitInput());
 
-    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', 'askreddit', 3);
+    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', 'askreddit', {
+      correctSlots: 3,
+      coinAward: 3,
+    });
     expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', 'askreddit');
     expect(mockUpdateLeaderboard).toHaveBeenCalledWith('askreddit', 'user-1', 3);
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
@@ -745,6 +758,115 @@ describe('puzzle.submit', () => {
     expect(result.userHiveIQ).toBeNull();
     expect(result.nextRankIndex).toBe(3);
     expect(result.coins).toBeNull();
+  });
+
+  it('returns INVALID_SELECTED_COMMENT for an unknown casual pick', async () => {
+    mockGetAttempt.mockResolvedValue(makeAttempt({ gameMode: 'casual' }));
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(
+      makeCasualSubmitInput('t1_unknown')
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'INVALID_SELECTED_COMMENT',
+        nextAction: 'resubmit_valid_slots',
+      })
+    );
+    expectNoSubmitMutations();
+  });
+
+  it('rejects expert submit payload on a casual attempt', async () => {
+    mockGetAttempt.mockResolvedValue(makeAttempt({ gameMode: 'casual' }));
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(makeSubmitInput());
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'INVALID_SLOT_PERMUTATION',
+        nextAction: 'resubmit_valid_slots',
+      })
+    );
+    expectNoSubmitMutations();
+  });
+
+  it('returns score 3 and truth-order reveal for a perfect casual #1 pick', async () => {
+    mockGetAttempt.mockResolvedValue(makeAttempt({ gameMode: 'casual' }));
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(makeCasualSubmitInput('t1_c1'));
+
+    expect(result.status).toBe('submitted');
+    if (result.status !== 'submitted') {
+      return;
+    }
+
+    expect(result.score).toBe(3);
+    expect(result.slots).toEqual([
+      {
+        commentId: 't1_c1',
+        body: 'First valid comment body with enough visible characters.',
+        score: 100,
+        correct: true,
+      },
+      {
+        commentId: 't1_c2',
+        body: 'Second valid comment body with enough visible characters.',
+        score: 50,
+        correct: false,
+      },
+      {
+        commentId: 't1_c3',
+        body: 'Third valid comment body with enough visible characters.',
+        score: 25,
+        correct: false,
+      },
+    ]);
+    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', 'askreddit', {
+      correctSlots: 1,
+      coinAward: 3,
+    });
+  });
+
+  it('returns score 1 for a casual #2 pick with no Hive IQ credit', async () => {
+    mockGetAttempt.mockResolvedValue(makeAttempt({ gameMode: 'casual' }));
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(makeCasualSubmitInput('t1_c2'));
+
+    expect(result.status).toBe('submitted');
+    if (result.status !== 'submitted') {
+      return;
+    }
+
+    expect(result.score).toBe(1);
+    expect(result.slots.every((slot) => slot.correct === false)).toBe(true);
+    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', 'askreddit', {
+      correctSlots: 0,
+      coinAward: 1,
+    });
+  });
+
+  it('returns score 0 for a casual #3 pick', async () => {
+    mockGetAttempt.mockResolvedValue(makeAttempt({ gameMode: 'casual' }));
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(makeCasualSubmitInput('t1_c3'));
+
+    expect(result.status).toBe('submitted');
+    if (result.status !== 'submitted') {
+      return;
+    }
+
+    expect(result.score).toBe(0);
+    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', 'askreddit', {
+      correctSlots: 0,
+      coinAward: 0,
+    });
   });
 });
 

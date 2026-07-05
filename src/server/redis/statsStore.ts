@@ -1,5 +1,5 @@
 import { redis } from '@devvit/web/server';
-import type { UserStatsProfile } from '../../shared/api';
+import type { RoundStatsDelta, UserStatsProfile } from '../../shared/api';
 import { computeHiveIQScore } from '../../shared/hiveIQ';
 import {
   statsKey,
@@ -40,22 +40,22 @@ export const ensureWelcomeCoins = async (userId: string): Promise<number> => {
 
 /**
  * Increment stats counters atomically after a successful submit.
- * total always advances by 3 (one round = 3 slots); correct advances by score (0–3).
- * coins advance by score (0–3), matching correctly ranked slots.
+ * total always advances by 3 (one round = 3 slots).
+ * correctSlots advances Hive IQ counters; coinAward advances the wallet.
  * Uses HINCRBY so missing fields start at 0 automatically.
  */
 export const incrementStats = async (
   userId: string,
   subredditName: string,
-  correctSlots: number
+  delta: RoundStatsDelta
 ): Promise<number> => {
   const key = statsKey(userId);
   const [, , , , coins] = await Promise.all([
-    redis.hIncrBy(key, statsGlobalCorrectField(), correctSlots),
+    redis.hIncrBy(key, statsGlobalCorrectField(), delta.correctSlots),
     redis.hIncrBy(key, statsGlobalTotalField(), 3),
-    redis.hIncrBy(key, statsSubCorrectField(subredditName), correctSlots),
+    redis.hIncrBy(key, statsSubCorrectField(subredditName), delta.correctSlots),
     redis.hIncrBy(key, statsSubTotalField(subredditName), 3),
-    redis.hIncrBy(key, statsCoinsField(), correctSlots),
+    redis.hIncrBy(key, statsCoinsField(), delta.coinAward),
   ]);
 
   return coins;

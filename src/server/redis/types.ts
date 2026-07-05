@@ -3,6 +3,7 @@
 // Do not import these from src/client or src/shared.
 
 import type { T3 } from '@devvit/shared-types/tid.js';
+import type { GameMode } from '../../shared/api.js';
 import type { PostContentBlock } from '../../shared/postContent.js';
 
 export type SubredditMetadataCacheEntry = {
@@ -80,6 +81,7 @@ export type PuzzleAttempt = {
   rankIndex: number;
   owner: PuzzleAttemptOwner;
   commentOrder: [string, string, string];
+  gameMode: GameMode;
   submitted: boolean;
   createdAt: number;
   expiresAt: number;

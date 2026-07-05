@@ -76,7 +76,10 @@ describe('ensureWelcomeCoins', () => {
 describe('incrementStats', () => {
   it('calls hIncrBy for all 5 counter fields with correct amounts', async () => {
     mockHIncrBy.mockResolvedValue(3);
-    const coins = await incrementStats('u1', 'gaming', 2);
+    const coins = await incrementStats('u1', 'gaming', {
+      correctSlots: 2,
+      coinAward: 2,
+    });
 
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'global:correct', 2);
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'global:total', 3);
@@ -89,12 +92,20 @@ describe('incrementStats', () => {
 
   it('increments total by 3 regardless of correctSlots (0 score round)', async () => {
     mockHIncrBy.mockResolvedValue(0);
-    await incrementStats('u1', 'askreddit', 0);
+    await incrementStats('u1', 'askreddit', { correctSlots: 0, coinAward: 0 });
 
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'global:total', 3);
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'sub:askreddit:total', 3);
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'global:correct', 0);
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'coins', 0);
+  });
+
+  it('decouples Hive IQ correctSlots from coinAward for casual consolation tiers', async () => {
+    mockHIncrBy.mockResolvedValue(4);
+    await incrementStats('u1', 'gaming', { correctSlots: 0, coinAward: 1 });
+
+    expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'global:correct', 0);
+    expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'coins', 1);
   });
 });
 

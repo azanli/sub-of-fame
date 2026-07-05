@@ -42,16 +42,20 @@ import { updateLeaderboard } from '../redis/leaderboardStore';
 import { ATTEMPT_TTL_S } from '../redis/keys';
 import type { PuzzleAttemptOwner, PuzzleSnapshot } from '../redis/types';
 import {
+  CASUAL_COIN_AWARDS,
+  DEFAULT_GAME_MODE,
   MAX_ITEMS_CHECKED,
   MAX_REDDIT_CALLS,
   SOFT_DEADLINE_MS,
   type NextWorkBudget,
   type PuzzleNextResponse,
+  type PuzzleRevealSlot,
   type PuzzleSkipError,
   type PuzzleSkipResponse,
   type PuzzleSubmitError,
   type PuzzleSubmitErrorCode,
   type PuzzleSubmitResponse,
+  type RoundStatsDelta,
   type UserActiveSubredditMetrics,
 } from '../../shared/api';
 import { isDailyChallengeSubreddit } from '../../shared/dailyChallenge';
@@ -137,6 +141,11 @@ const isIssuedCommentPermutation = (
   return commentOrder.every((commentId) => slotSet.has(commentId));
 };
 
+const isIssuedCommentId = (
+  commentId: string,
+  commentOrder: [string, string, string]
+): boolean => commentOrder.includes(commentId);
+
 const buildRevealSlots = (
   slots: [string, string, string],
   snapshot: PuzzleSnapshot
@@ -162,6 +171,74 @@ const buildTruthRevealSlots = (snapshot: PuzzleSnapshot) =>
     score: comment.score,
     correct: true,
   }));
+
+const buildCasualRevealSlots = (
+  selectedCommentId: string,
+  snapshot: PuzzleSnapshot
+): PuzzleRevealSlot[] => {
+  const topCommentId = snapshot.comments[0]?.id;
+  return snapshot.comments.map((comment) => ({
+    commentId: comment.id,
+    body: comment.body,
+    score: comment.score,
+    correct: selectedCommentId === topCommentId && comment.id === topCommentId,
+  }));
+};
+
+const scoreExpertSubmit = (
+  slots: [string, string, string],
+  snapshot: PuzzleSnapshot
+): { score: number; statsDelta: RoundStatsDelta; revealSlots: PuzzleRevealSlot[] } => {
+  const score = slots.reduce<number>((total, commentId, index) => {
+    const truthComment = snapshot.comments[index];
+    if (truthComment === undefined) {
+      return total;
+    }
+    return total + (commentId === truthComment.id ? 1 : 0);
+  }, 0);
+
+  return {
+    score,
+    statsDelta: { correctSlots: score, coinAward: score },
+    revealSlots: buildRevealSlots(slots, snapshot),
+  };
+};
+
+const scoreCasualSubmit = (
+  selectedCommentId: string,
+  snapshot: PuzzleSnapshot
+): { score: number; statsDelta: RoundStatsDelta; revealSlots: PuzzleRevealSlot[] } => {
+  const trueRankIndex = snapshot.comments.findIndex(
+    (comment) => comment.id === selectedCommentId
+  );
+  const coinAward = CASUAL_COIN_AWARDS[trueRankIndex] ?? 0;
+
+  return {
+    score: coinAward,
+    statsDelta: {
+      correctSlots: trueRankIndex === 0 ? 1 : 0,
+      coinAward,
+    },
+    revealSlots: buildCasualRevealSlots(selectedCommentId, snapshot),
+  };
+};
+
+const puzzleSubmitInputSchema = z.discriminatedUnion('gameMode', [
+  z.object({
+    gameMode: z.literal('expert'),
+    attemptId: z.string().min(1),
+    slots: z.tuple([
+      z.string().min(1),
+      z.string().min(1),
+      z.string().min(1),
+    ]),
+  }),
+  z.object({
+    gameMode: z.literal('casual'),
+    attemptId: z.string().min(1),
+    selectedCommentId: z.string().min(1),
+  }),
+]);
 
 type ResolvedPostMedia = {
   imageUrl?: string;
@@ -478,6 +555,7 @@ export const puzzleRouter = router({
           rankIndex,
           owner,
           commentOrder,
+          gameMode: DEFAULT_GAME_MODE,
           submitted: false,
           createdAt: now,
           expiresAt: now + ATTEMPT_TTL_S * 1000,
@@ -508,16 +586,7 @@ export const puzzleRouter = router({
     }),
 
   submit: publicProcedure
-    .input(
-      z.object({
-        attemptId: z.string().min(1),
-        slots: z.tuple([
-          z.string().min(1),
-          z.string().min(1),
-          z.string().min(1),
-        ]),
-      })
-    )
+    .input(puzzleSubmitInputSchema)
     .mutation(async ({ input, ctx }): Promise<PuzzleSubmitResponse> => {
       const attempt = await getAttempt(input.attemptId);
       if (attempt === null) {
@@ -525,14 +594,6 @@ export const puzzleRouter = router({
           'ATTEMPT_EXPIRED',
           'This puzzle attempt has expired.',
           'request_next_puzzle'
-        );
-      }
-
-      if (!isIssuedCommentPermutation(input.slots, attempt.commentOrder)) {
-        return submitError(
-          'INVALID_SLOT_PERMUTATION',
-          'Submitted slots must be a permutation of the issued comment IDs.',
-          'resubmit_valid_slots'
         );
       }
 
@@ -588,6 +649,32 @@ export const puzzleRouter = router({
         );
       }
 
+      if (input.gameMode !== attempt.gameMode) {
+        return submitError(
+          'INVALID_SLOT_PERMUTATION',
+          'Submit gameMode does not match attempt gameMode.',
+          'resubmit_valid_slots'
+        );
+      }
+
+      if (input.gameMode === 'expert') {
+        if (!isIssuedCommentPermutation(input.slots, attempt.commentOrder)) {
+          return submitError(
+            'INVALID_SLOT_PERMUTATION',
+            'Submitted slots must be a permutation of the issued comment IDs.',
+            'resubmit_valid_slots'
+          );
+        }
+      } else if (
+        !isIssuedCommentId(input.selectedCommentId, attempt.commentOrder)
+      ) {
+        return submitError(
+          'INVALID_SELECTED_COMMENT',
+          'Selected comment must be one of the issued comment IDs.',
+          'resubmit_valid_slots'
+        );
+      }
+
       const lockAcquired = await acquireSubmitLock(input.attemptId);
       if (!lockAcquired) {
         return submitError(
@@ -597,13 +684,10 @@ export const puzzleRouter = router({
         );
       }
 
-      const score = input.slots.reduce<number>((total, commentId, index) => {
-        const truthComment = snapshot.comments[index];
-        if (truthComment === undefined) {
-          return total;
-        }
-        return total + (commentId === truthComment.id ? 1 : 0);
-      }, 0);
+      const scored =
+        input.gameMode === 'expert'
+          ? scoreExpertSubmit(input.slots, snapshot)
+          : scoreCasualSubmit(input.selectedCommentId, snapshot);
 
       await markAttemptSubmitted(attempt);
 
@@ -615,7 +699,7 @@ export const puzzleRouter = router({
         const updatedCoins = await incrementStats(
           attempt.owner.userId,
           attempt.subreddit,
-          score
+          scored.statsDelta
         );
         coins = updatedCoins;
         nextRankIndex = await advanceRankIndex(
@@ -647,8 +731,8 @@ export const puzzleRouter = router({
 
       return {
         status: 'submitted',
-        score,
-        slots: buildRevealSlots(input.slots, snapshot),
+        score: scored.score,
+        slots: scored.revealSlots,
         userHiveIQ,
         nextRankIndex,
         coins,

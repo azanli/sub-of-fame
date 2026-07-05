@@ -494,6 +494,7 @@ export const App = ({ preloadedInit }: AppProps) => {
 
       try {
         const result = await trpcClient.puzzle.submit.mutate({
+          gameMode: 'expert',
           attemptId: puzzle.attemptId,
           slots,
         });
