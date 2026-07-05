@@ -1,8 +1,10 @@
 import type { RankAssignments, RankValue, ReadyPuzzle } from './types';
+import type { CasualRevealScore, GameMode } from '../../shared/api';
 import {
-  CASUAL_REVEAL_CAPTIONS,
-  type CasualRevealScore,
-} from '../../shared/api';
+  CASUAL_REVEAL_REMARKS,
+  EXPERT_REVEAL_REMARKS,
+  getRevealRemarkKey,
+} from '../../shared/revealRemarks';
 
 export const calculatePuzzleTimer = (comments: ReadyPuzzle['comments']): number => {
   const combinedText = comments.map((comment) => comment.body).join(' ');
@@ -87,8 +89,74 @@ export const buildSubmitSlots = (
 const isCasualRevealScore = (score: number): score is CasualRevealScore =>
   score === 0 || score === 1 || score === 3;
 
-export const getCasualRevealCaption = (score: number): string | null =>
-  isCasualRevealScore(score) ? CASUAL_REVEAL_CAPTIONS[score] : null;
+const isExpertRevealScore = (score: number): score is 0 | 1 | 2 | 3 =>
+  score === 0 || score === 1 || score === 2 || score === 3;
+
+export const pickRevealRemarkIndex = (
+  lastIndex: number | null,
+  remarkCount: number
+): number => {
+  if (remarkCount <= 1) {
+    return 0;
+  }
+
+  let index = Math.floor(Math.random() * remarkCount);
+  while (index === lastIndex) {
+    index = Math.floor(Math.random() * remarkCount);
+  }
+  return index;
+};
+
+export const formatRevealRemark = (
+  template: string,
+  subredditDisplayName: string
+): string =>
+  template
+    .replace(/\{subredditName\}/g, subredditDisplayName)
+    .replace(/\$\{subredditName\}/g, subredditDisplayName);
+
+export type PickedRevealRemark = {
+  key: string;
+  index: number;
+  text: string;
+};
+
+export const pickRevealRemark = ({
+  gameMode,
+  score,
+  lastIndex,
+  subredditDisplayName,
+}: {
+  gameMode: GameMode;
+  score: number;
+  lastIndex: number | null;
+  subredditDisplayName: string;
+}): PickedRevealRemark | null => {
+  const remarks =
+    gameMode === 'casual'
+      ? isCasualRevealScore(score)
+        ? CASUAL_REVEAL_REMARKS[score]
+        : null
+      : isExpertRevealScore(score)
+        ? EXPERT_REVEAL_REMARKS[score]
+        : null;
+
+  if (remarks === null || remarks.length === 0) {
+    return null;
+  }
+
+  const index = pickRevealRemarkIndex(lastIndex, remarks.length);
+  const template = remarks[index] ?? remarks[0];
+  if (template === undefined) {
+    return null;
+  }
+
+  return {
+    key: getRevealRemarkKey(gameMode, score),
+    index,
+    text: formatRevealRemark(template, subredditDisplayName),
+  };
+};
 
 export type CasualSlotHighlight = 'correct' | 'incorrect' | 'neutral';
 

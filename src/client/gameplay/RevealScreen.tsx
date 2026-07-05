@@ -3,7 +3,8 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { GameMode, PuzzleRevealResult } from '../../shared/api';
 import { formatCompactNumber } from '../../shared/formatNumber';
 import { formatSubredditLabel } from '../../shared/subreddits';
-import { getCasualRevealCaption, resolveCasualSlotHighlight } from './helpers';
+import { pickRevealRemark, resolveCasualSlotHighlight } from './helpers';
+import { getRevealRemarkKey } from '../../shared/revealRemarks';
 import type { ReadyPuzzle } from './types';
 
 type RevealScreenProps = {
@@ -13,8 +14,8 @@ type RevealScreenProps = {
   onNextLevel: () => void;
   onExit: () => void;
   coinBalance: number | null;
-  lastRedemptionRemarkIndex: number | null;
-  onRedemptionRemarkUsed: (index: number) => void;
+  lastRevealRemarkIndexByKey: Record<string, number | null>;
+  onRevealRemarkUsed: (key: string, index: number) => void;
   onDevResetRankIndex?: () => void | Promise<void>;
 };
 
@@ -28,24 +29,6 @@ const SKIP_SNOO_RISE_MS = 450;
 const SNOO_CHEER_ENTRANCE_MS = 500;
 const SNOO_CHEER_LEFT_WALL_OFFSET_PX = 5;
 const DEV_RESET_DOUBLE_TAP_MS = 400;
-
-const REDEMPTION_REMARKS = [
-  'The Hivemind is unpredictable today.',
-  'You over-estimated r/{subredditName}.',
-  'A beautifully chaotic guess.',
-  'You applied logic where there was absolutely none.',
-  'You thought like a scholar. They voted like Redditors.',
-  'The hivemind works in mysterious (and highly questionable) ways.',
-  'An absolute, certified chaos victory for the comment section.',
-  'A perfectly inverted masterpiece of a guess. Mathematically impressive!',
-  'You read the room beautifully... if the room were completely upside down.',
-  'Task failed successfully: maximum unpredictability unlocked.',
-  'Statistically speaking, being this wrong is actually harder than being right.',
-  'Your faith in the sanity of r/{subredditName} was your downfall.',
-  'The psychology of r/{subredditName} remains an unsolved scientific mystery.',
-  'In a parallel universe, your prediction was flawlessly correct.',
-  'The algorithms are just as confused by these upvote ratios as you are.',
-] as const;
 
 type CheerSnooSide = 'left' | 'right';
 
@@ -62,29 +45,6 @@ const CHEER_SNOOS: CheerSnooConfig[] = [
 const pickRandomCheerSnoo = (): CheerSnooConfig =>
   CHEER_SNOOS[Math.floor(Math.random() * CHEER_SNOOS.length)] ??
   CHEER_SNOOS[0]!;
-
-const pickRedemptionRemarkIndex = (
-  lastIndex: number | null,
-  remarkCount: number
-): number => {
-  if (remarkCount <= 1) {
-    return 0;
-  }
-
-  let index = Math.floor(Math.random() * remarkCount);
-  while (index === lastIndex) {
-    index = Math.floor(Math.random() * remarkCount);
-  }
-  return index;
-};
-
-const formatRedemptionRemark = (
-  template: string,
-  subredditDisplayName: string
-): string =>
-  template
-    .replace(/\{subredditName\}/g, subredditDisplayName)
-    .replace(/\$\{subredditName\}/g, subredditDisplayName);
 
 const CommentIcon = () => (
   <svg
@@ -161,15 +121,16 @@ export const RevealScreen = ({
   onNextLevel,
   onExit,
   coinBalance,
-  lastRedemptionRemarkIndex,
-  onRedemptionRemarkUsed,
+  lastRevealRemarkIndexByKey,
+  onRevealRemarkUsed,
   onDevResetRankIndex,
 }: RevealScreenProps) => {
   const isSkipped = result.status === 'skipped';
   const isZeroScore = result.score === 0;
   const isCasualMode = gameMode === 'casual';
-  const casualCaption =
-    isCasualMode && !isSkipped ? getCasualRevealCaption(result.score) : null;
+  const revealRemarkKey = getRevealRemarkKey(gameMode, result.score);
+  const lastRevealRemarkIndex =
+    lastRevealRemarkIndexByKey[revealRemarkKey] ?? null;
   const [revealedSlotCount, setRevealedSlotCount] = useState(0);
   const [showVerdict, setShowVerdict] = useState(false);
   const [coinHeaderPulse, setCoinHeaderPulse] = useState(false);
@@ -192,28 +153,22 @@ export const RevealScreen = ({
     result.score === 1 ? pickRandomCheerSnoo() : null
   );
 
-  const [redemptionRemark] = useState(() => {
-    if (!isZeroScore || isSkipped || gameMode === 'casual') {
-      return null;
-    }
-    const index = pickRedemptionRemarkIndex(
-      lastRedemptionRemarkIndex,
-      REDEMPTION_REMARKS.length
-    );
-    return {
-      index,
-      text: formatRedemptionRemark(
-        REDEMPTION_REMARKS[index] ?? REDEMPTION_REMARKS[0],
-        puzzle.subredditDisplayName
-      ),
-    };
-  });
+  const [revealRemark] = useState(() =>
+    isSkipped
+      ? null
+      : pickRevealRemark({
+          gameMode,
+          score: result.score,
+          lastIndex: lastRevealRemarkIndex,
+          subredditDisplayName: puzzle.subredditDisplayName,
+        })
+  );
 
   useEffect(() => {
-    if (redemptionRemark !== null) {
-      onRedemptionRemarkUsed(redemptionRemark.index);
+    if (revealRemark !== null) {
+      onRevealRemarkUsed(revealRemark.key, revealRemark.index);
     }
-  }, [redemptionRemark, onRedemptionRemarkUsed]);
+  }, [revealRemark, onRevealRemarkUsed]);
 
   const lastDevResetTapRef = useRef<number | null>(null);
 
@@ -442,31 +397,7 @@ export const RevealScreen = ({
                     : undefined
                 }
               />
-            ) : isCasualMode && isZeroScore && casualCaption !== null ? (
-              <div
-                className={`w-full px-2 text-center text-lg font-semibold leading-snug text-[#E28743] transition-all ease-out dark:text-[#E28743] ${
-                  showVerdict
-                    ? 'translate-y-0 opacity-100'
-                    : 'translate-y-2.5 opacity-0'
-                }`}
-                style={{ transitionDuration: `${REMARK_ENTRANCE_MS}ms` }}
-                aria-live="polite"
-              >
-                {casualCaption}
-              </div>
-            ) : isZeroScore ? (
-              <div
-                className={`w-full px-2 text-center text-lg font-semibold leading-snug text-[#E28743] transition-all ease-out dark:text-[#E28743] ${
-                  showVerdict
-                    ? 'translate-y-0 opacity-100'
-                    : 'translate-y-2.5 opacity-0'
-                }`}
-                style={{ transitionDuration: `${REMARK_ENTRANCE_MS}ms` }}
-                aria-live="polite"
-              >
-                {redemptionRemark?.text}
-              </div>
-            ) : isCasualMode && casualCaption !== null ? (
+            ) : (
               <>
                 {activeFloatingCoinIndices.map((coinIndex) => (
                   <CoinIcon
@@ -486,69 +417,32 @@ export const RevealScreen = ({
                   style={{ transitionDuration: `${REMARK_ENTRANCE_MS}ms` }}
                   aria-live="polite"
                 >
-                  <p className="px-2 text-center text-lg font-semibold leading-snug text-[#E28743] dark:text-[#E28743]">
-                    {casualCaption}
-                  </p>
-                  <div className="relative px-4 py-3">
-                    <div aria-hidden="true" className="coin-reward-glow" />
-                    <div className="relative flex min-h-10 items-center justify-center gap-2">
-                      {Array.from(
-                        { length: revealedCoinCount },
-                        (_, coinIndex) => (
-                          <CoinIcon
-                            key={coinIndex}
-                            className="h-10 w-10 animate-[skip-cost-pop_350ms_ease-out_forwards]"
-                            {...(coinIndex === 0
-                              ? {
-                                  alt: `${result.score} Karma Coin${result.score === 1 ? '' : 's'} earned`,
-                                }
-                              : {})}
-                          />
-                        )
-                      )}
+                  {revealRemark !== null ? (
+                    <p className="px-2 text-center text-lg font-semibold leading-snug text-[#E28743] dark:text-[#E28743]">
+                      {revealRemark.text}
+                    </p>
+                  ) : null}
+                  {!isZeroScore ? (
+                    <div className="relative px-4 py-3">
+                      <div aria-hidden="true" className="coin-reward-glow" />
+                      <div className="relative flex min-h-10 items-center justify-center gap-2">
+                        {Array.from(
+                          { length: revealedCoinCount },
+                          (_, coinIndex) => (
+                            <CoinIcon
+                              key={coinIndex}
+                              className="h-10 w-10 animate-[skip-cost-pop_350ms_ease-out_forwards]"
+                              {...(coinIndex === 0
+                                ? {
+                                    alt: `${result.score} Karma Coin${result.score === 1 ? '' : 's'} earned`,
+                                  }
+                                : {})}
+                            />
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                {activeFloatingCoinIndices.map((coinIndex) => (
-                  <CoinIcon
-                    key={`float-${coinIndex}`}
-                    className="pointer-events-none absolute top-6 z-10 h-8 w-8 -translate-x-1/2 animate-[float-up_800ms_ease-out_forwards]"
-                    style={{
-                      left: `calc(50% + ${(coinIndex - (result.score - 1) / 2) * 28}px)`,
-                    }}
-                  />
-                ))}
-                <div
-                  className={`flex flex-col items-center transition-all ease-out ${
-                    showVerdict
-                      ? 'translate-y-0 opacity-100'
-                      : 'translate-y-2.5 opacity-0'
-                  }`}
-                  style={{ transitionDuration: `${REMARK_ENTRANCE_MS}ms` }}
-                  aria-live="polite"
-                >
-                  <div className="relative px-4 py-3">
-                    <div aria-hidden="true" className="coin-reward-glow" />
-                    <div className="relative flex min-h-10 items-center justify-center gap-2">
-                      {Array.from(
-                        { length: revealedCoinCount },
-                        (_, coinIndex) => (
-                          <CoinIcon
-                            key={coinIndex}
-                            className="h-10 w-10 animate-[skip-cost-pop_350ms_ease-out_forwards]"
-                            {...(coinIndex === 0
-                              ? {
-                                  alt: `${result.score} Karma Coin${result.score === 1 ? '' : 's'} earned`,
-                                }
-                              : {})}
-                          />
-                        )
-                      )}
-                    </div>
-                  </div>
+                  ) : null}
                 </div>
               </>
             )}

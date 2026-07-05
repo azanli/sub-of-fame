@@ -1,10 +1,15 @@
-import { describe, expect, it } from 'vitest';
-import { CASUAL_REVEAL_CAPTIONS } from '../../shared/api';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  CASUAL_REVEAL_REMARKS,
+  EXPERT_REVEAL_REMARKS,
+} from '../../shared/revealRemarks';
 import {
   applyTapRank,
   buildSubmitSlots,
-  getCasualRevealCaption,
+  formatRevealRemark,
   isAllRanksAssigned,
+  pickRevealRemark,
+  pickRevealRemarkIndex,
   resolveCasualSlotHighlight,
 } from './helpers';
 import type { RankAssignments } from './types';
@@ -90,16 +95,119 @@ describe('buildSubmitSlots', () => {
   });
 });
 
-describe('getCasualRevealCaption', () => {
-  it('returns captions for casual scores 0, 1, and 3', () => {
-    expect(getCasualRevealCaption(0)).toBe(CASUAL_REVEAL_CAPTIONS[0]);
-    expect(getCasualRevealCaption(1)).toBe(CASUAL_REVEAL_CAPTIONS[1]);
-    expect(getCasualRevealCaption(3)).toBe(CASUAL_REVEAL_CAPTIONS[3]);
+describe('formatRevealRemark', () => {
+  it('substitutes subreddit name placeholders', () => {
+    expect(
+      formatRevealRemark('You over-estimated r/{subredditName}.', 'AskReddit')
+    ).toBe('You over-estimated r/AskReddit.');
+    expect(
+      formatRevealRemark(
+        'The psychology of r/{subredditName} remains unsolved.',
+        'pics'
+      )
+    ).toBe('The psychology of r/pics remains unsolved.');
+  });
+});
+
+describe('pickRevealRemarkIndex', () => {
+  it('returns 0 when there is only one remark', () => {
+    expect(pickRevealRemarkIndex(null, 1)).toBe(0);
+    expect(pickRevealRemarkIndex(0, 1)).toBe(0);
+  });
+
+  it('avoids repeating the last index when multiple remarks exist', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.9);
+
+    expect(pickRevealRemarkIndex(1, 3)).not.toBe(1);
+
+    vi.restoreAllMocks();
+  });
+});
+
+describe('pickRevealRemark', () => {
+  it('returns remarks for casual scores 0, 1, and 3', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    expect(
+      pickRevealRemark({
+        gameMode: 'casual',
+        score: 0,
+        lastIndex: null,
+        subredditDisplayName: 'AskReddit',
+      })
+    ).toEqual({
+      key: 'casual-0',
+      index: 0,
+      text: CASUAL_REVEAL_REMARKS[0][0],
+    });
+
+    expect(
+      pickRevealRemark({
+        gameMode: 'casual',
+        score: 1,
+        lastIndex: null,
+        subredditDisplayName: 'AskReddit',
+      })
+    ).toEqual({
+      key: 'casual-1',
+      index: 0,
+      text: CASUAL_REVEAL_REMARKS[1][0],
+    });
+
+    expect(
+      pickRevealRemark({
+        gameMode: 'casual',
+        score: 3,
+        lastIndex: null,
+        subredditDisplayName: 'AskReddit',
+      })
+    ).toEqual({
+      key: 'casual-3',
+      index: 0,
+      text: CASUAL_REVEAL_REMARKS[3][0],
+    });
+
+    vi.restoreAllMocks();
+  });
+
+  it('returns remarks for expert scores 0 through 3', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    for (const score of [0, 1, 2, 3] as const) {
+      expect(
+        pickRevealRemark({
+          gameMode: 'expert',
+          score,
+          lastIndex: null,
+          subredditDisplayName: 'AskReddit',
+        })
+      ).toEqual({
+        key: `expert-${score}`,
+        index: 0,
+        text: EXPERT_REVEAL_REMARKS[score][0],
+      });
+    }
+
+    vi.restoreAllMocks();
   });
 
   it('returns null for unsupported scores', () => {
-    expect(getCasualRevealCaption(2)).toBeNull();
-    expect(getCasualRevealCaption(-1)).toBeNull();
+    expect(
+      pickRevealRemark({
+        gameMode: 'casual',
+        score: 2,
+        lastIndex: null,
+        subredditDisplayName: 'AskReddit',
+      })
+    ).toBeNull();
+    expect(
+      pickRevealRemark({
+        gameMode: 'expert',
+        score: -1,
+        lastIndex: null,
+        subredditDisplayName: 'AskReddit',
+      })
+    ).toBeNull();
   });
 });
 

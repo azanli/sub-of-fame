@@ -125,9 +125,9 @@ export const App = ({ preloadedInit }: AppProps) => {
     preloadedInit ? mergeInitGameMode(preloadedInit) : null
   );
   const loadingFromHubRef = useRef(false);
-  const [lastRedemptionRemarkIndex, setLastRedemptionRemarkIndex] = useState<
-    number | null
-  >(null);
+  const [lastRevealRemarkIndexByKey, setLastRevealRemarkIndexByKey] = useState<
+    Record<string, number | null>
+  >({});
   const loadNextPuzzleRef = useRef<
     (unplayableCount: number, rankIndex: number | undefined) => void
   >(() => undefined);
@@ -832,8 +832,13 @@ export const App = ({ preloadedInit }: AppProps) => {
           onNextLevel={handleNextLevel}
           onExit={handleDashboard}
           coinBalance={initData?.coins ?? null}
-          lastRedemptionRemarkIndex={lastRedemptionRemarkIndex}
-          onRedemptionRemarkUsed={setLastRedemptionRemarkIndex}
+          lastRevealRemarkIndexByKey={lastRevealRemarkIndexByKey}
+          onRevealRemarkUsed={(key, index) => {
+            setLastRevealRemarkIndexByKey((current) => ({
+              ...current,
+              [key]: index,
+            }));
+          }}
           onDevResetRankIndex={handleDevResetRankIndex}
         />
       </div>
