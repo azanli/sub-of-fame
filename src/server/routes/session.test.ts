@@ -9,6 +9,7 @@ const {
   mockGetAllProgress,
   mockGetStats,
   mockDeductCoins,
+  mockSetGameMode,
   mockSetMetadata,
   mockSetProgress,
   mockIncrementProgress,
@@ -19,6 +20,7 @@ const {
   mockGetAllProgress: vi.fn(),
   mockGetStats: vi.fn(),
   mockDeductCoins: vi.fn(),
+  mockSetGameMode: vi.fn(),
   mockSetMetadata: vi.fn(),
   mockSetProgress: vi.fn(),
   mockIncrementProgress: vi.fn(),
@@ -42,6 +44,7 @@ vi.mock('../redis/progressStore.js', () => ({
 vi.mock('../redis/statsStore.js', () => ({
   getStats: mockGetStats,
   deductCoins: mockDeductCoins,
+  setGameMode: mockSetGameMode,
 }));
 
 const { appRouter } = await import('../appRouter.js');
@@ -272,5 +275,34 @@ describe('session.selectSubreddit', () => {
     );
 
     expect(mockDeductCoins).not.toHaveBeenCalled();
+  });
+});
+
+describe('session.setGameMode', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSetGameMode.mockResolvedValue('expert');
+  });
+
+  it('persists gameMode for logged-in users', async () => {
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.session.setGameMode({ gameMode: 'expert' });
+
+    expect(result).toEqual({ gameMode: 'expert' });
+    expect(mockSetGameMode).toHaveBeenCalledWith('user-1', 'expert');
+  });
+
+  it('rejects guests with FORBIDDEN', async () => {
+    const caller = createCaller(makeCtx({ userId: undefined }));
+
+    await expect(
+      caller.session.setGameMode({ gameMode: 'casual' })
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof TRPCError && error.code === 'FORBIDDEN'
+    );
+
+    expect(mockSetGameMode).not.toHaveBeenCalled();
   });
 });

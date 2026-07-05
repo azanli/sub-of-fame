@@ -1,18 +1,25 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import type { InitResponse } from '../../shared/api';
+import type { GameMode, InitResponse } from '../../shared/api';
 import { SUBREDDIT_UNLOCK_COST } from '../../shared/coins';
 import { CURATED_SUBREDDITS } from '../../shared/subreddits';
 import { DAILY_CHALLENGE_SUBREDDIT } from '../../shared/dailyChallenge';
 import { resolveLoadingCard } from '../gameplay/resolveLoadingCard';
 import { DailyChallengeCard } from './DailyChallengeCard';
 import { DashboardCard } from './DashboardCard';
+import { HubSettingsPanel } from './HubSettingsPanel';
 
 type HubDashboardProps = {
   initData: InitResponse;
   onSelectSubreddit: (subreddit: string) => void;
   selectionError: string | null;
   loadingSubreddit?: string | null;
+  gameMode: GameMode;
+  onGameModeChange: (mode: GameMode) => void;
+  isSavingGameMode?: boolean;
+  gameModeError?: string | null;
 };
+
+const SETTINGS_PANEL_ID = 'hub-settings-panel';
 
 const matchesLoadingSubreddit = (
   subreddit: string,
@@ -28,8 +35,13 @@ export const HubDashboard = ({
   onSelectSubreddit,
   selectionError,
   loadingSubreddit = null,
+  gameMode,
+  onGameModeChange,
+  isSavingGameMode = false,
+  gameModeError = null,
 }: HubDashboardProps) => {
   const [customSubreddit, setCustomSubreddit] = useState('');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const isLoggedIn = initData.userGlobalHiveIQ !== null;
   const isLoadingSelection =
     loadingSubreddit !== null &&
@@ -115,21 +127,46 @@ export const HubDashboard = ({
             <span className="tabular-nums">{initData.coins}</span>
           </span>
         )}
-        <button
-          type="button"
-          onClick={() => undefined}
-          className="ml-auto text-sm font-semibold rounded-lg px-3 py-1.5 border transition-colors cursor-pointer
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => undefined}
+            className="text-sm font-semibold rounded-lg px-3 py-1.5 border transition-colors cursor-pointer
     text-[#d93900] border-[#d93900] bg-[#d93900]/10 hover:text-[#c23300] hover:border-[#c23300] hover:bg-[#d93900]/20
     dark:text-orange-400 dark:border-orange-400 dark:bg-orange-400/10 dark:hover:text-orange-300 dark:hover:border-orange-300 dark:hover:bg-orange-400/20"
-        >
-          <span className="inline-flex items-center gap-1">
-            Leaderboard
-            <span className="text-xs" aria-hidden="true">
-              🏆
+          >
+            <span className="inline-flex items-center gap-1">
+              Leaderboard
+              <span className="text-xs" aria-hidden="true">
+                🏆
+              </span>
             </span>
-          </span>
-        </button>
+          </button>
+          <button
+            type="button"
+            aria-expanded={isSettingsOpen}
+            aria-controls={SETTINGS_PANEL_ID}
+            aria-label={isSettingsOpen ? 'Close settings' : 'Open settings'}
+            onClick={() => {
+              setIsSettingsOpen((open) => !open);
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
+          >
+            <span aria-hidden="true" className="leading-none">
+              ⚙️
+            </span>
+          </button>
+        </div>
       </div>
+
+      <HubSettingsPanel
+        id={SETTINGS_PANEL_ID}
+        isOpen={isSettingsOpen}
+        gameMode={gameMode}
+        onGameModeChange={onGameModeChange}
+        isSavingGameMode={isSavingGameMode}
+        gameModeError={gameModeError}
+      />
 
       {initData.dailyChallenge !== null && (
         <div className="flex flex-col gap-2">

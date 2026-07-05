@@ -4,6 +4,30 @@ export type GameMode = 'casual' | 'expert';
 
 export const DEFAULT_GAME_MODE: GameMode = 'casual';
 
+export const GAME_MODE_STORAGE_KEY = 'suboffame:gameMode';
+
+export const GAME_MODE_OPTIONS = [
+  {
+    mode: 'casual' as const,
+    label: 'Casual Mode 🚀',
+    description:
+      'Quick 1-tap guessing. Earn consolation prizes for close picks!',
+  },
+  {
+    mode: 'expert' as const,
+    label: 'Expert Mode 🧠',
+    description: 'Pure full comment ranking dynamics. Max mastery requirement.',
+  },
+] as const;
+
+export type SetGameModeRequest = {
+  gameMode: GameMode;
+};
+
+export type SetGameModeResponse = {
+  gameMode: GameMode;
+};
+
 /** Coin awards by true rank index (0 = #1, 1 = #2, 2 = #3) for casual mode. */
 export const CASUAL_COIN_AWARDS = [3, 1, 0] as const;
 
@@ -106,6 +130,8 @@ export type SessionSubError = {
 export type PuzzleNextRequest = {
   subreddit?: string;
   rankIndex?: number;
+  /** Guest-only hint; logged-in users always use server-stored preference. */
+  gameMode?: GameMode;
 };
 
 export type PuzzleNextResponse =

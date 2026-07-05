@@ -1,9 +1,11 @@
 import { redis } from '@devvit/web/server';
-import type { RoundStatsDelta, UserStatsProfile } from '../../shared/api';
+import type { GameMode, RoundStatsDelta, UserStatsProfile } from '../../shared/api';
+import { DEFAULT_GAME_MODE } from '../../shared/api';
 import { computeHiveIQScore } from '../../shared/hiveIQ';
 import {
   statsKey,
   statsCoinsField,
+  statsGameModeField,
   statsGlobalCorrectField,
   statsGlobalTotalField,
   statsSubCorrectField,
@@ -12,6 +14,33 @@ import {
 
 /** Welcome balance granted once when a user has no coins field yet. */
 export const WELCOME_COINS = 3;
+
+const parseStoredGameMode = (raw: string | undefined): GameMode => {
+  if (raw === 'casual' || raw === 'expert') {
+    return raw;
+  }
+  return DEFAULT_GAME_MODE;
+};
+
+/**
+ * Read the player's stored gameplay mode preference.
+ * Falls back to DEFAULT_GAME_MODE when unset or invalid.
+ */
+export const getGameMode = async (userId: string): Promise<GameMode> => {
+  const raw = await redis.hGet(statsKey(userId), statsGameModeField());
+  return parseStoredGameMode(raw);
+};
+
+/**
+ * Persist the player's gameplay mode preference on the stats hash.
+ */
+export const setGameMode = async (
+  userId: string,
+  gameMode: GameMode
+): Promise<GameMode> => {
+  await redis.hSet(statsKey(userId), { [statsGameModeField()]: gameMode });
+  return gameMode;
+};
 
 /**
  * Compute Hive IQ from raw counters.

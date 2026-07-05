@@ -35,6 +35,7 @@ import { acquireSubmitLock } from '../redis/submitLockStore';
 import {
   computeHiveIQ,
   deductCoin,
+  getGameMode,
   getStats,
   incrementStats,
 } from '../redis/statsStore';
@@ -335,10 +336,15 @@ export const puzzleRouter = router({
       z.object({
         subreddit: z.string().optional(),
         rankIndex: z.number().int().min(1).optional(),
+        gameMode: z.enum(['casual', 'expert']).optional(),
       })
     )
     .mutation(async ({ input, ctx }): Promise<PuzzleNextResponse> => {
       const launchContext = deriveLaunchContext(ctx.subredditName, ctx.surface);
+      const attemptGameMode =
+        ctx.userId !== undefined
+          ? await getGameMode(ctx.userId)
+          : (input.gameMode ?? DEFAULT_GAME_MODE);
       const subredditResult = resolveRequestedSubreddit(
         launchContext,
         input.subreddit
@@ -555,7 +561,7 @@ export const puzzleRouter = router({
           rankIndex,
           owner,
           commentOrder,
-          gameMode: DEFAULT_GAME_MODE,
+          gameMode: attemptGameMode,
           submitted: false,
           createdAt: now,
           expiresAt: now + ATTEMPT_TTL_S * 1000,

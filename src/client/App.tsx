@@ -1,11 +1,8 @@
-import type {
-  InitResponse,
-  PuzzleNextRequest,
-  PuzzleRevealResult,
-} from '../shared/api';
+import type { GameMode, InitResponse, PuzzleNextRequest, PuzzleRevealResult } from '../shared/api';
 import { SUBREDDIT_UNLOCK_COST } from '../shared/coins';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { TRPCClientError } from '@trpc/client';
+import { mergeInitGameMode, writeLocalGameMode } from './gameModePreference';
 import { HubDashboard } from './dashboard/HubDashboard';
 import { HubDashboardFromPromise } from './dashboard/HubDashboardFromPromise';
 import { HubDashboardSkeleton } from './dashboard/HubDashboardSkeleton';
@@ -66,7 +63,8 @@ const buildSessionFromInit = (init: InitResponse): SessionContext => ({
 
 const buildNextRequest = (
   session: SessionContext,
-  rankIndex: number | undefined
+  rankIndex: number | undefined,
+  gameMode: GameMode
 ): PuzzleNextRequest => {
   const input: PuzzleNextRequest = {};
 
@@ -76,8 +74,11 @@ const buildNextRequest = (
     }
   }
 
-  if (!session.isLoggedIn && rankIndex !== undefined) {
-    input.rankIndex = rankIndex;
+  if (!session.isLoggedIn) {
+    if (rankIndex !== undefined) {
+      input.rankIndex = rankIndex;
+    }
+    input.gameMode = gameMode;
   }
 
   return input;
@@ -102,15 +103,20 @@ export const App = ({ preloadedInit }: AppProps) => {
   const [session, setSession] = useState<SessionContext | null>(() =>
     preloadedInit ? buildSessionFromInit(preloadedInit) : null
   );
-  const [initData, setInitData] = useState<InitResponse | null>(
-    preloadedInit ?? null
+  const [initData, setInitData] = useState<InitResponse | null>(() =>
+    preloadedInit ? mergeInitGameMode(preloadedInit) : null
   );
   const [selectionError, setSelectionError] = useState<string | null>(null);
+  const [gameModeError, setGameModeError] = useState<string | null>(null);
+  const [isSavingGameMode, setIsSavingGameMode] = useState(false);
   const guestRankIndexRef = useRef(1);
   const retryTimeoutRef = useRef<number | undefined>(undefined);
   const activePuzzleRef = useRef<ReadyPuzzle | null>(null);
   const sessionRef = useRef<SessionContext | null>(
     preloadedInit ? buildSessionFromInit(preloadedInit) : null
+  );
+  const initDataRef = useRef<InitResponse | null>(
+    preloadedInit ? mergeInitGameMode(preloadedInit) : null
   );
   const loadingFromHubRef = useRef(false);
   const [lastRedemptionRemarkIndex, setLastRedemptionRemarkIndex] = useState<
@@ -123,6 +129,10 @@ export const App = ({ preloadedInit }: AppProps) => {
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
+
+  useEffect(() => {
+    initDataRef.current = initData;
+  }, [initData]);
 
   const handleUnplayable = useCallback(
     (unplayableCount: number, rankIndex: number) => {
@@ -175,7 +185,11 @@ export const App = ({ preloadedInit }: AppProps) => {
 
       try {
         const response = await trpcClient.puzzle.next.mutate(
-          buildNextRequest(activeSession, effectiveRankIndex)
+          buildNextRequest(
+            activeSession,
+            effectiveRankIndex,
+            initDataRef.current?.gameMode ?? 'casual'
+          )
         );
 
         if (response.status === 'ready') {
@@ -370,9 +384,11 @@ export const App = ({ preloadedInit }: AppProps) => {
   }, []);
 
   const applyInitData = useCallback((init: InitResponse) => {
-    setInitData(init);
+    const merged = mergeInitGameMode(init);
+    setInitData(merged);
+    initDataRef.current = merged;
 
-    const nextSession = buildSessionFromInit(init);
+    const nextSession = buildSessionFromInit(merged);
     sessionRef.current = nextSession;
     setSession(nextSession);
     guestRankIndexRef.current = 1;
@@ -432,6 +448,37 @@ export const App = ({ preloadedInit }: AppProps) => {
 
     beginHubLoad(trpcClient.init.query());
   }, [beginHubLoad, preloadedInit]);
+
+  const handleGameModeChange = useCallback(
+    async (mode: GameMode) => {
+      const previousMode = initDataRef.current?.gameMode;
+      setGameModeError(null);
+      setInitData((current) =>
+        current === null ? current : { ...current, gameMode: mode }
+      );
+
+      const activeSession = sessionRef.current;
+      if (activeSession?.isLoggedIn) {
+        setIsSavingGameMode(true);
+        try {
+          await trpcClient.session.setGameMode.mutate({ gameMode: mode });
+        } catch {
+          setInitData((current) =>
+            current === null || previousMode === undefined
+              ? current
+              : { ...current, gameMode: previousMode }
+          );
+          setGameModeError('Could not save gameplay mode. Please try again.');
+        } finally {
+          setIsSavingGameMode(false);
+        }
+        return;
+      }
+
+      writeLocalGameMode(mode);
+    },
+    []
+  );
 
   const handleSelectSubreddit = useCallback(
     (subreddit: string) => {
@@ -493,11 +540,20 @@ export const App = ({ preloadedInit }: AppProps) => {
       setState({ phase: 'submitting', puzzle });
 
       try {
-        const result = await trpcClient.puzzle.submit.mutate({
-          gameMode: 'expert',
-          attemptId: puzzle.attemptId,
-          slots,
-        });
+        const gameMode = initDataRef.current?.gameMode ?? 'expert';
+        const result = await trpcClient.puzzle.submit.mutate(
+          gameMode === 'expert'
+            ? {
+                gameMode: 'expert',
+                attemptId: puzzle.attemptId,
+                slots,
+              }
+            : {
+                gameMode: 'casual',
+                attemptId: puzzle.attemptId,
+                selectedCommentId: slots[0] ?? puzzle.comments[0]?.id ?? '',
+              }
+        );
 
         if (result.status === 'submitted') {
           if (session !== null && !session.isLoggedIn) {
@@ -633,6 +689,10 @@ export const App = ({ preloadedInit }: AppProps) => {
             initPromise={state.initPromise}
             onSelectSubreddit={handleSelectSubreddit}
             selectionError={selectionError}
+            gameMode={initData?.gameMode ?? 'casual'}
+            onGameModeChange={handleGameModeChange}
+            isSavingGameMode={isSavingGameMode}
+            gameModeError={gameModeError}
           />
         </Suspense>
       </div>
@@ -703,6 +763,10 @@ export const App = ({ preloadedInit }: AppProps) => {
           initData={initData}
           onSelectSubreddit={handleSelectSubreddit}
           selectionError={selectionError}
+          gameMode={initData.gameMode}
+          onGameModeChange={handleGameModeChange}
+          isSavingGameMode={isSavingGameMode}
+          gameModeError={gameModeError}
         />
       </div>
     );

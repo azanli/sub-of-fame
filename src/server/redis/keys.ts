@@ -99,3 +99,6 @@ export const statsSubTotalField = (subredditName: string): string =>
 
 /** `coins` — Karma Coin wallet balance (integer string) */
 export const statsCoinsField = (): string => 'coins';
+
+/** `gameMode` — player gameplay mode preference (`casual` | `expert`) */
+export const statsGameModeField = (): string => 'gameMode';

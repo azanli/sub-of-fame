@@ -10,7 +10,8 @@ import { SOFT_DEADLINE_MS } from '../../shared/api';
 import { SUBREDDIT_UNLOCK_COST } from '../../shared/coins';
 import { CURATED_SUBREDDITS } from '../../shared/subreddits';
 import { isDailyChallengeSubreddit } from '../../shared/dailyChallenge';
-import { deductCoins, getStats } from '../redis/statsStore';
+import { deductCoins, getStats, setGameMode } from '../redis/statsStore';
+import type { SetGameModeResponse } from '../../shared/api';
 
 const WARM_DEADLINE_MS = Math.min(3000, SOFT_DEADLINE_MS);
 
@@ -118,5 +119,19 @@ export const sessionRouter = router({
         subredditMetadata: metadata,
         coins,
       };
+    }),
+
+  setGameMode: publicProcedure
+    .input(z.object({ gameMode: z.enum(['casual', 'expert']) }))
+    .mutation(async ({ input, ctx }): Promise<SetGameModeResponse> => {
+      if (ctx.userId === undefined) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Game mode preference requires a logged-in player.',
+        });
+      }
+
+      const gameMode = await setGameMode(ctx.userId, input.gameMode);
+      return { gameMode };
     }),
 });

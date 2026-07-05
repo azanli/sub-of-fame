@@ -1,7 +1,7 @@
 import { router, publicProcedure } from '../trpc';
 import { deriveLaunchContext, normalizeSubredditName } from '../launchContext';
 import { getProgress, getAllProgress } from '../redis/progressStore';
-import { getStats, computeHiveIQ, ensureWelcomeCoins } from '../redis/statsStore';
+import { getStats, computeHiveIQ, ensureWelcomeCoins, getGameMode } from '../redis/statsStore';
 import { getLeaderboardRank } from '../redis/leaderboardStore';
 import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
 import { getDailyChallengeResetAt } from '../redis/dailyChallengeStore';
@@ -122,7 +122,10 @@ export const initRouter = router({
     }
 
     const userId = ctx.userId;
-    const coins = await ensureWelcomeCoins(userId);
+    const [coins, gameMode] = await Promise.all([
+      ensureWelcomeCoins(userId),
+      getGameMode(userId),
+    ]);
 
     if (isHub) {
       const [progress, stats] = await Promise.all([
@@ -142,7 +145,7 @@ export const initRouter = router({
         isHub: true,
         activeSubreddit: null,
         playerName,
-        gameMode: DEFAULT_GAME_MODE,
+        gameMode,
         hasGameData: playerHasGameData(stats, progress),
         coins,
         userGlobalHiveIQ: buildGlobalHiveIQ(stats),
@@ -167,7 +170,7 @@ export const initRouter = router({
       isHub: false,
       activeSubreddit: hostSubreddit,
       playerName,
-      gameMode: DEFAULT_GAME_MODE,
+      gameMode,
       hasGameData: playerHasGameData(stats, { [hostSubreddit]: currentRankIndex }),
       coins,
       userGlobalHiveIQ: buildGlobalHiveIQ(stats),

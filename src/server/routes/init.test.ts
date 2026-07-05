@@ -7,6 +7,7 @@ const {
   mockGetAllProgress,
   mockGetProgress,
   mockGetStats,
+  mockGetGameMode,
   mockResolveSubredditMetadata,
   mockGetLeaderboardRank,
   mockEnsureWelcomeCoins,
@@ -14,6 +15,7 @@ const {
   mockGetAllProgress: vi.fn(),
   mockGetProgress: vi.fn(),
   mockGetStats: vi.fn(),
+  mockGetGameMode: vi.fn(),
   mockResolveSubredditMetadata: vi.fn(),
   mockGetLeaderboardRank: vi.fn(),
   mockEnsureWelcomeCoins: vi.fn(),
@@ -35,6 +37,7 @@ vi.mock('../redis/statsStore.js', async (importOriginal) => {
   return {
     ...original,
     getStats: mockGetStats,
+    getGameMode: mockGetGameMode,
     ensureWelcomeCoins: mockEnsureWelcomeCoins,
   };
 });
@@ -166,6 +169,17 @@ describe('init — logged-in Hub', () => {
     mockGetStats.mockResolvedValue(emptyStats());
     mockGetProgress.mockResolvedValue(1);
     mockEnsureWelcomeCoins.mockResolvedValue(3);
+    mockGetGameMode.mockResolvedValue(DEFAULT_GAME_MODE);
+  });
+
+  it('returns stored gameMode for logged-in users', async () => {
+    mockGetGameMode.mockResolvedValue('expert');
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.init();
+
+    expect(result.gameMode).toBe('expert');
+    expect(mockGetGameMode).toHaveBeenCalledWith('user-1');
   });
 
   it('includes all CURATED_SUBREDDITS names in dashboardSubreddits', async () => {
@@ -272,7 +286,7 @@ describe('init — logged-in Hub', () => {
     const result = await caller.init();
 
     const cardNames = result.dashboardSubreddits?.map((card) => card.subreddit) ?? [];
-    expect(cardNames).toEqual(['sports', 'cats', 'customsub', 'askreddit']);
+    expect(cardNames).toEqual(['sports', 'cats', 'customsub', 'askreddit', 'funny']);
   });
 
   it('computes completedRoundCount as Math.floor(totalSlots / 3)', async () => {
@@ -399,6 +413,7 @@ describe('init — logged-in Community', () => {
     mockGetStats.mockResolvedValue(emptyStats());
     mockGetProgress.mockResolvedValue(1);
     mockEnsureWelcomeCoins.mockResolvedValue(3);
+    mockGetGameMode.mockResolvedValue(DEFAULT_GAME_MODE);
   });
 
   it('returns activeSubredditMetrics with currentRankIndex and userSubredditHiveIQ', async () => {

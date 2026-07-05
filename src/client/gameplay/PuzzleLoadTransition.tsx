@@ -21,6 +21,8 @@ export const PuzzleLoadTransition = ({
         loadingSubreddit={loadingSubreddit}
         onSelectSubreddit={() => undefined}
         selectionError={selectionError}
+        gameMode={initData.gameMode}
+        onGameModeChange={() => undefined}
       />
     );
   }

@@ -27,8 +27,10 @@ const {
   deductCoin,
   deductCoins,
   ensureWelcomeCoins,
+  getGameMode,
   incrementStats,
   getStats,
+  setGameMode,
 } = await import('./statsStore');
 
 describe('computeHiveIQ', () => {
@@ -70,6 +72,31 @@ describe('ensureWelcomeCoins', () => {
     expect(mockHSet).toHaveBeenCalledWith('user:u1:stats', {
       coins: String(WELCOME_COINS),
     });
+  });
+});
+
+describe('getGameMode', () => {
+  it('returns DEFAULT_GAME_MODE when the field is missing', async () => {
+    mockHGet.mockResolvedValue(undefined);
+    await expect(getGameMode('u1')).resolves.toBe('casual');
+    expect(mockHGet).toHaveBeenCalledWith('user:u1:stats', 'gameMode');
+  });
+
+  it('returns stored expert mode when valid', async () => {
+    mockHGet.mockResolvedValue('expert');
+    await expect(getGameMode('u1')).resolves.toBe('expert');
+  });
+
+  it('falls back to DEFAULT_GAME_MODE for invalid stored values', async () => {
+    mockHGet.mockResolvedValue('hardcore');
+    await expect(getGameMode('u1')).resolves.toBe('casual');
+  });
+});
+
+describe('setGameMode', () => {
+  it('writes the mode to the stats hash', async () => {
+    await setGameMode('u1', 'expert');
+    expect(mockHSet).toHaveBeenCalledWith('user:u1:stats', { gameMode: 'expert' });
   });
 });
 

@@ -1,7 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { TRPCContext } from '../trpc';
 import type { PuzzleAttempt, PuzzleSnapshot } from '../redis/types';
-import { DEFAULT_GAME_MODE } from '../../shared/api';
 
 const {
   mockResolveSubredditMetadata,
@@ -17,6 +16,7 @@ const {
   mockAcquireSubmitLock,
   mockIncrementStats,
   mockGetStats,
+  mockGetGameMode,
   mockUpdateLeaderboard,
   mockDeductCoin,
 } = vi.hoisted(() => ({
@@ -33,6 +33,7 @@ const {
   mockAcquireSubmitLock: vi.fn(),
   mockIncrementStats: vi.fn(),
   mockGetStats: vi.fn(),
+  mockGetGameMode: vi.fn(),
   mockUpdateLeaderboard: vi.fn(),
   mockDeductCoin: vi.fn(),
 }));
@@ -81,6 +82,7 @@ vi.mock('../redis/statsStore.js', async (importOriginal) => {
     ...original,
     incrementStats: mockIncrementStats,
     getStats: mockGetStats,
+    getGameMode: mockGetGameMode,
     deductCoin: mockDeductCoin,
   };
 });
@@ -217,6 +219,7 @@ describe('puzzle.next', () => {
     mockGetProgress.mockResolvedValue(3);
     mockIncrementProgress.mockResolvedValue(4);
     mockSetAttempt.mockResolvedValue(undefined);
+    mockGetGameMode.mockResolvedValue('expert');
   });
 
   it('returns SUBREDDIT_REQUIRED on Hub when subreddit is omitted', async () => {
@@ -418,7 +421,7 @@ describe('puzzle.next', () => {
         rankIndex: 3,
         owner: { kind: 'user', userId: 'user-1' },
         submitted: false,
-        gameMode: DEFAULT_GAME_MODE,
+        gameMode: 'expert',
         commentOrder: expect.arrayContaining(['t1_c1', 't1_c2', 't1_c3']),
       })
     );
@@ -510,6 +513,33 @@ describe('puzzle.next', () => {
       expect.objectContaining({
         owner: { kind: 'guest' },
       })
+    );
+  });
+
+  it('mints attempts with the logged-in player stored gameMode', async () => {
+    mockGetGameMode.mockResolvedValue('expert');
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    await caller.puzzle.next({ subreddit: 'askreddit' });
+
+    expect(mockGetGameMode).toHaveBeenCalledWith('user-1');
+    expect(mockSetAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({ gameMode: 'expert' })
+    );
+  });
+
+  it('mints guest attempts with the requested gameMode', async () => {
+    const caller = createCaller(makeCtx({ userId: undefined }));
+
+    await caller.puzzle.next({
+      subreddit: 'askreddit',
+      rankIndex: 1,
+      gameMode: 'expert',
+    });
+
+    expect(mockGetGameMode).not.toHaveBeenCalled();
+    expect(mockSetAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({ gameMode: 'expert' })
     );
   });
 });
