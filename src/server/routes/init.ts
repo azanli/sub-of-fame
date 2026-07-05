@@ -7,12 +7,13 @@ import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
 import { getDailyChallengeResetAt } from '../redis/dailyChallengeStore';
 import { CURATED_SUBREDDITS } from '../../shared/subreddits';
 import { DAILY_CHALLENGE_SUBREDDIT, isDailyChallengeSubreddit } from '../../shared/dailyChallenge';
-import type {
-  DailyChallengeMetrics,
-  InitResponse,
-  SubredditDashboardCard,
-  UserGlobalHiveIQMetrics,
-  UserStatsProfile,
+import {
+  DEFAULT_GAME_MODE,
+  type DailyChallengeMetrics,
+  type InitResponse,
+  type SubredditDashboardCard,
+  type UserGlobalHiveIQMetrics,
+  type UserStatsProfile,
 } from '../../shared/api';
 import type { TRPCContext } from '../trpc';
 
@@ -110,6 +111,7 @@ export const initRouter = router({
         isHub,
         activeSubreddit: isHub ? null : hostSubreddit,
         playerName,
+        gameMode: DEFAULT_GAME_MODE,
         hasGameData: false,
         coins: null,
         userGlobalHiveIQ: null,
@@ -140,6 +142,7 @@ export const initRouter = router({
         isHub: true,
         activeSubreddit: null,
         playerName,
+        gameMode: DEFAULT_GAME_MODE,
         hasGameData: playerHasGameData(stats, progress),
         coins,
         userGlobalHiveIQ: buildGlobalHiveIQ(stats),
@@ -164,6 +167,7 @@ export const initRouter = router({
       isHub: false,
       activeSubreddit: hostSubreddit,
       playerName,
+      gameMode: DEFAULT_GAME_MODE,
       hasGameData: playerHasGameData(stats, { [hostSubreddit]: currentRankIndex }),
       coins,
       userGlobalHiveIQ: buildGlobalHiveIQ(stats),

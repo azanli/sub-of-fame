@@ -1,5 +1,9 @@
 import type { PostContentBlock } from './postContent.js';
 
+export type GameMode = 'casual' | 'expert';
+
+export const DEFAULT_GAME_MODE: GameMode = 'casual';
+
 type PerformanceCounters = {
   correctSlots: number;
   totalSlots: number;
@@ -58,6 +62,7 @@ export type InitResponse = {
   isHub: boolean;
   activeSubreddit: string | null;
   playerName: string;
+  gameMode: GameMode;
   hasGameData: boolean;
   /** Logged-in wallet balance; null for guests. */
   coins: number | null;
@@ -81,7 +86,10 @@ export type SessionSubResponse = {
 
 export type SessionSubError = {
   status: 'error';
-  code: 'SUBREDDIT_UNAVAILABLE' | 'HOST_SUBREDDIT_LOCKED' | 'INSUFFICIENT_COINS';
+  code:
+    | 'SUBREDDIT_UNAVAILABLE'
+    | 'HOST_SUBREDDIT_LOCKED'
+    | 'INSUFFICIENT_COINS';
   message: string;
 };
 
@@ -120,14 +128,30 @@ export type PuzzleNextResponse =
     }
   | {
       status: 'error';
-      code: 'SUBREDDIT_REQUIRED' | 'SUBREDDIT_UNAVAILABLE' | 'HOST_SUBREDDIT_LOCKED';
+      code:
+        | 'SUBREDDIT_REQUIRED'
+        | 'SUBREDDIT_UNAVAILABLE'
+        | 'HOST_SUBREDDIT_LOCKED';
       message: string;
     };
 
-export type PuzzleSubmitRequest = {
+export type ExpertPuzzleSubmitRequest = {
+  gameMode: 'expert';
   attemptId: string;
+  /** Comment IDs placed into rank slots 1/2/3; must be a permutation of the issued comment IDs. */
   slots: [string, string, string];
 };
+
+export type CasualPuzzleSubmitRequest = {
+  gameMode: 'casual';
+  attemptId: string;
+  /** The comment ID the player believes holds the #1 spot. */
+  selectedCommentId: string;
+};
+
+export type PuzzleSubmitRequest =
+  | ExpertPuzzleSubmitRequest
+  | CasualPuzzleSubmitRequest;
 
 export type PuzzleRevealSlot = {
   commentId: string;

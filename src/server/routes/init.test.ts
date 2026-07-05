@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { TRPCContext } from '../trpc';
-import type { UserStatsProfile } from '../../shared/api';
+import { DEFAULT_GAME_MODE, type UserStatsProfile } from '../../shared/api';
 import { CURATED_SUBREDDITS } from '../../shared/subreddits';
 
 const {
@@ -112,6 +112,7 @@ describe('init — logged-out', () => {
       isHub: true,
       activeSubreddit: null,
       playerName: 'Guest',
+      gameMode: DEFAULT_GAME_MODE,
       hasGameData: false,
       coins: null,
       userGlobalHiveIQ: null,
@@ -138,6 +139,7 @@ describe('init — logged-out', () => {
       isHub: false,
       activeSubreddit: 'gaming',
       playerName: 'Guest',
+      gameMode: DEFAULT_GAME_MODE,
       hasGameData: false,
       coins: null,
       userGlobalHiveIQ: null,
