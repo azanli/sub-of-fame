@@ -19,7 +19,7 @@ const LOADING_MESSAGES = [
 
 const ONBOARDING_STEPS = [
   { icon: '🧵', copy: 'Read a viral Reddit post.' },
-  { icon: '🎯', copy: 'Rank the top three comments.' },
+  { icon: '🎯', copy: 'Pick the top comment.' },
   { icon: '🧠', copy: 'Test your social wits.' },
 ] as const;
 
@@ -44,7 +44,7 @@ const SplashFooter = () => (
 );
 
 const OnboardingStepRow = ({ icon, copy }: { icon: string; copy: string }) => (
-  <div className="flex w-full max-w-md items-center justify-center gap-3 rounded-xl bg-gray-800/70 px-3 py-3.5">
+  <div className="flex w-full max-w-md items-center justify-center gap-3 rounded-xl bg-gray-800/70 px-6 py-3.5">
     <div
       aria-hidden="true"
       className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xl"
