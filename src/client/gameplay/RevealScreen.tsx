@@ -4,7 +4,10 @@ import type { GameMode, PuzzleRevealResult } from '../../shared/api';
 import { formatCompactNumber } from '../../shared/formatNumber';
 import { formatSubredditLabel } from '../../shared/subreddits';
 import { pickRevealRemark, resolveCasualSlotHighlight } from './helpers';
-import { getForfeitRevealRemarkKey, getRevealRemarkKey } from '../../shared/revealRemarks';
+import {
+  getForfeitRevealRemarkKey,
+  getRevealRemarkKey,
+} from '../../shared/revealRemarks';
 import type { ReadyPuzzle } from './types';
 
 type RevealScreenProps = {
