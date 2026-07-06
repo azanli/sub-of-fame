@@ -18,7 +18,8 @@ export const RESCUE_SCENE = {
 } as const;
 
 export const RESCUE_SCENE_IMAGES = {
-  spaceship: '/spaceship-happy.png',
+  spaceshipHappy: '/spaceship-happy.png',
+  spaceshipPanic: '/spaceship-panic.png',
   snoo: '/snoo-cheer-two.png',
 } as const;
 

@@ -20,7 +20,11 @@ const getSpaceshipMotionClass = (phase: RescueAnimationPhase): string => {
 export const RescueSpaceship = ({ phase }: RescueSpaceshipProps) => (
   <div className={getSpaceshipMotionClass(phase)}>
     <img
-      src={RESCUE_SCENE_IMAGES.spaceship}
+      src={
+        phase === 'panic'
+          ? RESCUE_SCENE_IMAGES.spaceshipPanic
+          : RESCUE_SCENE_IMAGES.spaceshipHappy
+      }
       alt=""
       aria-hidden="true"
       className="h-[clamp(2.5rem,8vw,3.25rem)] w-auto object-contain z-10"
