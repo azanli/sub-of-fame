@@ -173,6 +173,20 @@ const GameplayRoundInner = ({
     onSkip();
   };
 
+  const handleBackToPost = () => {
+    if (
+      isExpertMode ||
+      isSubmitting ||
+      isSkipping ||
+      isSkipAnimating ||
+      hasSubmittedRef.current
+    ) {
+      return;
+    }
+
+    setHasStarted(false);
+  };
+
   if (!hasStarted) {
     return (
       <StartPuzzleGate
@@ -202,6 +216,7 @@ const GameplayRoundInner = ({
       isSkipAnimating={isSkipAnimating}
       isSkipping={isSubmitting || isSkipping}
       coinBalance={coinBalance}
+      {...(isExpertMode ? {} : { onBackToPost: handleBackToPost })}
     />
   );
 };
