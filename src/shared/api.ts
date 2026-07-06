@@ -11,12 +11,12 @@ export const GAME_MODE_OPTIONS = [
     mode: 'casual' as const,
     label: 'Casual Mode 🚀',
     description:
-      'Quick 1-tap guessing. Earn consolation prizes for close picks!',
+      'Pick the top comment with the most upvotes. Quick 1-tap intuition.',
   },
   {
     mode: 'expert' as const,
     label: 'Expert Mode 🧠',
-    description: 'Pure full comment ranking dynamics. Max mastery requirement.',
+    description: 'Rank the top three comments in order of their upvote counts.',
   },
 ] as const;
 
