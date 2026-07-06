@@ -97,9 +97,6 @@ export const CommentsModal = ({
                 </svg>
               </button>
             )}
-            <h3 className="truncate text-base font-semibold text-gray-900 dark:text-white">
-              {isCasualMode ? 'Pick the top comment' : 'Rank the comments'}
-            </h3>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <button
