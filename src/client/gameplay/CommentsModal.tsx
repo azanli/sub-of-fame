@@ -15,6 +15,7 @@ type CommentsModalProps = {
   secondsRemaining: number;
   totalSeconds: number;
   assignments: RankAssignments;
+  casualSelectedCommentId: string | null;
   onTap: (commentId: string) => void;
   onSkipAnimationStart: () => void;
   onSkip: () => void;
@@ -36,6 +37,7 @@ export const CommentsModal = ({
   secondsRemaining,
   totalSeconds,
   assignments,
+  casualSelectedCommentId,
   onTap,
   onSkipAnimationStart,
   onSkip,
@@ -150,6 +152,12 @@ export const CommentsModal = ({
                 body={comment.body}
                 gameMode={gameMode}
                 rank={isCasualMode ? undefined : assignments.get(comment.id)}
+                isCasualSelected={casualSelectedCommentId === comment.id}
+                isCasualSelectionLocked={
+                  isCasualMode &&
+                  casualSelectedCommentId !== null &&
+                  casualSelectedCommentId !== comment.id
+                }
                 onTap={onTap}
               />
             ))}

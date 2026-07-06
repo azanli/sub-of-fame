@@ -50,10 +50,14 @@ const GameplayRoundInner = ({
   const [hasStarted, setHasStarted] = useState(false);
   const [isSkipAnimating, setIsSkipAnimating] = useState(false);
   const [assignments, setAssignments] = useState<RankAssignments>(new Map());
+  const [casualSelectedCommentId, setCasualSelectedCommentId] = useState<
+    string | null
+  >(null);
   const [secondsRemaining, setSecondsRemaining] = useState(allottedSeconds);
 
   useEffect(() => {
     hasSubmittedRef.current = false;
+    setCasualSelectedCommentId(null);
     if (forfeitTimeoutRef.current !== null) {
       window.clearTimeout(forfeitTimeoutRef.current);
       forfeitTimeoutRef.current = null;
@@ -219,12 +223,14 @@ const GameplayRoundInner = ({
       isSkipping ||
       isForfeiting ||
       isSkipAnimating ||
-      hasSubmittedRef.current
+      hasSubmittedRef.current ||
+      casualSelectedCommentId !== null
     ) {
       return;
     }
 
     hasSubmittedRef.current = true;
+    setCasualSelectedCommentId(commentId);
     onSubmit({ gameMode: 'casual', selectedCommentId: commentId });
   };
 
@@ -288,6 +294,7 @@ const GameplayRoundInner = ({
       secondsRemaining={secondsRemaining}
       totalSeconds={allottedSeconds}
       assignments={assignments}
+      casualSelectedCommentId={casualSelectedCommentId}
       onTap={
         isSubmitting || isSkipping || isForfeiting || isSkipAnimating
           ? () => undefined
