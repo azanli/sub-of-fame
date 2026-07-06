@@ -3,6 +3,8 @@ import type { CasualRevealScore, GameMode } from '../../shared/api';
 import {
   CASUAL_REVEAL_REMARKS,
   EXPERT_REVEAL_REMARKS,
+  FORFEIT_REVEAL_REMARKS,
+  getForfeitRevealRemarkKey,
   getRevealRemarkKey,
 } from '../../shared/revealRemarks';
 
@@ -126,12 +128,28 @@ export const pickRevealRemark = ({
   score,
   lastIndex,
   subredditDisplayName,
+  forfeited = false,
 }: {
   gameMode: GameMode;
   score: number;
   lastIndex: number | null;
   subredditDisplayName: string;
+  forfeited?: boolean;
 }): PickedRevealRemark | null => {
+  if (forfeited) {
+    const index = pickRevealRemarkIndex(lastIndex, FORFEIT_REVEAL_REMARKS.length);
+    const template = FORFEIT_REVEAL_REMARKS[index] ?? FORFEIT_REVEAL_REMARKS[0];
+    if (template === undefined) {
+      return null;
+    }
+
+    return {
+      key: getForfeitRevealRemarkKey(),
+      index,
+      text: formatRevealRemark(template, subredditDisplayName),
+    };
+  }
+
   const remarks =
     gameMode === 'casual'
       ? isCasualRevealScore(score)
@@ -163,8 +181,13 @@ export type CasualSlotHighlight = 'correct' | 'incorrect' | 'neutral';
 export const resolveCasualSlotHighlight = (
   slotIndex: number,
   slot: { correct: boolean },
-  score: number
+  score: number,
+  forfeited = false
 ): CasualSlotHighlight => {
+  if (forfeited) {
+    return slotIndex === 0 ? 'incorrect' : 'neutral';
+  }
+
   if (slot.correct) {
     return 'correct';
   }

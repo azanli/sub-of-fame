@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   CASUAL_REVEAL_REMARKS,
   EXPERT_REVEAL_REMARKS,
+  FORFEIT_REVEAL_REMARKS,
 } from '../../shared/revealRemarks';
 import {
   applyTapRank,
@@ -209,6 +210,26 @@ describe('pickRevealRemark', () => {
       })
     ).toBeNull();
   });
+
+  it('returns forfeit remarks when forfeited', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    expect(
+      pickRevealRemark({
+        gameMode: 'casual',
+        score: 0,
+        lastIndex: null,
+        subredditDisplayName: 'AskReddit',
+        forfeited: true,
+      })
+    ).toEqual({
+      key: 'casual-forfeit',
+      index: 0,
+      text: FORFEIT_REVEAL_REMARKS[0],
+    });
+
+    vi.restoreAllMocks();
+  });
 });
 
 describe('resolveCasualSlotHighlight', () => {
@@ -228,5 +249,17 @@ describe('resolveCasualSlotHighlight', () => {
     expect(resolveCasualSlotHighlight(0, { correct: false }, 0)).toBe('neutral');
     expect(resolveCasualSlotHighlight(1, { correct: false }, 0)).toBe('neutral');
     expect(resolveCasualSlotHighlight(2, { correct: false }, 0)).toBe('incorrect');
+  });
+
+  it('marks only the top slot amber on forfeit', () => {
+    expect(resolveCasualSlotHighlight(0, { correct: false }, 0, true)).toBe(
+      'incorrect'
+    );
+    expect(resolveCasualSlotHighlight(1, { correct: false }, 0, true)).toBe(
+      'neutral'
+    );
+    expect(resolveCasualSlotHighlight(2, { correct: false }, 0, true)).toBe(
+      'neutral'
+    );
   });
 });

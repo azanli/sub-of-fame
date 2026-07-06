@@ -4,7 +4,7 @@ import type { GameMode, PuzzleRevealResult } from '../../shared/api';
 import { formatCompactNumber } from '../../shared/formatNumber';
 import { formatSubredditLabel } from '../../shared/subreddits';
 import { pickRevealRemark, resolveCasualSlotHighlight } from './helpers';
-import { getRevealRemarkKey } from '../../shared/revealRemarks';
+import { getForfeitRevealRemarkKey, getRevealRemarkKey } from '../../shared/revealRemarks';
 import type { ReadyPuzzle } from './types';
 
 type RevealScreenProps = {
@@ -126,9 +126,12 @@ export const RevealScreen = ({
   onDevResetRankIndex,
 }: RevealScreenProps) => {
   const isSkipped = result.status === 'skipped';
+  const isForfeited = result.status === 'forfeited';
   const isZeroScore = result.score === 0;
   const isCasualMode = gameMode === 'casual';
-  const revealRemarkKey = getRevealRemarkKey(gameMode, result.score);
+  const revealRemarkKey = isForfeited
+    ? getForfeitRevealRemarkKey()
+    : getRevealRemarkKey(gameMode, result.score);
   const lastRevealRemarkIndex =
     lastRevealRemarkIndexByKey[revealRemarkKey] ?? null;
   const [revealedSlotCount, setRevealedSlotCount] = useState(0);
@@ -161,6 +164,7 @@ export const RevealScreen = ({
           score: result.score,
           lastIndex: lastRevealRemarkIndex,
           subredditDisplayName: puzzle.subredditDisplayName,
+          forfeited: isForfeited,
         })
   );
 
@@ -525,7 +529,12 @@ export const RevealScreen = ({
 
               const slotHighlight =
                 isCasualMode && !isSkipped
-                  ? resolveCasualSlotHighlight(index, slot, result.score)
+                  ? resolveCasualSlotHighlight(
+                      index,
+                      slot,
+                      result.score,
+                      isForfeited
+                    )
                   : slot.correct
                     ? 'correct'
                     : 'incorrect';

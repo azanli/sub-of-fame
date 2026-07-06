@@ -242,7 +242,41 @@ export type PuzzleSkipSuccess = {
   coins: number | null;
 };
 
-export type PuzzleRevealResult = PuzzleSubmitSuccess | PuzzleSkipSuccess;
+export type PuzzleForfeitRequest = {
+  attemptId: string;
+};
+
+export type PuzzleForfeitSuccess = {
+  status: 'forfeited';
+  score: 0;
+  slots: PuzzleRevealSlot[];
+  userHiveIQ: UserActiveSubredditMetrics | null;
+  nextRankIndex: number;
+  /** Updated wallet balance; null for guests. */
+  coins: number | null;
+};
+
+export type PuzzleRevealResult =
+  | PuzzleSubmitSuccess
+  | PuzzleSkipSuccess
+  | PuzzleForfeitSuccess;
+
+export type PuzzleForfeitErrorCode =
+  | Exclude<
+      PuzzleSubmitErrorCode,
+      'INVALID_SLOT_PERMUTATION' | 'INVALID_SELECTED_COMMENT'
+    >
+  | 'EXPERT_MODE_FORFEIT_NOT_ALLOWED';
+
+export type PuzzleForfeitError = {
+  status: 'error';
+  code: PuzzleForfeitErrorCode;
+  message: string;
+  nextAction: PuzzleSubmitError['nextAction'];
+  currentRankIndex?: number;
+};
+
+export type PuzzleForfeitResponse = PuzzleForfeitSuccess | PuzzleForfeitError;
 
 export type PuzzleSkipErrorCode =
   | Exclude<

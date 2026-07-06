@@ -1037,3 +1037,158 @@ describe('puzzle.skip', () => {
     expect(mockMarkAttemptSubmitted).not.toHaveBeenCalled();
   });
 });
+
+describe('puzzle.forfeit', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAttempt.mockResolvedValue(makeAttempt({ gameMode: 'casual' }));
+    mockGetSnapshot.mockResolvedValue(makeSnapshot());
+    mockGetProgress.mockResolvedValue(3);
+    mockIncrementProgress.mockResolvedValue(4);
+    mockAcquireSubmitLock.mockResolvedValue(true);
+    mockMarkAttemptSubmitted.mockResolvedValue(undefined);
+    mockIncrementStats.mockResolvedValue(5);
+    mockGetStats.mockResolvedValue({
+      global: { correctSlots: 0, totalSlots: 3 },
+      bySubreddit: {
+        askreddit: { correctSlots: 0, totalSlots: 3 },
+      },
+      coins: 5,
+    });
+    mockUpdateLeaderboard.mockResolvedValue(undefined);
+  });
+
+  it('returns ATTEMPT_EXPIRED when attempt is missing', async () => {
+    mockGetAttempt.mockResolvedValue(null);
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.forfeit(makeSkipInput());
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'ATTEMPT_EXPIRED',
+        nextAction: 'request_next_puzzle',
+      })
+    );
+    expectNoSubmitMutations();
+  });
+
+  it('rejects expert attempts', async () => {
+    mockGetAttempt.mockResolvedValue(makeAttempt({ gameMode: 'expert' }));
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.forfeit(makeSkipInput());
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'EXPERT_MODE_FORFEIT_NOT_ALLOWED',
+        nextAction: 'resubmit_valid_slots',
+      })
+    );
+    expectNoSubmitMutations();
+  });
+
+  it('returns forfeited result with truth-order slots and zero score', async () => {
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.forfeit(makeSkipInput());
+
+    expect(result).toEqual({
+      status: 'forfeited',
+      score: 0,
+      slots: [
+        {
+          commentId: 't1_c1',
+          body: 'First valid comment body with enough visible characters.',
+          score: 100,
+          correct: false,
+        },
+        {
+          commentId: 't1_c2',
+          body: 'Second valid comment body with enough visible characters.',
+          score: 50,
+          correct: false,
+        },
+        {
+          commentId: 't1_c3',
+          body: 'Third valid comment body with enough visible characters.',
+          score: 25,
+          correct: false,
+        },
+      ],
+      userHiveIQ: {
+        userSubredditHiveIQ: 70,
+        currentRankIndex: 4,
+      },
+      nextRankIndex: 4,
+      coins: 5,
+    });
+    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', 'askreddit', {
+      correctSlots: 0,
+      coinAward: 0,
+    });
+    expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockUpdateLeaderboard).toHaveBeenCalledWith('askreddit', 'user-1', 3);
+    expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
+    expect(mockDeductCoin).not.toHaveBeenCalled();
+  });
+
+  it('returns ATTEMPT_ALREADY_SUBMITTED when submit lock acquisition fails', async () => {
+    mockAcquireSubmitLock.mockResolvedValue(false);
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.forfeit(makeSkipInput());
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'ATTEMPT_ALREADY_SUBMITTED',
+        nextAction: 'request_next_puzzle',
+      })
+    );
+    expectNoSubmitMutations();
+  });
+
+  it('returns next rank for guest attempts without writing user stats', async () => {
+    mockGetAttempt.mockResolvedValue(
+      makeAttempt({ owner: { kind: 'guest' }, rankIndex: 2, gameMode: 'casual' })
+    );
+    const caller = createCaller(makeCtx({ userId: undefined }));
+
+    const result = await caller.puzzle.forfeit(makeSkipInput());
+
+    expect(result).toEqual({
+      status: 'forfeited',
+      score: 0,
+      slots: [
+        {
+          commentId: 't1_c1',
+          body: 'First valid comment body with enough visible characters.',
+          score: 100,
+          correct: false,
+        },
+        {
+          commentId: 't1_c2',
+          body: 'Second valid comment body with enough visible characters.',
+          score: 50,
+          correct: false,
+        },
+        {
+          commentId: 't1_c3',
+          body: 'Third valid comment body with enough visible characters.',
+          score: 25,
+          correct: false,
+        },
+      ],
+      userHiveIQ: null,
+      nextRankIndex: 3,
+      coins: null,
+    });
+    expect(mockIncrementStats).not.toHaveBeenCalled();
+    expect(mockIncrementProgress).not.toHaveBeenCalled();
+    expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
+    expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
+  });
+});

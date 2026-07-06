@@ -47,6 +47,7 @@ type AppState =
   | { phase: 'ready'; puzzle: ReadyPuzzle }
   | { phase: 'submitting'; puzzle: ReadyPuzzle }
   | { phase: 'skipping'; puzzle: ReadyPuzzle }
+  | { phase: 'forfeiting'; puzzle: ReadyPuzzle }
   | { phase: 'revealed'; result: PuzzleRevealResult; puzzle: ReadyPuzzle }
   | { phase: 'exhausted'; message: string }
   | { phase: 'problem'; message: string };
@@ -641,6 +642,51 @@ export const App = ({ preloadedInit }: AppProps) => {
     }
   }, [session]);
 
+  const handleForfeit = useCallback(async () => {
+    const puzzle = activePuzzleRef.current;
+    if (puzzle === null) {
+      return;
+    }
+
+    setState({ phase: 'forfeiting', puzzle });
+
+    try {
+      const result = await trpcClient.puzzle.forfeit.mutate({
+        attemptId: puzzle.attemptId,
+      });
+
+      if (result.status === 'forfeited') {
+        if (session !== null && !session.isLoggedIn) {
+          guestRankIndexRef.current = result.nextRankIndex;
+        }
+        if (result.coins !== null) {
+          setInitData((current) =>
+            current === null ? current : { ...current, coins: result.coins }
+          );
+        }
+        setState({ phase: 'revealed', result, puzzle });
+        return;
+      }
+
+      if (result.nextAction === 'request_next_puzzle') {
+        void loadNextPuzzleRef.current(0, result.currentRankIndex);
+        return;
+      }
+
+      if (result.nextAction === 'refresh_game') {
+        void loadNextPuzzleRef.current(0, undefined);
+        return;
+      }
+
+      setState({ phase: 'problem', message: result.message });
+    } catch {
+      setState({
+        phase: 'problem',
+        message: 'Forfeit failed. Please try again.',
+      });
+    }
+  }, [session]);
+
   const handleNextLevel = () => {
     void loadNextPuzzle(
       0,
@@ -747,8 +793,12 @@ export const App = ({ preloadedInit }: AppProps) => {
             onSkip={() => {
               void handleSkip();
             }}
+            onForfeit={() => {
+              void handleForfeit();
+            }}
             isSubmitting={false}
             isSkipping={false}
+            isForfeiting={false}
             onDashboard={handleDashboard}
             coinBalance={initData?.coins ?? null}
           />
@@ -848,7 +898,8 @@ export const App = ({ preloadedInit }: AppProps) => {
   if (
     state.phase === 'ready' ||
     state.phase === 'submitting' ||
-    state.phase === 'skipping'
+    state.phase === 'skipping' ||
+    state.phase === 'forfeiting'
   ) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -861,8 +912,12 @@ export const App = ({ preloadedInit }: AppProps) => {
           onSkip={() => {
             void handleSkip();
           }}
+          onForfeit={() => {
+            void handleForfeit();
+          }}
           isSubmitting={state.phase === 'submitting'}
           isSkipping={state.phase === 'skipping'}
+          isForfeiting={state.phase === 'forfeiting'}
           onDashboard={handleDashboard}
           coinBalance={initData?.coins ?? null}
         />

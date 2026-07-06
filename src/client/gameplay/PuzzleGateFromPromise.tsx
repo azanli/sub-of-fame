@@ -8,8 +8,10 @@ type PuzzleGateFromPromiseProps = {
   gameMode: GameMode;
   onSubmit: (payload: GameplaySubmitPayload) => void;
   onSkip: () => void;
+  onForfeit: () => void;
   isSubmitting: boolean;
   isSkipping: boolean;
+  isForfeiting: boolean;
   onDashboard: () => void;
   coinBalance: number | null;
 };
@@ -19,8 +21,10 @@ export const PuzzleGateFromPromise = ({
   gameMode,
   onSubmit,
   onSkip,
+  onForfeit,
   isSubmitting,
   isSkipping,
+  isForfeiting,
   onDashboard,
   coinBalance,
 }: PuzzleGateFromPromiseProps) => {
@@ -32,8 +36,10 @@ export const PuzzleGateFromPromise = ({
       gameMode={gameMode}
       onSubmit={onSubmit}
       onSkip={onSkip}
+      onForfeit={onForfeit}
       isSubmitting={isSubmitting}
       isSkipping={isSkipping}
+      isForfeiting={isForfeiting}
       onDashboard={onDashboard}
       coinBalance={coinBalance}
     />

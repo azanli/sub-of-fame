@@ -64,7 +64,20 @@ export const EXPERT_REVEAL_REMARKS: Record<
   3: ['Perfect Prediction!'],
 };
 
+export const FORFEIT_REVEAL_REMARKS = [
+  'You let Snoo down this time, but you can try again.',
+  'Snoo needs your help! Try again.',
+  "You can't blame the spaceship for this one.",
+  'Was Snoo too heavy for you to lift?',
+  'Wake up captain!',
+  'You snooze, you lose.',
+  'Maybe Snoo needs to go on a diet...',
+  'Ask not what Snoo can do for you, ask what you can do for Snoo.',
+] as const;
+
 export const getRevealRemarkKey = (
   gameMode: 'casual' | 'expert',
   score: number
 ): string => `${gameMode}-${score}`;
+
+export const getForfeitRevealRemarkKey = (): string => 'casual-forfeit';

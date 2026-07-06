@@ -51,6 +51,8 @@ import {
   type NextWorkBudget,
   type PuzzleNextResponse,
   type PuzzleRevealSlot,
+  type PuzzleForfeitError,
+  type PuzzleForfeitResponse,
   type PuzzleSkipError,
   type PuzzleSkipResponse,
   type PuzzleSubmitError,
@@ -133,6 +135,19 @@ const skipError = (
   ...(currentRankIndex !== undefined ? { currentRankIndex } : {}),
 });
 
+const forfeitError = (
+  code: PuzzleForfeitError['code'],
+  message: string,
+  nextAction: PuzzleForfeitError['nextAction'],
+  currentRankIndex?: number
+): PuzzleForfeitError => ({
+  status: 'error',
+  code,
+  message,
+  nextAction,
+  ...(currentRankIndex !== undefined ? { currentRankIndex } : {}),
+});
+
 const isIssuedCommentPermutation = (
   slots: [string, string, string],
   commentOrder: [string, string, string]
@@ -171,6 +186,14 @@ const buildTruthRevealSlots = (snapshot: PuzzleSnapshot) =>
     body: comment.body,
     score: comment.score,
     correct: true,
+  }));
+
+const buildForfeitRevealSlots = (snapshot: PuzzleSnapshot): PuzzleRevealSlot[] =>
+  snapshot.comments.map((comment) => ({
+    commentId: comment.id,
+    body: comment.body,
+    score: comment.score,
+    correct: false,
   }));
 
 const buildCasualRevealSlots = (
@@ -859,6 +882,142 @@ export const puzzleRouter = router({
         score: 0,
         slots: buildTruthRevealSlots(snapshot),
         userHiveIQ: null,
+        nextRankIndex,
+        coins,
+      };
+    }),
+
+  forfeit: publicProcedure
+    .input(
+      z.object({
+        attemptId: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input, ctx }): Promise<PuzzleForfeitResponse> => {
+      const attempt = await getAttempt(input.attemptId);
+      if (attempt === null) {
+        return forfeitError(
+          'ATTEMPT_EXPIRED',
+          'This puzzle attempt has expired.',
+          'request_next_puzzle'
+        );
+      }
+
+      if (attempt.submitted) {
+        return forfeitError(
+          'ATTEMPT_ALREADY_SUBMITTED',
+          'This puzzle round has already been submitted.',
+          'request_next_puzzle'
+        );
+      }
+
+      if (attempt.gameMode !== 'casual') {
+        return forfeitError(
+          'EXPERT_MODE_FORFEIT_NOT_ALLOWED',
+          'Forfeit is only available in casual mode.',
+          'resubmit_valid_slots'
+        );
+      }
+
+      const launchContext = deriveLaunchContext(ctx.subredditName, ctx.surface);
+      if (
+        launchContext.surface === 'community' &&
+        attempt.subreddit !== launchContext.hostSubreddit
+      ) {
+        return forfeitError(
+          'HOST_SUBREDDIT_LOCKED',
+          'Forfeit rejected: attempt subreddit does not match host.',
+          'refresh_game'
+        );
+      }
+
+      if (attempt.owner.kind === 'user') {
+        if (ctx.userId === undefined || ctx.userId !== attempt.owner.userId) {
+          return forfeitError(
+            'WRONG_USER',
+            'Forfeit rejected: user does not match attempt owner.',
+            'refresh_game'
+          );
+        }
+
+        const currentRankIndex = await getRankIndex(
+          attempt.owner.userId,
+          attempt.subreddit
+        );
+        if (currentRankIndex !== attempt.rankIndex) {
+          return forfeitError(
+            'STALE_PROGRESS',
+            'Your progress has moved on; request a fresh puzzle.',
+            'request_next_puzzle',
+            currentRankIndex
+          );
+        }
+      }
+
+      const snapshot = await getSnapshot(attempt.sourcePostId);
+      if (snapshot === null) {
+        return forfeitError(
+          'SNAPSHOT_MISSING',
+          'Puzzle snapshot is unavailable; request a fresh puzzle.',
+          'request_next_puzzle'
+        );
+      }
+
+      const lockAcquired = await acquireSubmitLock(input.attemptId);
+      if (!lockAcquired) {
+        return forfeitError(
+          'ATTEMPT_ALREADY_SUBMITTED',
+          'A duplicate forfeit was detected.',
+          'request_next_puzzle'
+        );
+      }
+
+      const statsDelta: RoundStatsDelta = { correctSlots: 0, coinAward: 0 };
+
+      await markAttemptSubmitted(attempt);
+
+      let nextRankIndex: number;
+      let userHiveIQ: UserActiveSubredditMetrics | null;
+      let coins: number | null = null;
+
+      if (attempt.owner.kind === 'user') {
+        coins = await incrementStats(
+          attempt.owner.userId,
+          attempt.subreddit,
+          statsDelta
+        );
+        nextRankIndex = await advanceRankIndex(
+          attempt.owner.userId,
+          attempt.subreddit
+        );
+        await updateLeaderboard(
+          attempt.subreddit,
+          attempt.owner.userId,
+          attempt.rankIndex
+        );
+
+        const stats = await getStats(attempt.owner.userId);
+        const subStats = stats.bySubreddit[attempt.subreddit] ?? {
+          correctSlots: 0,
+          totalSlots: 0,
+        };
+        userHiveIQ = {
+          userSubredditHiveIQ: computeHiveIQ(
+            subStats.correctSlots,
+            subStats.totalSlots
+          ),
+          currentRankIndex: nextRankIndex,
+        };
+      } else {
+        nextRankIndex = attempt.rankIndex + 1;
+        userHiveIQ = null;
+      }
+
+      return {
+        status: 'forfeited',
+        score: 0,
+        slots: buildForfeitRevealSlots(snapshot),
+        userHiveIQ,
         nextRankIndex,
         coins,
       };

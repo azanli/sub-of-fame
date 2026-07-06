@@ -15,21 +15,27 @@ type GameplayRoundProps = {
   gameMode: GameMode;
   onSubmit: (payload: GameplaySubmitPayload) => void;
   onSkip: () => void;
+  onForfeit: () => void;
   isSubmitting: boolean;
   isSkipping: boolean;
+  isForfeiting: boolean;
   onDashboard: () => void;
   coinBalance: number | null;
 };
 
 type GameplayRoundInnerProps = GameplayRoundProps;
 
+const FORFEIT_TRANSITION_MS = 700;
+
 const GameplayRoundInner = ({
   puzzle,
   gameMode,
   onSubmit,
   onSkip,
+  onForfeit,
   isSubmitting,
   isSkipping,
+  isForfeiting,
   onDashboard,
   coinBalance,
 }: GameplayRoundInnerProps) => {
@@ -40,6 +46,7 @@ const GameplayRoundInner = ({
   );
 
   const hasSubmittedRef = useRef(false);
+  const forfeitTimeoutRef = useRef<number | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [isSkipAnimating, setIsSkipAnimating] = useState(false);
   const [assignments, setAssignments] = useState<RankAssignments>(new Map());
@@ -47,7 +54,19 @@ const GameplayRoundInner = ({
 
   useEffect(() => {
     hasSubmittedRef.current = false;
+    if (forfeitTimeoutRef.current !== null) {
+      window.clearTimeout(forfeitTimeoutRef.current);
+      forfeitTimeoutRef.current = null;
+    }
   }, [puzzle.attemptId]);
+
+  useEffect(() => {
+    return () => {
+      if (forfeitTimeoutRef.current !== null) {
+        window.clearTimeout(forfeitTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (
@@ -55,6 +74,7 @@ const GameplayRoundInner = ({
       secondsRemaining <= 0 ||
       isSubmitting ||
       isSkipping ||
+      isForfeiting ||
       isSkipAnimating
     ) {
       return;
@@ -65,7 +85,14 @@ const GameplayRoundInner = ({
     }, 1000);
 
     return () => window.clearInterval(intervalId);
-  }, [hasStarted, secondsRemaining, isSubmitting, isSkipping, isSkipAnimating]);
+  }, [
+    hasStarted,
+    secondsRemaining,
+    isSubmitting,
+    isSkipping,
+    isForfeiting,
+    isSkipAnimating,
+  ]);
 
   useEffect(() => {
     if (!isExpertMode) {
@@ -75,6 +102,7 @@ const GameplayRoundInner = ({
     if (
       isSubmitting ||
       isSkipping ||
+      isForfeiting ||
       isSkipAnimating ||
       hasSubmittedRef.current
     ) {
@@ -96,6 +124,7 @@ const GameplayRoundInner = ({
     isExpertMode,
     isSubmitting,
     isSkipping,
+    isForfeiting,
     isSkipAnimating,
     onSubmit,
     puzzle.comments,
@@ -108,6 +137,8 @@ const GameplayRoundInner = ({
 
     if (
       isSubmitting ||
+      isSkipping ||
+      isForfeiting ||
       isSkipAnimating ||
       hasSubmittedRef.current
     ) {
@@ -130,9 +161,52 @@ const GameplayRoundInner = ({
     secondsRemaining,
     isSubmitting,
     isSkipping,
+    isForfeiting,
+    isSkipAnimating,
     hasStarted,
     onSubmit,
     puzzle.comments,
+  ]);
+
+  useEffect(() => {
+    if (isExpertMode) {
+      return;
+    }
+
+    if (
+      isSubmitting ||
+      isSkipping ||
+      isForfeiting ||
+      isSkipAnimating ||
+      hasSubmittedRef.current
+    ) {
+      return;
+    }
+    if (!hasStarted || secondsRemaining > 0) {
+      return;
+    }
+
+    hasSubmittedRef.current = true;
+    forfeitTimeoutRef.current = window.setTimeout(() => {
+      forfeitTimeoutRef.current = null;
+      onForfeit();
+    }, FORFEIT_TRANSITION_MS);
+
+    return () => {
+      if (forfeitTimeoutRef.current !== null) {
+        window.clearTimeout(forfeitTimeoutRef.current);
+        forfeitTimeoutRef.current = null;
+      }
+    };
+  }, [
+    isExpertMode,
+    secondsRemaining,
+    isSubmitting,
+    isSkipping,
+    isForfeiting,
+    isSkipAnimating,
+    hasStarted,
+    onForfeit,
   ]);
 
   const handleExpertTap = (commentId: string) => {
@@ -143,6 +217,7 @@ const GameplayRoundInner = ({
     if (
       isSubmitting ||
       isSkipping ||
+      isForfeiting ||
       isSkipAnimating ||
       hasSubmittedRef.current
     ) {
@@ -156,7 +231,13 @@ const GameplayRoundInner = ({
   const handleTap = isExpertMode ? handleExpertTap : handleCasualTap;
 
   const handleSkipAnimationStart = () => {
-    if (isSubmitting || isSkipping || isSkipAnimating || hasSubmittedRef.current) {
+    if (
+      isSubmitting ||
+      isSkipping ||
+      isForfeiting ||
+      isSkipAnimating ||
+      hasSubmittedRef.current
+    ) {
       return;
     }
 
@@ -178,6 +259,7 @@ const GameplayRoundInner = ({
       isExpertMode ||
       isSubmitting ||
       isSkipping ||
+      isForfeiting ||
       isSkipAnimating ||
       hasSubmittedRef.current
     ) {
@@ -207,14 +289,14 @@ const GameplayRoundInner = ({
       totalSeconds={allottedSeconds}
       assignments={assignments}
       onTap={
-        isSubmitting || isSkipping || isSkipAnimating
+        isSubmitting || isSkipping || isForfeiting || isSkipAnimating
           ? () => undefined
           : handleTap
       }
       onSkipAnimationStart={handleSkipAnimationStart}
       onSkip={handleSkip}
       isSkipAnimating={isSkipAnimating}
-      isSkipping={isSubmitting || isSkipping}
+      isSkipping={isSubmitting || isSkipping || isForfeiting}
       coinBalance={coinBalance}
       {...(isExpertMode ? {} : { onBackToPost: handleBackToPost })}
     />
@@ -226,8 +308,10 @@ export const GameplayRound = ({
   gameMode,
   onSubmit,
   onSkip,
+  onForfeit,
   isSubmitting,
   isSkipping,
+  isForfeiting,
   onDashboard,
   coinBalance,
 }: GameplayRoundProps) => (
@@ -237,8 +321,10 @@ export const GameplayRound = ({
     gameMode={gameMode}
     onSubmit={onSubmit}
     onSkip={onSkip}
+    onForfeit={onForfeit}
     isSubmitting={isSubmitting}
     isSkipping={isSkipping}
+    isForfeiting={isForfeiting}
     onDashboard={onDashboard}
     coinBalance={coinBalance}
   />
