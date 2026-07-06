@@ -152,7 +152,12 @@ export const HubDashboard = ({
             }}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
           >
-            <span aria-hidden="true" className="leading-none">
+            <span
+              aria-hidden="true"
+              className={`inline-block origin-center leading-none transition-transform duration-300 ease-out ${
+                isSettingsOpen ? 'rotate-90' : 'rotate-0'
+              }`}
+            >
               ⚙️
             </span>
           </button>
