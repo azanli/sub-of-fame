@@ -43,7 +43,7 @@ export const GameModeSelector = ({
               onClick={() => {
                 onChange(option.mode);
               }}
-              className={`min-w-0 flex-1 rounded-full px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+              className={`min-w-0 flex-1 rounded-full px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer ${
                 isActive
                   ? 'bg-[#d93900] text-white'
                   : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/50'
