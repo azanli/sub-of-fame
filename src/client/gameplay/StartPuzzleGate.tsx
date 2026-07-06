@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { PuzzlePost } from './PuzzlePost';
 import { formatSubredditLabel } from '../../shared/subreddits';
 import { formatCompactNumber } from '../../shared/formatNumber';
+import { preloadRescueSceneImages } from './rescueAnimation';
 import type { ReadyPuzzle } from './types';
 
 type StartPuzzleGateProps = {
@@ -84,7 +86,12 @@ export const StartPuzzleGate = ({
   numberOfComments,
   onStart,
   onExit,
-}: StartPuzzleGateProps) => (
+}: StartPuzzleGateProps) => {
+  useEffect(() => {
+    preloadRescueSceneImages();
+  }, []);
+
+  return (
   <div className="fixed inset-0 flex flex-col overflow-hidden">
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="flex flex-col gap-6 p-4 pb-6">
@@ -128,4 +135,5 @@ export const StartPuzzleGate = ({
       </button>
     </div>
   </div>
-);
+  );
+};

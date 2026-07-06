@@ -2,6 +2,9 @@ import { useEffect, useRef } from 'react';
 import type { GameMode } from '../../shared/api';
 import { CommentRankCard } from './CommentRankCard';
 import { CountdownTimer } from './CountdownTimer';
+import { RescueBeamScene } from './RescueBeamScene';
+import { RescueSpaceship } from './RescueBeamScene/RescueSpaceship';
+import { getRescueAnimationState } from './rescueAnimation';
 import type { RankAssignments, ReadyPuzzle } from './types';
 
 const SKIP_ANIMATION_MS = 700;
@@ -45,6 +48,10 @@ export const CommentsModal = ({
   const cannotAffordSkip = (coinBalance ?? 0) < 1;
   const skipDisabled = isSkipping || isSkipAnimating || cannotAffordSkip;
   const isCasualMode = gameMode === 'casual';
+  const rescueAnimationState = getRescueAnimationState(
+    secondsRemaining,
+    totalSeconds
+  );
 
   useEffect(() => {
     return () => {
@@ -72,8 +79,8 @@ export const CommentsModal = ({
         secondsRemaining={secondsRemaining}
         totalSeconds={totalSeconds}
       />
-      <div className="mx-auto flex h-full w-full max-w-lg flex-col">
-        <div className="flex shrink-0 items-center justify-between gap-3 p-4">
+      <div className="relative mx-auto flex h-full w-full max-w-lg flex-col">
+        <div className="relative z-[5] flex shrink-0 items-center justify-between gap-3 p-4">
           <div className="flex min-w-0 items-center gap-1">
             {onBackToPost !== undefined && (
               <button
@@ -98,7 +105,7 @@ export const CommentsModal = ({
               </button>
             )}
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center justify-end gap-2">
             <button
               type="button"
               onClick={handleSkipClick}
@@ -126,18 +133,27 @@ export const CommentsModal = ({
               <CoinIcon className="h-4 w-4 shrink-0" />
             </button>
           </div>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 flex justify-center"
+          >
+            <RescueSpaceship phase={rescueAnimationState.phase} />
+          </div>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 pt-0">
-          {comments.map((comment) => (
-            <CommentRankCard
-              key={comment.id}
-              commentId={comment.id}
-              body={comment.body}
-              gameMode={gameMode}
-              rank={isCasualMode ? undefined : assignments.get(comment.id)}
-              onTap={onTap}
-            />
-          ))}
+        <div className="relative z-0 min-h-0 flex-1 overflow-visible">
+          <RescueBeamScene animationState={rescueAnimationState} />
+          <div className="relative z-[4] flex h-full flex-col gap-3 overflow-y-auto p-4 pt-0">
+            {comments.map((comment) => (
+              <CommentRankCard
+                key={comment.id}
+                commentId={comment.id}
+                body={comment.body}
+                gameMode={gameMode}
+                rank={isCasualMode ? undefined : assignments.get(comment.id)}
+                onTap={onTap}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>

@@ -21,7 +21,11 @@ export const CountdownTimer = ({
       aria-label="Time remaining"
     >
       <div
-        className="h-2 transition-[width] duration-1000 ease-linear"
+        className={`h-2 ease-linear ${
+          secondsRemaining > 0
+            ? 'transition-[width] duration-1000'
+            : 'transition-none'
+        }`}
         style={{ width: `${progressPercent}%` }}
       >
         <div

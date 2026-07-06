@@ -160,6 +160,148 @@
   }
 }
 
+@keyframes rescue-spaceship-swing {
+  0%,
+  100% {
+    transform: rotate(-3deg) translateY(0);
+  }
+
+  50% {
+    transform: rotate(1deg) translateY(-3px);
+  }
+}
+
+@keyframes rescue-spaceship-falter {
+  0%,
+  100% {
+    transform: rotate(-2deg);
+  }
+
+  25% {
+    transform: translate(2px, -2px) rotate(-3deg);
+  }
+
+  50% {
+    transform: translate(-2px, 1px) rotate(-1deg);
+  }
+
+  75% {
+    transform: translate(1px, 2px) rotate(-2.5deg);
+  }
+}
+
+@keyframes rescue-beam-pulse-keyframes {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes rescue-snoo-drop-out-keyframes {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(min(28vh, 180px));
+  }
+}
+
+@keyframes rescue-beam-deploy-keyframes {
+  from {
+    transform: scaleY(0);
+  }
+
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.rescue-beam-deploy-inner {
+  transform-origin: top center;
+  animation: rescue-beam-deploy-keyframes 400ms ease-out forwards;
+}
+
+.rescue-beam-track {
+  transition:
+    bottom 1000ms linear,
+    opacity 1000ms linear;
+}
+
+.rescue-beam-cone {
+  clip-path: polygon(47% 0, 53% 0, 92% 100%, 8% 100%);
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 107, 53, 0.55) 0%,
+    rgba(217, 57, 0, 0.35) 40%,
+    rgba(217, 57, 0, 0.2) 75%,
+    rgba(217, 57, 0, 0) 100%
+  );
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
+}
+
+.rescue-beam-pulse {
+  animation: rescue-beam-pulse-keyframes 1s ease-in-out infinite;
+}
+
+.rescue-spaceship-swing {
+  animation: rescue-spaceship-swing 4s ease-in-out infinite;
+}
+
+.rescue-spaceship-falter {
+  animation: rescue-spaceship-falter 0.45s ease-in-out infinite;
+}
+
+.rescue-snoo-lift {
+  transition:
+    bottom 1000ms linear,
+    transform 1000ms linear;
+}
+
+.rescue-snoo-drop-out {
+  animation: rescue-snoo-drop-out-keyframes 400ms ease-in forwards;
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rescue-spaceship-swing {
+    animation: none;
+  }
+
+  .rescue-spaceship-falter {
+    animation: none;
+  }
+
+  .rescue-beam-pulse {
+    animation: none;
+  }
+
+  .rescue-beam-deploy-inner {
+    animation: none;
+    transform: scaleY(1);
+  }
+
+  .rescue-beam-track {
+    transition: none;
+  }
+
+  .rescue-snoo-lift {
+    transition: none;
+  }
+
+  .rescue-snoo-drop-out {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 @layer base {
   * {
     -webkit-touch-callout: none;

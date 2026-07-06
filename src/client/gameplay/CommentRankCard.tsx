@@ -23,12 +23,12 @@ export const CommentRankCard = ({
     <button
       type="button"
       onClick={() => onTap(commentId)}
-      className={`relative w-full overflow-hidden rounded-xl border bg-white px-4 py-3 text-left transition-colors cursor-pointer dark:bg-gray-800 ${
+      className={`relative w-full overflow-hidden rounded-xl border px-4 py-3 text-left backdrop-blur-[2px] transition-colors cursor-pointer ${
         isRanked
-          ? 'border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/30'
+          ? 'border-orange-500 bg-white/75 hover:bg-white/95 focus-visible:bg-white/95 dark:border-orange-500 dark:bg-gray-800/75 dark:hover:bg-orange-950/40 dark:focus-visible:bg-gray-800/95'
           : isExpertMode
-            ? 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700'
-            : 'border-gray-200 hover:border-orange-400 hover:bg-orange-50/60 dark:border-gray-700 dark:hover:border-orange-600 dark:hover:bg-orange-950/20'
+            ? 'border-gray-200 bg-white/65 hover:bg-white/95 focus-visible:bg-white/95 dark:border-gray-700 dark:bg-gray-800/65 dark:hover:bg-gray-800/95 dark:focus-visible:bg-gray-800/95'
+            : 'border-gray-200 bg-white/65 hover:border-orange-400 hover:bg-white/95 focus-visible:bg-white/95 dark:border-gray-700 dark:bg-gray-800/65 dark:hover:border-orange-600 dark:hover:bg-gray-800/95 dark:focus-visible:bg-gray-800/95'
       }`}
     >
       {isRanked && (
