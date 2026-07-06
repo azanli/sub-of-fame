@@ -4,7 +4,7 @@ import { router, publicProcedure } from '../trpc';
 import { deriveLaunchContext, normalizeSubredditName } from '../launchContext';
 import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
 import { getAllProgress } from '../redis/progressStore';
-import { getRankIndex } from '../redis/rankProgress';
+import { getRankIndex, setRankIndex } from '../redis/rankProgress';
 import { resolveLadderPage } from '../reddit/ladderPipeline';
 import { SOFT_DEADLINE_MS } from '../../shared/api';
 import { SUBREDDIT_UNLOCK_COST } from '../../shared/coins';
@@ -106,6 +106,7 @@ export const sessionRouter = router({
           }
 
           coins = deduction.coins;
+          await setRankIndex(ctx.userId, subreddit, 1);
         } else {
           coins = (await getStats(ctx.userId)).coins;
         }

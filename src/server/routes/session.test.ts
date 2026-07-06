@@ -248,10 +248,11 @@ describe('session.selectSubreddit', () => {
       subredditMetadata: customMetadata,
       coins: 75,
     });
-    expect(mockDeductCoins).toHaveBeenCalledWith('user-1', 25);
+    expect(mockDeductCoins).toHaveBeenCalledWith('user-1', 1);
+    expect(mockSetProgress).toHaveBeenCalledWith('user-1', 'customsub', 1);
   });
 
-  it('does not charge coins when custom subreddit progress already exists', async () => {
+  it('does not write progress when custom subreddit progress already exists', async () => {
     mockResolveSubredditMetadata.mockResolvedValue(customMetadata);
     mockGetAllProgress.mockResolvedValue({ customsub: 2 });
     const caller = createCaller(makeCtx({ userId: 'user-1' }));
@@ -260,11 +261,12 @@ describe('session.selectSubreddit', () => {
 
     expect(result.coins).toBe(100);
     expect(mockDeductCoins).not.toHaveBeenCalled();
+    expect(mockSetProgress).not.toHaveBeenCalled();
   });
 
   it('returns INSUFFICIENT_COINS when the wallet is too low for a custom unlock', async () => {
     mockResolveSubredditMetadata.mockResolvedValue(customMetadata);
-    mockGetStats.mockResolvedValue({ global: { correctSlots: 0, totalSlots: 0 }, bySubreddit: {}, coins: 10 });
+    mockGetStats.mockResolvedValue({ global: { correctSlots: 0, totalSlots: 0 }, bySubreddit: {}, coins: 0 });
     const caller = createCaller(makeCtx({ userId: 'user-1' }));
 
     await expect(caller.session.selectSubreddit({ subreddit: 'customsub' })).rejects.toSatisfy(
@@ -275,6 +277,7 @@ describe('session.selectSubreddit', () => {
     );
 
     expect(mockDeductCoins).not.toHaveBeenCalled();
+    expect(mockSetProgress).not.toHaveBeenCalled();
   });
 });
 

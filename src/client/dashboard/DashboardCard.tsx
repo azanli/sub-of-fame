@@ -4,6 +4,7 @@ import {
   resolveHiveIQDisplay,
 } from '../../shared/hiveIQ';
 import type { SubredditOption } from '../../shared/subreddits';
+import { formatSubredditLabel } from '../../shared/subreddits';
 import { SpinningLoadingCard } from './SpinningLoadingCard';
 
 type DashboardCardBaseProps = {
@@ -35,7 +36,6 @@ export const idleCardClasses =
 export const DashboardCard = (props: DashboardCardProps) => {
   const subreddit =
     props.kind === 'hydrated' ? props.card.subreddit : props.card.name;
-  const displayName = props.card.displayName;
   const iconUrl = props.card.iconUrl;
   const isLoading = props.isLoading ?? false;
   const disabled = props.disabled ?? false;
@@ -65,7 +65,7 @@ export const DashboardCard = (props: DashboardCardProps) => {
         }
       >
         <p className="truncate font-semibold text-gray-900 dark:text-white">
-          r/{displayName}
+          {formatSubredditLabel(subreddit)}
         </p>
         {props.kind === 'hydrated' && hiveIQText !== null && (
           <p

@@ -1,6 +1,9 @@
 import type { RedditClient } from '@devvit/reddit';
 import type { T5 } from '@devvit/shared-types/tid.js';
-import { CURATED_SUBREDDITS } from '../../shared/subreddits';
+import {
+  CURATED_SUBREDDITS,
+  normalizeSubredditDisplayName,
+} from '../../shared/subreddits';
 import { isDailyChallengeSubreddit } from '../../shared/dailyChallenge';
 import type { SubredditDisplayMetadata } from '../../shared/api';
 import { getMetadata, setMetadata } from '../redis/metadataStore';
@@ -58,7 +61,7 @@ export const resolveSubredditMetadata = async (
   if (cached) {
     return {
       subreddit: subredditName,
-      displayName: cached.displayName,
+      displayName: normalizeSubredditDisplayName(cached.displayName),
       iconUrl: cached.iconUrl,
       metadataSource: 'reddit',
     };
@@ -74,7 +77,7 @@ export const resolveSubredditMetadata = async (
       return null;
     }
 
-    const displayName = info.title ?? info.name ?? subredditName;
+    const displayName = normalizeSubredditDisplayName(info.name ?? subredditName);
     const iconUrl = await resolveIconUrl(reddit, info.id);
 
     const entry: SubredditMetadataCacheEntry = {
