@@ -32,13 +32,10 @@ export const HubSettingsPanel = ({
           onChange={onGameModeChange}
           disabled={isSavingGameMode}
         />
-        {isSavingGameMode ? (
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Saving preference...
-          </p>
-        ) : null}
         {gameModeError !== null ? (
-          <p className="text-sm text-red-600 dark:text-red-400">{gameModeError}</p>
+          <p className="text-sm text-red-600 dark:text-red-400">
+            {gameModeError}
+          </p>
         ) : null}
       </div>
     </div>
