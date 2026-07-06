@@ -65,11 +65,6 @@ export const RescueBeamScene = ({ animationState }: RescueBeamSceneProps) => {
         isPulsing={animationState.phase === 'panic'}
         beamScale={animationState.beamScale}
       />
-      <div
-        aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 z-0"
-        style={{ height: `${RESCUE_SCENE.fireZonePercent}%` }}
-      />
     </div>
   );
 };

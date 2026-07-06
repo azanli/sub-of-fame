@@ -1,7 +1,6 @@
 export type RescueAnimationPhase = 'rise' | 'panic' | 'expired';
 
 export const RESCUE_SCENE = {
-  fireZonePercent: 14,
   snooStartPercent: 16,
   snooPeakPercent: 88,
   /** Lowest Snoo position during panic; full exit happens only on expiry */
