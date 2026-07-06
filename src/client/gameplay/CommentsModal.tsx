@@ -72,7 +72,7 @@ export const CommentsModal = ({
       <div className="mx-auto flex h-full w-full max-w-lg flex-col">
         <div className="flex shrink-0 items-center justify-between gap-3 p-4">
           <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-            {isCasualMode ? 'Pick the #1 comment' : 'Rank the comments'}
+            {isCasualMode ? 'Pick the top comment' : 'Rank the comments'}
           </h3>
           <div className="flex shrink-0 items-center gap-2">
             <button
