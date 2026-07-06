@@ -229,9 +229,13 @@
 }
 
 .rescue-beam-track {
-  transition:
-    bottom 1000ms linear,
-    opacity 1000ms linear;
+  transition: opacity 1000ms linear;
+}
+
+.rescue-beam-scaler {
+  transform-origin: top center;
+  transition: transform 1000ms linear;
+  will-change: transform;
 }
 
 .rescue-beam-cone {
@@ -289,6 +293,10 @@
   }
 
   .rescue-beam-track {
+    transition: none;
+  }
+
+  .rescue-beam-scaler {
     transition: none;
   }
 

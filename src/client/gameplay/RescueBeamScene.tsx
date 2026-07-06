@@ -63,7 +63,7 @@ export const RescueBeamScene = ({ animationState }: RescueBeamSceneProps) => {
         hasDeployed={hasDeployed}
         onDeployed={() => setHasDeployed(true)}
         isPulsing={animationState.phase === 'panic'}
-        snooBottomPercent={animationState.snooBottomPercent}
+        beamScale={animationState.beamScale}
       />
       <div
         aria-hidden="true"

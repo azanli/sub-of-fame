@@ -7,7 +7,7 @@ type RescueBeamGlowProps = {
   hasDeployed: boolean;
   onDeployed: () => void;
   isPulsing: boolean;
-  snooBottomPercent: number;
+  beamScale: number;
 };
 
 export const RescueBeamGlow = ({
@@ -16,7 +16,7 @@ export const RescueBeamGlow = ({
   hasDeployed,
   onDeployed,
   isPulsing,
-  snooBottomPercent,
+  beamScale,
 }: RescueBeamGlowProps) => {
   if (!isReady) {
     return null;
@@ -35,21 +35,28 @@ export const RescueBeamGlow = ({
   return (
     <div
       aria-hidden="true"
-      className={`rescue-beam-container rescue-beam-track absolute left-1/2 z-[1] w-full -translate-x-1/2 ${RESCUE_SCENE.beamOriginPullUpClass}`}
+      className="rescue-beam-container rescue-beam-track absolute inset-x-0 z-[1] -top-[clamp(1rem,4vh,2rem)]"
       style={{
-        bottom: `${snooBottomPercent}%`,
+        height: RESCUE_SCENE.beamMaxHeightCss,
         opacity: intensity,
       }}
     >
       <div
-        className={isDeploying ? 'rescue-beam-deploy-inner size-full' : 'size-full'}
-        onAnimationEnd={handleAnimationEnd}
+        className="rescue-beam-scaler size-full"
+        style={{ transform: `scaleY(${beamScale})` }}
       >
         <div
-          className={`rescue-beam-cone size-full ${
-            isPulsing ? 'rescue-beam-pulse' : ''
-          }`}
-        />
+          className={
+            isDeploying ? 'rescue-beam-deploy-inner size-full' : 'size-full'
+          }
+          onAnimationEnd={handleAnimationEnd}
+        >
+          <div
+            className={`rescue-beam-cone size-full ${
+              isPulsing ? 'rescue-beam-pulse' : ''
+            }`}
+          />
+        </div>
       </div>
     </div>
   );

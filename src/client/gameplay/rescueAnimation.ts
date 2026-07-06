@@ -12,7 +12,7 @@ export const RESCUE_SCENE = {
   risePhaseEndRatio: 0.75,
   baseBeamIntensity: 0.85,
   panicBeamIntensity: 1,
-  beamOriginPullUpClass: '-top-[clamp(1rem,4vh,2rem)]',
+  beamMaxHeightCss: 'calc(84% + clamp(1rem, 4vh, 2rem))',
   beamDeployDelayMs: 300,
   beamDeployDurationMs: 400,
 } as const;
@@ -51,6 +51,8 @@ export type RescueAnimationState = {
   isSpaceshipFaltering: boolean;
   snooBottomPercent: number;
   snooScale: number;
+  /** 0–1 vertical scale for the beam cone */
+  beamScale: number;
 };
 
 const lerp = (start: number, end: number, progress: number): number =>
@@ -73,6 +75,13 @@ export const getPanicSnooBottomPercent = (liftProgress: number): number =>
 export const getSnooScale = (liftProgress: number): number =>
   lerp(RESCUE_SCENE.snooMaxScale, RESCUE_SCENE.snooMinScale, liftProgress);
 
+export const getBeamScale = (snooBottomPercent: number): number => {
+  const maxReach = 100 - RESCUE_SCENE.snooStartPercent;
+  const currentReach = 100 - snooBottomPercent;
+
+  return Math.min(1, Math.max(0, currentReach / maxReach));
+};
+
 export const getRescueAnimationState = (
   secondsRemaining: number,
   totalSeconds: number
@@ -86,6 +95,7 @@ export const getRescueAnimationState = (
       isSpaceshipFaltering: false,
       snooBottomPercent: RESCUE_SCENE.snooPanicLowPercent,
       snooScale: getSnooScale(0),
+      beamScale: 0,
     };
   }
 
@@ -94,14 +104,17 @@ export const getRescueAnimationState = (
   if (elapsedRatio <= RESCUE_SCENE.risePhaseEndRatio) {
     const liftProgress = elapsedRatio / RESCUE_SCENE.risePhaseEndRatio;
 
+    const snooBottomPercent = getSnooBottomPercent(liftProgress);
+
     return {
       phase: 'rise',
       liftProgress,
       beamIntensity: RESCUE_SCENE.baseBeamIntensity,
       isBeamVisible: true,
       isSpaceshipFaltering: false,
-      snooBottomPercent: getSnooBottomPercent(liftProgress),
+      snooBottomPercent,
       snooScale: getSnooScale(liftProgress),
+      beamScale: getBeamScale(snooBottomPercent),
     };
   }
 
@@ -110,13 +123,16 @@ export const getRescueAnimationState = (
     (1 - RESCUE_SCENE.risePhaseEndRatio);
   const liftProgress = 1 - panicProgress;
 
+  const snooBottomPercent = getPanicSnooBottomPercent(liftProgress);
+
   return {
     phase: 'panic',
     liftProgress,
     beamIntensity: RESCUE_SCENE.panicBeamIntensity,
     isBeamVisible: true,
     isSpaceshipFaltering: true,
-    snooBottomPercent: getPanicSnooBottomPercent(liftProgress),
+    snooBottomPercent,
     snooScale: getSnooScale(liftProgress),
+    beamScale: getBeamScale(snooBottomPercent),
   };
 };
