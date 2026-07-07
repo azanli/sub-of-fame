@@ -23,7 +23,7 @@ const getSpaceshipImageSrc = (phase: RescueAnimationPhase): string => {
   }
 
   if (phase === 'expired') {
-    return RESCUE_SCENE_IMAGES.spaceshipSad;
+    return RESCUE_SCENE_IMAGES.spaceshipPanic;
   }
 
   return RESCUE_SCENE_IMAGES.spaceshipHappy;
