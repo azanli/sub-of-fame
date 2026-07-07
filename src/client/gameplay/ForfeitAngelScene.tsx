@@ -65,7 +65,7 @@ export const ForfeitAngelScene = ({
           src={FORFEIT_ANGEL_SCENE.imageSrc}
           alt=""
           aria-hidden="true"
-          className="h-[clamp(5rem,16vw,7.5rem)] w-auto object-contain"
+          className="h-[clamp(5rem,16vw,7.5rem)] w-auto object-contain opacity-25"
         />
       </div>
     </div>
