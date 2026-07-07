@@ -1,5 +1,7 @@
 import type { GameMode } from '../../shared/api';
+import { FaqSection } from './FaqSection';
 import { GameModeSelector } from './GameModeSelector';
+import { HowToPlaySection } from './HowToPlaySection';
 
 type HubSettingsPanelProps = {
   id: string;
@@ -26,7 +28,7 @@ export const HubSettingsPanel = ({
     }`}
   >
     <div className="overflow-hidden">
-      <div className="flex flex-col gap-2 pb-1 pt-2">
+      <div className="flex flex-col gap-3 pb-1 pt-2">
         <GameModeSelector
           value={gameMode}
           onChange={onGameModeChange}
@@ -37,6 +39,8 @@ export const HubSettingsPanel = ({
             {gameModeError}
           </p>
         ) : null}
+        <HowToPlaySection />
+        <FaqSection />
       </div>
     </div>
   </div>
