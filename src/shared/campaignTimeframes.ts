@@ -1,4 +1,10 @@
-export type CampaignTimeframe = 'all' | 'year' | 'month' | 'week' | 'day' | 'now';
+export type CampaignTimeframe =
+  | 'all'
+  | 'year'
+  | 'month'
+  | 'week'
+  | 'day'
+  | 'now';
 
 export type CampaignTimeframeConfig = {
   id: CampaignTimeframe;
@@ -11,37 +17,37 @@ export const CAMPAIGN_TIMEFRAMES: CampaignTimeframeConfig[] = [
   {
     id: 'all',
     title: 'Best of All Time',
-    description: 'Climb the all-time top posts ladder.',
+    description: 'The undisputed legends of the community.',
     icon: '🏆',
   },
   {
     id: 'year',
     title: 'Best of This Year',
-    description: 'Rank the top posts from this year.',
+    description: 'The defining moments of the last 365 days.',
     icon: '📅',
   },
   {
     id: 'month',
     title: 'Best of This Month',
-    description: 'Rank the top posts from this month.',
+    description: 'The cultural shifts of the current month.',
     icon: '🗓️',
   },
   {
     id: 'week',
     title: 'Best of This Week',
-    description: 'Rank the top posts from this week.',
+    description: 'The most viral trends from the past 7 days.',
     icon: '📈',
   },
   {
     id: 'day',
     title: 'Best of Today',
-    description: 'Rank the top posts from today.',
+    description: 'The biggest conversations happening right now.',
     icon: '🔥',
   },
   {
     id: 'now',
     title: 'Now (Live/Hot)',
-    description: 'Play the hottest posts right now.',
+    description: 'The hottest debates in the last hour.',
     icon: '⚡',
   },
 ];
