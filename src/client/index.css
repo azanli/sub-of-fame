@@ -274,6 +274,38 @@
   transition: none;
 }
 
+@keyframes rescue-snoo-falling-frame-a-keyframes {
+  0%,
+  49.99% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes rescue-snoo-falling-frame-b-keyframes {
+  0%,
+  49.99% {
+    opacity: 0;
+  }
+
+  50%,
+  100% {
+    opacity: 1;
+  }
+}
+
+.rescue-snoo-falling-frame-a {
+  animation: rescue-snoo-falling-frame-a-keyframes 450ms steps(1, end) infinite;
+}
+
+.rescue-snoo-falling-frame-b {
+  animation: rescue-snoo-falling-frame-b-keyframes 450ms steps(1, end) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rescue-spaceship-swing {
     animation: none;
@@ -305,6 +337,16 @@
   }
 
   .rescue-snoo-drop-out {
+    animation: none;
+    opacity: 0;
+  }
+
+  .rescue-snoo-falling-frame-a {
+    animation: none;
+    opacity: 1;
+  }
+
+  .rescue-snoo-falling-frame-b {
     animation: none;
     opacity: 0;
   }

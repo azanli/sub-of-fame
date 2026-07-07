@@ -21,6 +21,8 @@ export const RESCUE_SCENE_IMAGES = {
   spaceshipPanic: '/spaceship-panic.png',
   spaceshipSad: '/spaceship-sad.png',
   snoo: '/snoo-cheer-two.png',
+  snooFalling1: '/snoo-falling-1.png',
+  snooFalling2: '/snoo-falling-2.png',
   snooAngel: '/snoo-angel.png',
 } as const;
 
