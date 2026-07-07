@@ -130,7 +130,7 @@ describe('init — logged-out', () => {
     expect(mockResolveSubredditMetadata).not.toHaveBeenCalled();
   });
 
-  it('returns hostSubreddit as activeSubreddit on logged-out Community with no user fields', async () => {
+  it('returns a single host dashboard card on logged-out Community', async () => {
     const caller = createCaller(
       makeCtx({ userId: undefined, subredditName: 'gaming', surface: 'community' })
     );
@@ -146,7 +146,18 @@ describe('init — logged-out', () => {
       hasGameData: false,
       coins: null,
       userGlobalHiveIQ: null,
-      dashboardSubreddits: null,
+      dashboardSubreddits: [
+        {
+          subreddit: 'gaming',
+          displayName: 'gaming',
+          iconUrl: 'https://example.com/gaming.png',
+          metadataSource: 'curated',
+          currentRankIndex: 1,
+          userSubredditHiveIQ: null,
+          completedRoundCount: 0,
+          leaderboardRank: null,
+        },
+      ],
       activeSubredditMetrics: null,
       dailyChallenge: null,
     });
@@ -154,7 +165,7 @@ describe('init — logged-out', () => {
     expect(mockGetProgress).not.toHaveBeenCalled();
     expect(mockGetStats).not.toHaveBeenCalled();
     expect(mockGetLeaderboardRank).not.toHaveBeenCalled();
-    expect(mockResolveSubredditMetadata).not.toHaveBeenCalled();
+    expect(mockResolveSubredditMetadata).toHaveBeenCalledWith('gaming', expect.anything());
   });
 });
 
@@ -448,16 +459,37 @@ describe('init — logged-in Community', () => {
     expect(result.activeSubredditMetrics?.userSubredditHiveIQ).toBeNull();
   });
 
-  it('returns null dashboardSubreddits for logged-in Community', async () => {
+  it('returns a single host dashboard card for logged-in Community', async () => {
+    mockGetProgress.mockResolvedValue(4);
+    mockGetStats.mockResolvedValue(
+      makeStats({
+        bySubreddit: {
+          gaming: { correctSlots: 3, totalSlots: 6 },
+        },
+      })
+    );
+    mockGetLeaderboardRank.mockResolvedValue(2);
     const caller = createCaller(
       makeCtx({ userId: 'user-1', subredditName: 'gaming', surface: 'community' })
     );
 
     const result = await caller.init();
 
-    expect(result.dashboardSubreddits).toBeNull();
+    expect(result.dashboardSubreddits).toEqual([
+      {
+        subreddit: 'gaming',
+        displayName: 'gaming',
+        iconUrl: 'https://example.com/gaming.png',
+        metadataSource: 'curated',
+        currentRankIndex: 4,
+        userSubredditHiveIQ: 125,
+        completedRoundCount: 2,
+        leaderboardRank: 2,
+      },
+    ]);
     expect(mockGetAllProgress).not.toHaveBeenCalled();
-    expect(mockResolveSubredditMetadata).not.toHaveBeenCalled();
+    expect(mockResolveSubredditMetadata).toHaveBeenCalledWith('gaming', expect.anything());
+    expect(mockGetLeaderboardRank).toHaveBeenCalledWith('gaming', 'user-1');
   });
 
   it('sets activeSubreddit to the normalized hostSubreddit', async () => {

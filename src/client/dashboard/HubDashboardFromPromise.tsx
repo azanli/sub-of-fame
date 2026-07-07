@@ -23,10 +23,6 @@ export const HubDashboardFromPromise = ({
 }: HubDashboardFromPromiseProps) => {
   const initData = use(initPromise);
 
-  if (!initData.isHub) {
-    return null;
-  }
-
   return (
     <HubDashboard
       initData={{ ...initData, gameMode }}

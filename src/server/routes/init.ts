@@ -98,6 +98,49 @@ const buildDailyChallengeMetrics = (): DailyChallengeMetrics => ({
   resetsAt: getDailyChallengeResetAt(),
 });
 
+const buildHostDashboardCard = async (
+  hostSubreddit: string,
+  reddit: TRPCContext['reddit'],
+  options: {
+    userId?: string;
+    currentRankIndex?: number;
+    hostStats?: { correctSlots: number; totalSlots: number };
+  } = {}
+): Promise<SubredditDashboardCard | null> => {
+  const metadata = await resolveSubredditMetadata(hostSubreddit, reddit);
+  if (metadata === null) {
+    return null;
+  }
+
+  const currentRankIndex = options.currentRankIndex ?? 1;
+  const hostStats = options.hostStats ?? { correctSlots: 0, totalSlots: 0 };
+  const leaderboardRank =
+    options.userId !== undefined
+      ? await getLeaderboardRank(hostSubreddit, options.userId)
+      : null;
+
+  return {
+    ...metadata,
+    currentRankIndex,
+    userSubredditHiveIQ: computeHiveIQ(hostStats.correctSlots, hostStats.totalSlots),
+    completedRoundCount: Math.floor(hostStats.totalSlots / 3),
+    leaderboardRank,
+  };
+};
+
+const buildHostDashboardSubreddits = async (
+  hostSubreddit: string,
+  reddit: TRPCContext['reddit'],
+  options: {
+    userId?: string;
+    currentRankIndex?: number;
+    hostStats?: { correctSlots: number; totalSlots: number };
+  } = {}
+): Promise<SubredditDashboardCard[] | null> => {
+  const card = await buildHostDashboardCard(hostSubreddit, reddit, options);
+  return card !== null ? [card] : null;
+};
+
 export const initRouter = router({
   init: publicProcedure.query(async ({ ctx }): Promise<InitResponse> => {
     const launchContext = deriveLaunchContext(ctx.subredditName, ctx.surface);
@@ -106,6 +149,10 @@ export const initRouter = router({
     const playerName = await resolvePlayerName(ctx);
 
     if (ctx.userId === undefined) {
+      const dashboardSubreddits = isHub
+        ? null
+        : await buildHostDashboardSubreddits(hostSubreddit, ctx.reddit);
+
       return {
         hostSubreddit,
         isHub,
@@ -115,7 +162,7 @@ export const initRouter = router({
         hasGameData: false,
         coins: null,
         userGlobalHiveIQ: null,
-        dashboardSubreddits: null,
+        dashboardSubreddits,
         activeSubredditMetrics: null,
         dailyChallenge: isHub ? buildDailyChallengeMetrics() : null,
       };
@@ -165,6 +212,16 @@ export const initRouter = router({
       totalSlots: 0,
     };
 
+    const dashboardSubreddits = await buildHostDashboardSubreddits(
+      hostSubreddit,
+      ctx.reddit,
+      {
+        userId,
+        currentRankIndex,
+        hostStats,
+      }
+    );
+
     return {
       hostSubreddit,
       isHub: false,
@@ -174,7 +231,7 @@ export const initRouter = router({
       hasGameData: playerHasGameData(stats, { [hostSubreddit]: currentRankIndex }),
       coins,
       userGlobalHiveIQ: buildGlobalHiveIQ(stats),
-      dashboardSubreddits: null,
+      dashboardSubreddits,
       activeSubredditMetrics: {
         userSubredditHiveIQ: computeHiveIQ(hostStats.correctSlots, hostStats.totalSlots),
         currentRankIndex,

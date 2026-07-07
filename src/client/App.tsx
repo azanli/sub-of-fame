@@ -65,7 +65,7 @@ type AppProps = {
 const buildSessionFromInit = (init: InitResponse): SessionContext => ({
   isHub: init.isHub,
   isLoggedIn: init.userGlobalHiveIQ !== null,
-  campaignSubreddit: init.isHub ? null : init.hostSubreddit,
+  campaignSubreddit: null,
 });
 
 const buildNextRequest = (
@@ -94,11 +94,8 @@ const buildNextRequest = (
 const pendingInitPromise = new Promise<InitResponse>(() => {});
 
 const initialAppState = (init: InitResponse | undefined): AppState => {
-  if (init?.isHub) {
-    return { phase: 'hub_dashboard' };
-  }
   if (init) {
-    return { phase: 'booting' };
+    return { phase: 'hub_dashboard' };
   }
   return { phase: 'loading_hub', initPromise: pendingInitPromise };
 };
@@ -182,7 +179,7 @@ export const App = ({ preloadedInit }: AppProps) => {
         throw { type: 'network' } satisfies PuzzleLoadFailure;
       }
 
-      if (activeSession.isHub && activeSession.campaignSubreddit === null) {
+      if (activeSession.campaignSubreddit === null) {
         throw { type: 'problem', message: 'No subreddit selected.' } satisfies PuzzleLoadFailure;
       }
 
@@ -353,7 +350,7 @@ export const App = ({ preloadedInit }: AppProps) => {
         return;
       }
 
-      if (activeSession.isHub && activeSession.campaignSubreddit === null) {
+      if (activeSession.campaignSubreddit === null) {
         setState({ phase: 'hub_dashboard' });
         return;
       }
@@ -403,21 +400,16 @@ export const App = ({ preloadedInit }: AppProps) => {
 
   const handleHubLoadFailure = useCallback(() => {
     const activeSession = sessionRef.current;
-    if (activeSession?.isHub) {
+    if (activeSession !== null) {
       const resetSession: SessionContext = {
         ...activeSession,
         campaignSubreddit: null,
       };
       sessionRef.current = resetSession;
       setSession(resetSession);
-      setState({ phase: 'hub_dashboard' });
-      return;
     }
 
-    setState({
-      phase: 'problem',
-      message: 'Failed to load game state. Please try again.',
-    });
+    setState({ phase: 'hub_dashboard' });
   }, []);
 
   const beginHubLoad = useCallback(
@@ -425,13 +417,7 @@ export const App = ({ preloadedInit }: AppProps) => {
       const initPromise = fetchPromise.then(
         (init) => {
           applyInitData(init);
-
-          if (init.isHub) {
-            setState({ phase: 'hub_dashboard' });
-          } else {
-            loadNextPuzzleRef.current(0, undefined);
-          }
-
+          setState({ phase: 'hub_dashboard' });
           return init;
         },
         () => {
@@ -447,9 +433,6 @@ export const App = ({ preloadedInit }: AppProps) => {
 
   useEffect(() => {
     if (preloadedInit) {
-      if (!preloadedInit.isHub) {
-        void loadNextPuzzleRef.current(0, undefined);
-      }
       return;
     }
 
@@ -495,6 +478,39 @@ export const App = ({ preloadedInit }: AppProps) => {
       }
 
       setSelectionError(null);
+
+      if (!activeSession.isHub) {
+        const hostSubreddit = initDataRef.current?.hostSubreddit;
+        if (
+          hostSubreddit === undefined ||
+          subreddit.toLowerCase() !== hostSubreddit.toLowerCase()
+        ) {
+          return;
+        }
+
+        const updatedSession: SessionContext = {
+          ...activeSession,
+          campaignSubreddit: hostSubreddit,
+        };
+        sessionRef.current = updatedSession;
+        setSession(updatedSession);
+
+        if (!activeSession.isLoggedIn) {
+          const hostCard = initDataRef.current?.dashboardSubreddits?.find(
+            (card) => card.subreddit.toLowerCase() === hostSubreddit.toLowerCase()
+          );
+          guestRankIndexRef.current = hostCard?.currentRankIndex ?? 1;
+        }
+
+        beginPuzzleLoad(
+          fetchNextPuzzle(0, undefined),
+          0,
+          undefined,
+          subreddit,
+          true
+        );
+        return;
+      }
 
       const puzzlePromise = (async (): Promise<ReadyPuzzle> => {
         try {
@@ -724,13 +740,8 @@ export const App = ({ preloadedInit }: AppProps) => {
   }, [beginHubLoad]);
 
   const handleDashboard = useCallback(() => {
-    if (session?.isHub) {
-      refreshHubDashboard();
-      return;
-    }
-
-    void loadNextPuzzle(0, undefined);
-  }, [session, refreshHubDashboard, loadNextPuzzle]);
+    refreshHubDashboard();
+  }, [refreshHubDashboard]);
 
   if (state.phase === 'loading_hub') {
     return (

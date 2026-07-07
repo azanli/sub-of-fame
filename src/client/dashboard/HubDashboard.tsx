@@ -79,7 +79,7 @@ export const HubDashboard = ({
       return true;
     }
 
-    if (isLoggedIn && initData.dashboardSubreddits !== null) {
+    if (initData.dashboardSubreddits !== null) {
       return initData.dashboardSubreddits.some((card) =>
         matchesLoadingSubreddit(card.subreddit, loadingSubreddit)
       );
@@ -92,7 +92,6 @@ export const HubDashboard = ({
     initData.dashboardSubreddits,
     isDailyChallengeLoading,
     isLoadingSelection,
-    isLoggedIn,
     loadingSubreddit,
   ]);
 
@@ -204,18 +203,35 @@ export const HubDashboard = ({
               disabled
             />
           )}
-          {isLoggedIn && initData.dashboardSubreddits !== null
+          {initData.dashboardSubreddits !== null
             ? initData.dashboardSubreddits.map((card) => {
                 const isLoading = matchesLoadingSubreddit(
                   card.subreddit,
                   loadingSubreddit
                 );
 
+                if (isLoggedIn) {
+                  return (
+                    <DashboardCard
+                      key={card.subreddit}
+                      kind="hydrated"
+                      card={card}
+                      onSelect={onSelectSubreddit}
+                      isLoading={isLoading}
+                      disabled={isLoadingSelection && !isLoading}
+                    />
+                  );
+                }
+
                 return (
                   <DashboardCard
                     key={card.subreddit}
-                    kind="hydrated"
-                    card={card}
+                    kind="static"
+                    card={{
+                      name: card.subreddit,
+                      subreddit: card.displayName,
+                      iconUrl: card.iconUrl,
+                    }}
                     onSelect={onSelectSubreddit}
                     isLoading={isLoading}
                     disabled={isLoadingSelection && !isLoading}

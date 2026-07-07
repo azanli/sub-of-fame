@@ -17,6 +17,13 @@ export const HUB_SUBREDDITS: ReadonlySet<string> = new Set(
     .filter((s) => s.length > 0)
 );
 
+/**
+ * Dev-only host subreddit spoof for community-lock testing.
+ * When non-null, tRPC context pretends the game launched from this subreddit on a community post.
+ * Set to null before shipping or when testing normal hub behavior.
+ */
+export const DEV_SPOOF_HOST_SUBREDDIT: string | null = 'funny';
+
 /** Playtest host where dev-only tooling (e.g. rank reset) is permitted. */
 export const DEV_PLAYTEST_HOST_SUBREDDIT = 'suboffame';
 
