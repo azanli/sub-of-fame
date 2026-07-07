@@ -19,19 +19,11 @@ type SubredditDashboardCardProps = {
   disabled?: boolean;
 };
 
-const badgeVariantClasses: Record<
-  NonNullable<DashboardCardBadge['variant']>,
-  string
-> = {
-  default: 'text-gray-500 dark:text-gray-400',
-  accent: 'font-medium text-orange-600 dark:text-orange-400',
-};
-
 export const SubredditDashboardCard = ({
   icon,
   title,
   description,
-  badges = [],
+  badges: _badges = [],
   onSelect,
   isLoading = false,
   disabled = false,

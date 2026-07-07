@@ -11,6 +11,7 @@ import {
   subredditHasAnyStats,
 } from '../redis/statsStore';
 import { getLeaderboardRank } from '../redis/leaderboardStore';
+import { upsertUsername } from '../redis/profileStore';
 import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
 import { getDailyChallengeResetAt } from '../redis/dailyChallengeStore';
 import { CURATED_SUBREDDITS } from '../../shared/subreddits';
@@ -112,7 +113,9 @@ const resolvePlayerName = async (ctx: TRPCContext): Promise<string> => {
   }
 
   const username = await ctx.reddit.getCurrentUsername();
-  return username ?? 'Redditor';
+  const playerName = username ?? 'Redditor';
+  await upsertUsername(ctx.userId, playerName);
+  return playerName;
 };
 
 const playerHasGameData = (

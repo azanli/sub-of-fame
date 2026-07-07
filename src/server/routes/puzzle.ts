@@ -41,6 +41,7 @@ import {
   incrementStats,
 } from '../redis/statsStore';
 import { updateLeaderboard } from '../redis/leaderboardStore';
+import { upsertUsername } from '../redis/profileStore';
 import { ATTEMPT_TTL_S } from '../redis/keys';
 import type { PuzzleAttempt, PuzzleAttemptOwner, PuzzleSnapshot } from '../redis/types';
 import type { CampaignContext } from '../../shared/campaignContext';
@@ -744,6 +745,10 @@ export const puzzleRouter = router({
         coins = updatedCoins;
         nextRankIndex = await advanceRankIndex(attempt.owner.userId, attemptCtx);
         await updateLeaderboard(attemptCtx, attempt.owner.userId, attempt.rankIndex);
+        const submitUsername = await ctx.reddit.getCurrentUsername();
+        if (submitUsername !== undefined) {
+          await upsertUsername(attempt.owner.userId, submitUsername);
+        }
 
         const stats = await getStats(attempt.owner.userId);
         const aggregateStats = getSubredditAggregate(stats, attempt.subreddit);

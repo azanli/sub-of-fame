@@ -46,6 +46,14 @@ vi.mock('../redis/leaderboardStore.js', () => ({
   updateLeaderboard: vi.fn(),
   getLeaderboardRank: mockGetLeaderboardRank,
   getLeaderboardPage: vi.fn(),
+  getEcosystemLeaderboardPage: vi.fn(),
+  getEcosystemLeaderboardRank: vi.fn(),
+}));
+
+vi.mock('../redis/profileStore.js', () => ({
+  upsertUsername: vi.fn(),
+  getUsername: vi.fn(),
+  getUsernames: vi.fn(),
 }));
 
 const { appRouter } = await import('../appRouter.js');

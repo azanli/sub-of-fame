@@ -1,4 +1,5 @@
 import type { CampaignTimeframe } from './campaignTimeframes.js';
+import type { HiveIQDisplayState } from './hiveIQ.js';
 import type { PostContentBlock } from './postContent.js';
 
 export type { CampaignTimeframe } from './campaignTimeframes.js';
@@ -100,11 +101,42 @@ export type SubredditDashboardCard = SubredditDisplayMetadata & {
   leaderboardRank: number | null;
 };
 
+export type LeaderboardScope =
+  | { kind: 'ecosystem' }
+  | { kind: 'subreddit'; subredditName: string };
+
+export type LeaderboardRow = {
+  displayRank: number;
+  username: string;
+  hiveIQDisplay: HiveIQDisplayState;
+  isCurrentUser: boolean;
+};
+
+export type LeaderboardSection = {
+  scope: LeaderboardScope;
+  title: string;
+  subredditMetadata: SubredditDisplayMetadata | null;
+  entries: LeaderboardRow[];
+  viewerRank: number | null;
+};
+
+export type LeaderboardPageRequest = {
+  limit?: number;
+};
+
+export type LeaderboardPageResponse = {
+  isHub: boolean;
+  sections: LeaderboardSection[];
+};
+
 export type LeaderboardEntry = {
   userId: string;
+  username: string;
   bestClearedRankIndex: number;
   userSubredditHiveIQ: number;
+  completedRoundCount: number;
   displayRank: number;
+  isCurrentUser: boolean;
 };
 
 export type LaunchContext =

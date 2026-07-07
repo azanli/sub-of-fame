@@ -70,6 +70,9 @@ export const campaignLeaderboardKey = (ctx: CampaignContext): string =>
 export const legacyLeaderboardKey = (subredditName: string): string =>
   `leaderboard:${subredditName}`;
 
+/** Ecosystem-wide sum of per-subreddit bestClearedRankIndex scores. */
+export const ecosystemLeaderboardKey = (): string => 'leaderboard:ecosystem';
+
 // ─── Ladder cache ───────────────────────────────────────────────────────────────
 
 /** `sub:ladder:{subredditName}:{timeframe}:{page}` */

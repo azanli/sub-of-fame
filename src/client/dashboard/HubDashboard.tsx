@@ -13,6 +13,7 @@ import { HubSettingsPanel } from './HubSettingsPanel';
 type HubDashboardProps = {
   initData: InitResponse;
   onSelectSubreddit: (subreddit: string) => void;
+  onLeaderboardClick?: () => void;
   selectionError: string | null;
   loadingSubreddit?: string | null;
   gameMode: GameMode;
@@ -35,6 +36,7 @@ const matchesLoadingSubreddit = (
 export const HubDashboard = ({
   initData,
   onSelectSubreddit,
+  onLeaderboardClick,
   selectionError,
   loadingSubreddit = null,
   gameMode,
@@ -117,6 +119,7 @@ export const HubDashboard = ({
     <div className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 p-4">
       <DashboardTopBar
         coins={isLoggedIn ? initData.coins : null}
+        {...(onLeaderboardClick !== undefined ? { onLeaderboardClick } : {})}
         isSettingsOpen={isSettingsOpen}
         onSettingsToggle={() => {
           setIsSettingsOpen((open) => !open);

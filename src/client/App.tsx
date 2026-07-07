@@ -20,6 +20,7 @@ import { GameplayRound } from './gameplay/GameplayRound';
 import { PuzzleGateFromPromise } from './gameplay/PuzzleGateFromPromise';
 import { PuzzleLoadTransition } from './gameplay/PuzzleLoadTransition';
 import { RevealScreen } from './gameplay/RevealScreen';
+import { LeaderboardView } from './leaderboard/LeaderboardView';
 import { resolveLoadingCard } from './gameplay/resolveLoadingCard';
 import { StartPuzzleGateSkeleton } from './gameplay/StartPuzzleGate';
 import type { GameplaySubmitPayload, ReadyPuzzle } from './gameplay/types';
@@ -40,6 +41,7 @@ type AppState =
       initPromise: Promise<InitResponse>;
     }
   | { phase: 'hub_dashboard' }
+  | { phase: 'leaderboard' }
   | {
       phase: 'loading_next';
       puzzlePromise: Promise<ReadyPuzzle>;
@@ -423,6 +425,14 @@ export const App = ({ preloadedInit }: AppProps) => {
       setSession(resetSession);
     }
 
+    setState({ phase: 'hub_dashboard' });
+  }, []);
+
+  const handleOpenLeaderboard = useCallback(() => {
+    setState({ phase: 'leaderboard' });
+  }, []);
+
+  const handleCloseLeaderboard = useCallback(() => {
     setState({ phase: 'hub_dashboard' });
   }, []);
 
@@ -869,6 +879,14 @@ export const App = ({ preloadedInit }: AppProps) => {
     );
   }
 
+  if (state.phase === 'leaderboard' && initData !== null) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <LeaderboardView initData={initData} onBack={handleCloseLeaderboard} />
+      </div>
+    );
+  }
+
   if (state.phase === 'hub_dashboard' && initData !== null) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -876,6 +894,7 @@ export const App = ({ preloadedInit }: AppProps) => {
           <HubDashboard
             initData={initData}
             onSelectSubreddit={handleSelectSubreddit}
+            onLeaderboardClick={handleOpenLeaderboard}
             selectionError={selectionError}
             gameMode={initData.gameMode}
             onGameModeChange={handleGameModeChange}
@@ -886,6 +905,7 @@ export const App = ({ preloadedInit }: AppProps) => {
           <SubredditDashboard
             initData={initData}
             onSelectCampaign={handleSelectCampaign}
+            onLeaderboardClick={handleOpenLeaderboard}
             loadingTimeframe={loadingCampaignTimeframe}
             gameMode={initData.gameMode}
             onGameModeChange={handleGameModeChange}

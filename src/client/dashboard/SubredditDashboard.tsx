@@ -17,6 +17,7 @@ import {
 type SubredditDashboardProps = {
   initData: InitResponse;
   onSelectCampaign: (timeframe: CampaignTimeframe) => void;
+  onLeaderboardClick?: () => void;
   loadingTimeframe?: CampaignTimeframe | null;
   gameMode: GameMode;
   onGameModeChange: (mode: GameMode) => void;
@@ -29,6 +30,7 @@ const SETTINGS_PANEL_ID = 'subreddit-settings-panel';
 export const SubredditDashboard = ({
   initData,
   onSelectCampaign,
+  onLeaderboardClick,
   loadingTimeframe = null,
   gameMode,
   onGameModeChange,
@@ -70,6 +72,7 @@ export const SubredditDashboard = ({
     <div className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 p-4">
       <DashboardTopBar
         coins={isLoggedIn ? initData.coins : null}
+        {...(onLeaderboardClick !== undefined ? { onLeaderboardClick } : {})}
         isSettingsOpen={isSettingsOpen}
         onSettingsToggle={() => {
           setIsSettingsOpen((open) => !open);
