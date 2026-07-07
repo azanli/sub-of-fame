@@ -15,13 +15,15 @@ export const RESCUE_SCENE = {
   beamMaxHeightCss: 'calc(84% + clamp(1rem, 4vh, 2rem))',
   beamDeployDelayMs: 300,
   beamDeployDurationMs: 400,
+  /** Cheer pose continues falling before the panicking sprite frames begin */
+  panicSnooSpriteDelayMs: 1200,
 } as const;
 
 export const RESCUE_SCENE_IMAGES = {
   spaceshipHappy: '/spaceship-happy.png',
   spaceshipPanic: '/spaceship-panic.png',
   spaceshipSad: '/spaceship-sad.png',
-  snoo: '/snoo-cheer-two.png',
+  snooPensive: '/snoo-pensive.png',
   snooFalling1: '/snoo-falling-1.png',
   snooFalling2: '/snoo-falling-2.png',
   snooAngel: '/snoo-angel.png',

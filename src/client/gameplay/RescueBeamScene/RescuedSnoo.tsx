@@ -1,5 +1,9 @@
+import { useEffect, useState } from 'react';
 import type { RescueAnimationPhase } from '../rescueAnimation';
 import { RESCUE_SCENE, RESCUE_SCENE_IMAGES } from '../rescueAnimation';
+
+const prefersReducedMotion = (): boolean =>
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 type RescuedSnooProps = {
   bottomPercent: number;
@@ -31,7 +35,7 @@ const FallingSnooSprite = () => (
 
 const CheerSnoo = () => (
   <img
-    src={RESCUE_SCENE_IMAGES.snoo}
+    src={RESCUE_SCENE_IMAGES.snooPensive}
     alt=""
     aria-hidden="true"
     className="h-[clamp(4rem,14vw,6rem)] w-auto object-contain"
@@ -46,7 +50,41 @@ export const RescuedSnoo = ({
   phase,
 }: RescuedSnooProps) => {
   const isExpired = phase === 'expired';
-  const showFallingSprite = phase === 'panic' || phase === 'expired';
+  const [showPanicSprite, setShowPanicSprite] = useState(
+    () => phase === 'expired' || (phase === 'panic' && prefersReducedMotion())
+  );
+
+  useEffect(() => {
+    if (phase === 'expired') {
+      setShowPanicSprite(true);
+      return;
+    }
+
+    if (phase !== 'panic') {
+      setShowPanicSprite(false);
+      return;
+    }
+
+    if (prefersReducedMotion()) {
+      setShowPanicSprite(true);
+      return;
+    }
+
+    let cancelled = false;
+    const delayId = window.setTimeout(() => {
+      if (!cancelled) {
+        setShowPanicSprite(true);
+      }
+    }, RESCUE_SCENE.panicSnooSpriteDelayMs);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(delayId);
+    };
+  }, [phase]);
+
+  const showFallingSprite =
+    (phase === 'panic' && showPanicSprite) || phase === 'expired';
 
   return (
     <div
