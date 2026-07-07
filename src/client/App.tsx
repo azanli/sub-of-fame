@@ -770,11 +770,14 @@ export const App = ({ preloadedInit }: AppProps) => {
   }, [refreshHubDashboard]);
 
   if (state.phase === 'loading_hub') {
+    const knownIsHub =
+      initData?.isHub ?? session?.isHub ?? preloadedInit?.isHub;
+
     const dashboardSkeleton =
-      preloadedInit?.isHub === false ? (
-        <SubredditDashboardSkeleton />
-      ) : (
+      knownIsHub === true ? (
         <HubDashboardSkeleton />
+      ) : (
+        <SubredditDashboardSkeleton />
       );
 
     return (
@@ -810,11 +813,13 @@ export const App = ({ preloadedInit }: AppProps) => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Suspense
           fallback={
-            state.fromHubSelection ? (
+            state.fromHubSelection ||
+            (initData?.isHub === false && loadingCampaignTimeframe !== null) ? (
               <PuzzleLoadTransition
                 fromHubSelection={state.fromHubSelection}
                 initData={initData}
                 loadingSubreddit={state.subredditDisplayName}
+                loadingTimeframe={loadingCampaignTimeframe}
                 selectionError={selectionError}
               />
             ) : (

@@ -1,4 +1,5 @@
 import type { InitResponse } from '../../shared/api';
+import type { CampaignTimeframe } from '../../shared/campaignTimeframes';
 import { HubDashboard } from '../dashboard/HubDashboard';
 import { SubredditDashboard } from '../dashboard/SubredditDashboard';
 
@@ -7,6 +8,7 @@ type PuzzleLoadTransitionProps = {
   initData: InitResponse | null;
   loadingSubreddit: string;
   selectionError: string | null;
+  loadingTimeframe?: CampaignTimeframe | null;
   onSelectCampaign?: () => void;
 };
 
@@ -15,10 +17,11 @@ export const PuzzleLoadTransition = ({
   initData,
   loadingSubreddit,
   selectionError,
+  loadingTimeframe = null,
   onSelectCampaign,
 }: PuzzleLoadTransitionProps) => {
-  if (fromHubSelection && initData !== null) {
-    if (initData.isHub) {
+  if (initData !== null) {
+    if (initData.isHub && fromHubSelection) {
       return (
         <HubDashboard
           initData={initData}
@@ -31,16 +34,19 @@ export const PuzzleLoadTransition = ({
       );
     }
 
-    return (
-      <SubredditDashboard
-        initData={initData}
-        onSelectCampaign={() => {
-          onSelectCampaign?.();
-        }}
-        gameMode={initData.gameMode}
-        onGameModeChange={() => undefined}
-      />
-    );
+    if (!initData.isHub && (fromHubSelection || loadingTimeframe !== null)) {
+      return (
+        <SubredditDashboard
+          initData={initData}
+          onSelectCampaign={() => {
+            onSelectCampaign?.();
+          }}
+          loadingTimeframe={loadingTimeframe}
+          gameMode={initData.gameMode}
+          onGameModeChange={() => undefined}
+        />
+      );
+    }
   }
 
   return (
