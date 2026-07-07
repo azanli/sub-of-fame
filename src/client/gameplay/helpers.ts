@@ -182,10 +182,15 @@ export const resolveCasualSlotHighlight = (
   slotIndex: number,
   slot: { correct: boolean },
   score: number,
-  forfeited = false
+  forfeited = false,
+  skipped = false
 ): CasualSlotHighlight => {
   if (forfeited) {
     return slotIndex === 0 ? 'incorrect' : 'neutral';
+  }
+
+  if (skipped) {
+    return slotIndex === 0 ? 'correct' : 'neutral';
   }
 
   if (slot.correct) {

@@ -262,4 +262,16 @@ describe('resolveCasualSlotHighlight', () => {
       'neutral'
     );
   });
+
+  it('marks only the top slot correct on skip reveal', () => {
+    expect(
+      resolveCasualSlotHighlight(0, { correct: true }, 0, false, true)
+    ).toBe('correct');
+    expect(
+      resolveCasualSlotHighlight(1, { correct: true }, 0, false, true)
+    ).toBe('neutral');
+    expect(
+      resolveCasualSlotHighlight(2, { correct: true }, 0, false, true)
+    ).toBe('neutral');
+  });
 });

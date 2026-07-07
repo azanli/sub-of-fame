@@ -257,7 +257,11 @@ export const RevealScreen = ({
         window.setTimeout(() => {
           setRevealedSlotCount(slotIndex + 1);
           const slot = result.slots[slotIndex];
-          if (slot?.correct) {
+          const shouldFlash =
+            isCasualMode && isSkipped
+              ? slotIndex === 0
+              : Boolean(slot?.correct);
+          if (shouldFlash) {
             setFlashingSlotIndex(slotIndex);
             timers.push(
               window.setTimeout(() => setFlashingSlotIndex(null), 300)
@@ -578,17 +582,17 @@ export const RevealScreen = ({
               const upvoteBarWidthPercent =
                 maxSlotScore > 0 ? (slot.score / maxSlotScore) * 100 : 0;
 
-              const slotHighlight =
-                isCasualMode && !isSkipped
-                  ? resolveCasualSlotHighlight(
-                      index,
-                      slot,
-                      result.score,
-                      isForfeited
-                    )
-                  : slot.correct
-                    ? 'correct'
-                    : 'incorrect';
+              const slotHighlight = isCasualMode
+                ? resolveCasualSlotHighlight(
+                    index,
+                    slot,
+                    result.score,
+                    isForfeited,
+                    isSkipped
+                  )
+                : slot.correct
+                  ? 'correct'
+                  : 'incorrect';
 
               const rankBadgeBgClass = !isRevealed
                 ? 'bg-gray-200 dark:bg-gray-700'
