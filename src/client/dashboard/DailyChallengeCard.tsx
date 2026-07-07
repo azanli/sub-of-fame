@@ -1,4 +1,4 @@
-import { cardButtonClasses, idleCardClasses } from './DashboardCard';
+import { cardButtonClasses, idleCardClasses } from './dashboardCardStyles';
 import { DailyChallengeCountdown } from './DailyChallengeCountdown';
 import { SpinningLoadingCard } from './SpinningLoadingCard';
 

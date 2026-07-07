@@ -6,6 +6,8 @@ import { DAILY_CHALLENGE_SUBREDDIT } from '../../shared/dailyChallenge';
 import { resolveLoadingCard } from '../gameplay/resolveLoadingCard';
 import { DailyChallengeCard } from './DailyChallengeCard';
 import { DashboardCard } from './DashboardCard';
+import { DashboardSection } from './DashboardSection';
+import { DashboardTopBar } from './DashboardTopBar';
 import { HubSettingsPanel } from './HubSettingsPanel';
 
 type HubDashboardProps = {
@@ -55,7 +57,6 @@ export const HubDashboard = ({
       return;
     }
 
-    // Strip leading 'r/', 'R/', '/r/', or '/R/', then trim whitespace
     const sanitized = customSubreddit.replace(/^\/?r\//i, '').trim();
 
     if (sanitized.length === 0) {
@@ -114,54 +115,14 @@ export const HubDashboard = ({
 
   return (
     <div className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 p-4">
-      <div className="flex items-center">
-        {isLoggedIn && initData.coins !== null && (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-4 py-1.5 text-sm font-semibold text-orange-800 dark:border-orange-800 dark:bg-orange-950/60 dark:text-orange-200">
-            <img
-              src="/coin.svg"
-              alt=""
-              aria-hidden="true"
-              className="h-5 w-5"
-            />
-            <span className="tabular-nums">{initData.coins}</span>
-          </span>
-        )}
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => undefined}
-            className="text-sm font-semibold rounded-lg px-3 py-1.5 border transition-colors cursor-pointer
-    text-[#d93900] border-[#d93900] bg-[#d93900]/10 hover:text-[#c23300] hover:border-[#c23300] hover:bg-[#d93900]/20
-    dark:text-orange-400 dark:border-orange-400 dark:bg-orange-400/10 dark:hover:text-orange-300 dark:hover:border-orange-300 dark:hover:bg-orange-400/20"
-          >
-            <span className="inline-flex items-center gap-1">
-              Leaderboard
-              <span className="text-xs" aria-hidden="true">
-                🏆
-              </span>
-            </span>
-          </button>
-          <button
-            type="button"
-            aria-expanded={isSettingsOpen}
-            aria-controls={SETTINGS_PANEL_ID}
-            aria-label={isSettingsOpen ? 'Close settings' : 'Open settings'}
-            onClick={() => {
-              setIsSettingsOpen((open) => !open);
-            }}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
-          >
-            <span
-              aria-hidden="true"
-              className={`inline-block origin-center leading-none transition-transform duration-300 ease-out ${
-                isSettingsOpen ? 'rotate-90' : 'rotate-0'
-              }`}
-            >
-              ⚙️
-            </span>
-          </button>
-        </div>
-      </div>
+      <DashboardTopBar
+        coins={isLoggedIn ? initData.coins : null}
+        isSettingsOpen={isSettingsOpen}
+        onSettingsToggle={() => {
+          setIsSettingsOpen((open) => !open);
+        }}
+        settingsPanelId={SETTINGS_PANEL_ID}
+      />
 
       <HubSettingsPanel
         id={SETTINGS_PANEL_ID}
@@ -173,151 +134,140 @@ export const HubDashboard = ({
       />
 
       {initData.dailyChallenge !== null && (
-        <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Daily Challenge
-          </p>
-          <div className="flex flex-col gap-2 pr-1">
-            <DailyChallengeCard
-              resetsAt={initData.dailyChallenge.resetsAt}
-              onSelect={() => {
-                onSelectSubreddit(DAILY_CHALLENGE_SUBREDDIT);
-              }}
-              isLoading={isDailyChallengeLoading}
-              disabled={isLoadingSelection && !isDailyChallengeLoading}
-            />
-          </div>
-        </div>
+        <DashboardSection label="Daily Challenge">
+          <DailyChallengeCard
+            resetsAt={initData.dailyChallenge.resetsAt}
+            onSelect={() => {
+              onSelectSubreddit(DAILY_CHALLENGE_SUBREDDIT);
+            }}
+            isLoading={isDailyChallengeLoading}
+            disabled={isLoadingSelection && !isDailyChallengeLoading}
+          />
+        </DashboardSection>
       )}
 
-      <div className="flex flex-col gap-2">
-        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          Campaigns
-        </p>
-        <div className="flex flex-col gap-2 pr-1">
-          {customLoadingCard !== null && (
-            <DashboardCard
-              {...customLoadingCard}
-              isLoading
-              onSelect={() => undefined}
-              disabled
-            />
-          )}
-          {initData.dashboardSubreddits !== null
-            ? initData.dashboardSubreddits.map((card) => {
-                const isLoading = matchesLoadingSubreddit(
-                  card.subreddit,
-                  loadingSubreddit
-                );
+      <DashboardSection label="Campaigns">
+        {customLoadingCard !== null && (
+          <DashboardCard
+            {...customLoadingCard}
+            isLoading
+            onSelect={() => undefined}
+            disabled
+          />
+        )}
+        {initData.dashboardSubreddits !== null
+          ? initData.dashboardSubreddits.map((card) => {
+              const isLoading = matchesLoadingSubreddit(
+                card.subreddit,
+                loadingSubreddit
+              );
 
-                if (isLoggedIn) {
-                  return (
-                    <DashboardCard
-                      key={card.subreddit}
-                      kind="hydrated"
-                      card={card}
-                      onSelect={onSelectSubreddit}
-                      isLoading={isLoading}
-                      disabled={isLoadingSelection && !isLoading}
-                    />
-                  );
-                }
-
+              if (isLoggedIn) {
                 return (
                   <DashboardCard
                     key={card.subreddit}
-                    kind="static"
-                    card={{
-                      name: card.subreddit,
-                      subreddit: card.displayName,
-                      iconUrl: card.iconUrl,
-                    }}
-                    onSelect={onSelectSubreddit}
-                    isLoading={isLoading}
-                    disabled={isLoadingSelection && !isLoading}
-                  />
-                );
-              })
-            : CURATED_SUBREDDITS.map((card) => {
-                const isLoading = matchesLoadingSubreddit(
-                  card.name,
-                  loadingSubreddit
-                );
-
-                return (
-                  <DashboardCard
-                    key={card.name}
-                    kind="static"
+                    kind="hydrated"
                     card={card}
                     onSelect={onSelectSubreddit}
                     isLoading={isLoading}
                     disabled={isLoadingSelection && !isLoading}
                   />
                 );
-              })}
-        </div>
-      </div>
-
-      {initData.isHub && (
-        <form onSubmit={handleCustomSubmit} className="flex flex-col gap-2">
-          <label
-            htmlFor="custom-subreddit"
-            className="text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            Custom Subreddit
-          </label>
-          <div className="relative flex gap-2">
-            <input
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck="false"
-              id="custom-subreddit"
-              type="text"
-              value={customSubreddit}
-              onChange={(event) => {
-                setCustomSubreddit(event.target.value);
-              }}
-              placeholder="e.g. r/dadjokes"
-              disabled={isLoadingSelection}
-              className="peer min-w-0 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 outline-none focus:border-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-            />
-            {cannotAffordUnlock ? (
-              <p
-                aria-live="polite"
-                className="pointer-events-none absolute left-0 top-full z-10 mt-1 w-full text-sm text-orange-700 opacity-0 transition-opacity peer-focus:opacity-100 dark:text-orange-300"
-              >
-                You need {SUBREDDIT_UNLOCK_COST} coins to unlock a custom
-                subreddit.
-              </p>
-            ) : null}
-            <button
-              type="submit"
-              disabled={
-                isLoadingSelection ||
-                customSubreddit.trim().length === 0 ||
-                cannotAffordUnlock
               }
-              className="shrink-0 rounded-full bg-[#d93900] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#c23300] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <span className="inline-flex items-center gap-1">
-                Unlock
-                <img
-                  src="/coin.svg"
-                  alt=""
-                  aria-hidden="true"
-                  className="h-4 w-4"
+
+              return (
+                <DashboardCard
+                  key={card.subreddit}
+                  kind="static"
+                  card={{
+                    name: card.subreddit,
+                    subreddit: card.displayName,
+                    iconUrl: card.iconUrl,
+                  }}
+                  onSelect={onSelectSubreddit}
+                  isLoading={isLoading}
+                  disabled={isLoadingSelection && !isLoading}
                 />
-              </span>
-            </button>
-          </div>
-          {selectionError !== null && (
-            <p className="text-sm text-red-600 dark:text-red-400">
-              {selectionError}
+              );
+            })
+          : CURATED_SUBREDDITS.map((card) => {
+              const isLoading = matchesLoadingSubreddit(
+                card.name,
+                loadingSubreddit
+              );
+
+              return (
+                <DashboardCard
+                  key={card.name}
+                  kind="static"
+                  card={card}
+                  onSelect={onSelectSubreddit}
+                  isLoading={isLoading}
+                  disabled={isLoadingSelection && !isLoading}
+                />
+              );
+            })}
+      </DashboardSection>
+
+      <form onSubmit={handleCustomSubmit} className="flex flex-col gap-2">
+        <label
+          htmlFor="custom-subreddit"
+          className="text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          Custom Subreddit
+        </label>
+        <div className="relative flex gap-2">
+          <input
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
+            id="custom-subreddit"
+            type="text"
+            value={customSubreddit}
+            onChange={(event) => {
+              setCustomSubreddit(event.target.value);
+            }}
+            placeholder="e.g. r/dadjokes"
+            disabled={isLoadingSelection}
+            className="peer min-w-0 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 outline-none focus:border-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+          />
+          {cannotAffordUnlock ? (
+            <p
+              aria-live="polite"
+              className="pointer-events-none absolute left-0 top-full z-10 mt-1 w-full text-sm text-orange-700 opacity-0 transition-opacity peer-focus:opacity-100 dark:text-orange-300"
+            >
+              You need {SUBREDDIT_UNLOCK_COST} coins to unlock a custom
+              subreddit.
             </p>
-          )}
-        </form>
-      )}
+          ) : null}
+          <button
+            type="submit"
+            disabled={
+              isLoadingSelection ||
+              customSubreddit.trim().length === 0 ||
+              cannotAffordUnlock
+            }
+            className="shrink-0 rounded-full bg-[#d93900] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#c23300] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span className="inline-flex items-center gap-1">
+              Unlock
+              <img
+                src="/coin.svg"
+                alt=""
+                aria-hidden="true"
+                className="h-4 w-4"
+              />
+            </span>
+          </button>
+        </div>
+        {selectionError !== null && (
+          <p className="text-sm text-red-600 dark:text-red-400">
+            {selectionError}
+          </p>
+        )}
+      </form>
+
       <img
         className="mx-auto w-1/2 max-w-[220px] object-contain animate-[skip-snoo-rise_ease-out_both]"
         style={{ animationDuration: '700ms', animationDelay: '150ms' }}

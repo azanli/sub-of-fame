@@ -5,6 +5,7 @@ import {
 } from '../../shared/hiveIQ';
 import type { SubredditOption } from '../../shared/subreddits';
 import { formatSubredditLabel } from '../../shared/subreddits';
+import { cardButtonClasses, idleCardClasses } from './dashboardCardStyles';
 import { SpinningLoadingCard } from './SpinningLoadingCard';
 
 type DashboardCardBaseProps = {
@@ -24,14 +25,6 @@ type StaticCardProps = DashboardCardBaseProps & {
 };
 
 type DashboardCardProps = HydratedCardProps | StaticCardProps;
-
-// Exported so other priority dashboard cards (e.g. DailyChallengeCard) can reuse the
-// exact same geometric container and padding as standard curated subreddit cards.
-export const cardButtonClasses =
-  'flex w-full items-center gap-3 p-3 text-left transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60';
-
-export const idleCardClasses =
-  'rounded-xl border border-gray-200 bg-white hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-700 dark:hover:bg-gray-700/50';
 
 export const DashboardCard = (props: DashboardCardProps) => {
   const subreddit =

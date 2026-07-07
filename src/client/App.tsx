@@ -6,12 +6,15 @@ import {
   type PuzzleRevealResult,
 } from '../shared/api';
 import { SUBREDDIT_UNLOCK_COST } from '../shared/coins';
+import type { CampaignTimeframe } from '../shared/campaignTimeframes';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { TRPCClientError } from '@trpc/client';
 import { mergeInitGameMode, writeLocalGameMode } from './gameModePreference';
+import { DashboardFromPromise } from './dashboard/DashboardFromPromise';
 import { HubDashboard } from './dashboard/HubDashboard';
-import { HubDashboardFromPromise } from './dashboard/HubDashboardFromPromise';
 import { HubDashboardSkeleton } from './dashboard/HubDashboardSkeleton';
+import { SubredditDashboard } from './dashboard/SubredditDashboard';
+import { SubredditDashboardSkeleton } from './dashboard/SubredditDashboardSkeleton';
 import { GameplayRound } from './gameplay/GameplayRound';
 import { PuzzleGateFromPromise } from './gameplay/PuzzleGateFromPromise';
 import { PuzzleLoadTransition } from './gameplay/PuzzleLoadTransition';
@@ -123,6 +126,7 @@ export const App = ({ preloadedInit }: AppProps) => {
     preloadedInit ? mergeInitGameMode(preloadedInit) : null
   );
   const loadingFromHubRef = useRef(false);
+  const selectedTimeframeRef = useRef<CampaignTimeframe | null>(null);
   const [lastRevealRemarkIndexByKey, setLastRevealRemarkIndexByKey] = useState<
     Record<string, number | null>
   >({});
@@ -470,6 +474,10 @@ export const App = ({ preloadedInit }: AppProps) => {
     []
   );
 
+  const handleSelectCampaign = useCallback((timeframe: CampaignTimeframe) => {
+    selectedTimeframeRef.current = timeframe;
+  }, []);
+
   const handleSelectSubreddit = useCallback(
     (subreddit: string) => {
       const activeSession = sessionRef.current;
@@ -478,39 +486,6 @@ export const App = ({ preloadedInit }: AppProps) => {
       }
 
       setSelectionError(null);
-
-      if (!activeSession.isHub) {
-        const hostSubreddit = initDataRef.current?.hostSubreddit;
-        if (
-          hostSubreddit === undefined ||
-          subreddit.toLowerCase() !== hostSubreddit.toLowerCase()
-        ) {
-          return;
-        }
-
-        const updatedSession: SessionContext = {
-          ...activeSession,
-          campaignSubreddit: hostSubreddit,
-        };
-        sessionRef.current = updatedSession;
-        setSession(updatedSession);
-
-        if (!activeSession.isLoggedIn) {
-          const hostCard = initDataRef.current?.dashboardSubreddits?.find(
-            (card) => card.subreddit.toLowerCase() === hostSubreddit.toLowerCase()
-          );
-          guestRankIndexRef.current = hostCard?.currentRankIndex ?? 1;
-        }
-
-        beginPuzzleLoad(
-          fetchNextPuzzle(0, undefined),
-          0,
-          undefined,
-          subreddit,
-          true
-        );
-        return;
-      }
 
       const puzzlePromise = (async (): Promise<ReadyPuzzle> => {
         try {
@@ -744,12 +719,20 @@ export const App = ({ preloadedInit }: AppProps) => {
   }, [refreshHubDashboard]);
 
   if (state.phase === 'loading_hub') {
+    const dashboardSkeleton =
+      preloadedInit?.isHub === false ? (
+        <SubredditDashboardSkeleton />
+      ) : (
+        <HubDashboardSkeleton />
+      );
+
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <Suspense fallback={<HubDashboardSkeleton />}>
-          <HubDashboardFromPromise
+        <Suspense fallback={dashboardSkeleton}>
+          <DashboardFromPromise
             initPromise={state.initPromise}
             onSelectSubreddit={handleSelectSubreddit}
+            onSelectCampaign={handleSelectCampaign}
             selectionError={selectionError}
             gameMode={initData?.gameMode ?? 'casual'}
             onGameModeChange={handleGameModeChange}
@@ -826,15 +809,26 @@ export const App = ({ preloadedInit }: AppProps) => {
   if (state.phase === 'hub_dashboard' && initData !== null) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <HubDashboard
-          initData={initData}
-          onSelectSubreddit={handleSelectSubreddit}
-          selectionError={selectionError}
-          gameMode={initData.gameMode}
-          onGameModeChange={handleGameModeChange}
-          isSavingGameMode={isSavingGameMode}
-          gameModeError={gameModeError}
-        />
+        {initData.isHub ? (
+          <HubDashboard
+            initData={initData}
+            onSelectSubreddit={handleSelectSubreddit}
+            selectionError={selectionError}
+            gameMode={initData.gameMode}
+            onGameModeChange={handleGameModeChange}
+            isSavingGameMode={isSavingGameMode}
+            gameModeError={gameModeError}
+          />
+        ) : (
+          <SubredditDashboard
+            initData={initData}
+            onSelectCampaign={handleSelectCampaign}
+            gameMode={initData.gameMode}
+            onGameModeChange={handleGameModeChange}
+            isSavingGameMode={isSavingGameMode}
+            gameModeError={gameModeError}
+          />
+        )}
       </div>
     );
   }

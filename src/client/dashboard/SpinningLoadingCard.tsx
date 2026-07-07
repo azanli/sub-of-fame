@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { cardButtonClasses } from './DashboardCard';
+import { cardButtonClasses } from './dashboardCardStyles';
 
 type SpinningLoadingCardProps = {
   children: ReactNode;

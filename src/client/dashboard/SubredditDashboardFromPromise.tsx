@@ -1,36 +1,34 @@
 import { use } from 'react';
 import type { GameMode, InitResponse } from '../../shared/api';
-import { HubDashboard } from './HubDashboard';
+import type { CampaignTimeframe } from '../../shared/campaignTimeframes';
+import { SubredditDashboard } from './SubredditDashboard';
 
-type HubDashboardFromPromiseProps = {
+type SubredditDashboardFromPromiseProps = {
   initPromise: Promise<InitResponse>;
-  onSelectSubreddit: (subreddit: string) => void;
-  selectionError: string | null;
-  loadingSubreddit?: string | null;
+  onSelectCampaign: (timeframe: CampaignTimeframe) => void;
+  loadingTimeframe?: CampaignTimeframe | null;
   gameMode: GameMode;
   onGameModeChange: (mode: GameMode) => void;
   isSavingGameMode?: boolean;
   gameModeError?: string | null;
 };
 
-export const HubDashboardFromPromise = ({
+export const SubredditDashboardFromPromise = ({
   initPromise,
-  onSelectSubreddit,
-  selectionError,
-  loadingSubreddit = null,
+  onSelectCampaign,
+  loadingTimeframe = null,
   gameMode,
   onGameModeChange,
   isSavingGameMode = false,
   gameModeError = null,
-}: HubDashboardFromPromiseProps) => {
+}: SubredditDashboardFromPromiseProps) => {
   const initData = use(initPromise);
 
   return (
-    <HubDashboard
+    <SubredditDashboard
       initData={{ ...initData, gameMode }}
-      onSelectSubreddit={onSelectSubreddit}
-      selectionError={selectionError}
-      loadingSubreddit={loadingSubreddit}
+      onSelectCampaign={onSelectCampaign}
+      loadingTimeframe={loadingTimeframe}
       gameMode={gameMode}
       onGameModeChange={onGameModeChange}
       isSavingGameMode={isSavingGameMode}

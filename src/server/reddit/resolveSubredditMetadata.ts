@@ -14,12 +14,18 @@ const APP_FALLBACK_ICON_URL =
   'https://www.redditstatic.com/avatars/defaults/v2/avatar_default_1.png';
 const DAILY_CHALLENGE_ICON_URL = '/fame-icon.png';
 
-type Reddit = Pick<RedditClient, 'getSubredditInfoByName' | 'getSubredditStyles'>;
+type Reddit = Pick<
+  RedditClient,
+  'getSubredditInfoByName' | 'getSubredditStyles'
+>;
 
 const isInaccessibleSubredditType = (type: string | undefined): boolean =>
   type === 'private' || type === 'restricted';
 
-const resolveIconUrl = async (reddit: Reddit, subredditId: T5 | undefined): Promise<string> => {
+const resolveIconUrl = async (
+  reddit: Reddit,
+  subredditId: T5 | undefined
+): Promise<string> => {
   if (!subredditId) {
     return APP_FALLBACK_ICON_URL;
   }
@@ -47,7 +53,9 @@ export const resolveSubredditMetadata = async (
     };
   }
 
-  const curated = CURATED_SUBREDDITS.find((entry) => entry.name === subredditName);
+  const curated = CURATED_SUBREDDITS.find(
+    (entry) => entry.name === subredditName
+  );
   if (curated) {
     return {
       subreddit: subredditName,
@@ -77,7 +85,9 @@ export const resolveSubredditMetadata = async (
       return null;
     }
 
-    const displayName = normalizeSubredditDisplayName(info.name ?? subredditName);
+    const displayName = normalizeSubredditDisplayName(
+      info.name ?? subredditName
+    );
     const iconUrl = await resolveIconUrl(reddit, info.id);
 
     const entry: SubredditMetadataCacheEntry = {

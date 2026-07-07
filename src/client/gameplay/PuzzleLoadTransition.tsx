@@ -1,11 +1,13 @@
 import type { InitResponse } from '../../shared/api';
 import { HubDashboard } from '../dashboard/HubDashboard';
+import { SubredditDashboard } from '../dashboard/SubredditDashboard';
 
 type PuzzleLoadTransitionProps = {
   fromHubSelection: boolean;
   initData: InitResponse | null;
   loadingSubreddit: string;
   selectionError: string | null;
+  onSelectCampaign?: () => void;
 };
 
 export const PuzzleLoadTransition = ({
@@ -13,14 +15,28 @@ export const PuzzleLoadTransition = ({
   initData,
   loadingSubreddit,
   selectionError,
+  onSelectCampaign,
 }: PuzzleLoadTransitionProps) => {
   if (fromHubSelection && initData !== null) {
+    if (initData.isHub) {
+      return (
+        <HubDashboard
+          initData={initData}
+          loadingSubreddit={loadingSubreddit}
+          onSelectSubreddit={() => undefined}
+          selectionError={selectionError}
+          gameMode={initData.gameMode}
+          onGameModeChange={() => undefined}
+        />
+      );
+    }
+
     return (
-      <HubDashboard
+      <SubredditDashboard
         initData={initData}
-        loadingSubreddit={loadingSubreddit}
-        onSelectSubreddit={() => undefined}
-        selectionError={selectionError}
+        onSelectCampaign={() => {
+          onSelectCampaign?.();
+        }}
         gameMode={initData.gameMode}
         onGameModeChange={() => undefined}
       />
