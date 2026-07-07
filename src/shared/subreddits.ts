@@ -5,7 +5,7 @@ export type SubredditOption = {
 };
 
 export const normalizeSubredditDisplayName = (value: string): string =>
-  value.trim().replace(/^r\//i, '');
+  value.trim().replace(/^r\//i, '').split(' ')[0] ?? '';
 
 export const formatSubredditLabel = (displayName: string): string =>
   `r/${normalizeSubredditDisplayName(displayName)}`;
