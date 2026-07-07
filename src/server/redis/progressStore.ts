@@ -1,61 +1,117 @@
 import { redis } from '@devvit/web/server';
+import type { CampaignContext } from '../../shared/campaignContext';
+import { progressField, parseProgressField } from './campaignKeys';
 import { progressKey } from './keys';
 
 const PROGRESS_DEFAULT = 1;
 
-/**
- * Read the stored rankIndex for one subreddit.
- * Returns 1 (the default next-playable rank) when the field is absent.
- * rankIndex is a 1-based next-playable pointer, not a count of puzzles solved.
- */
-export const getProgress = async (userId: string, subredditName: string): Promise<number> => {
-  const raw = await redis.hGet(progressKey(userId), subredditName);
-  if (raw === undefined) return PROGRESS_DEFAULT;
-  const parsed = parseInt(raw, 10);
-  return Number.isFinite(parsed) ? parsed : PROGRESS_DEFAULT;
-};
+const resolveStoredField = (ctx: CampaignContext): string => progressField(ctx);
 
 /**
- * Overwrite the rankIndex for one subreddit (e.g. during recovery or migration).
- * Prefer `incrementProgress` for normal forward advancement.
+ * Read the stored rankIndex for one campaign scope.
+ * Supports lazy migration from legacy `{subreddit}` fields to `{subreddit}:all`.
  */
-export const setProgress = async (
+export const getProgress = async (
   userId: string,
-  subredditName: string,
-  rankIndex: number
-): Promise<void> => {
-  await redis.hSet(progressKey(userId), { [subredditName]: String(rankIndex) });
-};
-
-/**
- * Atomically advance the rankIndex for one subreddit by 1 and return the new value.
- * Used on invalid-post skips and successful submits.
- */
-export const incrementProgress = async (
-  userId: string,
-  subredditName: string
+  ctx: CampaignContext
 ): Promise<number> => {
   const key = progressKey(userId);
-  const raw = await redis.hGet(key, subredditName);
-  if (raw === undefined) {
-    const next = PROGRESS_DEFAULT + 1;
-    await redis.hSet(key, { [subredditName]: String(next) });
-    return next;
+  const field = resolveStoredField(ctx);
+
+  const raw = await redis.hGet(key, field);
+  if (raw !== undefined) {
+    const parsed = parseInt(raw, 10);
+    return Number.isFinite(parsed) ? parsed : PROGRESS_DEFAULT;
   }
-  return redis.hIncrBy(key, subredditName, 1);
+
+  if (ctx.timeframe === 'all') {
+    const legacyRaw = await redis.hGet(key, ctx.subredditName);
+    if (legacyRaw !== undefined) {
+      const parsed = parseInt(legacyRaw, 10);
+      return Number.isFinite(parsed) ? parsed : PROGRESS_DEFAULT;
+    }
+  }
+
+  return PROGRESS_DEFAULT;
+};
+
+export const setProgress = async (
+  userId: string,
+  ctx: CampaignContext,
+  rankIndex: number
+): Promise<void> => {
+  const key = progressKey(userId);
+  const field = resolveStoredField(ctx);
+  await redis.hSet(key, { [field]: String(rankIndex) });
+
+  if (ctx.timeframe === 'all') {
+    await redis.hDel(key, [ctx.subredditName]);
+  }
+};
+
+export const incrementProgress = async (
+  userId: string,
+  ctx: CampaignContext
+): Promise<number> => {
+  const key = progressKey(userId);
+  const field = resolveStoredField(ctx);
+  const current = await getProgress(userId, ctx);
+  const next = current + 1;
+  await redis.hSet(key, { [field]: String(next) });
+
+  if (ctx.timeframe === 'all') {
+    await redis.hDel(key, [ctx.subredditName]);
+  }
+
+  return next;
 };
 
 /**
- * Return all subreddit→rankIndex entries stored in the progress hash.
- * Used by `init` to discover which custom subreddits have persisted progress.
- * Returns an empty object when no progress exists.
+ * Return all campaign scopes stored in the progress hash.
+ * Legacy subreddit-only fields are normalized to timeframe `all`.
  */
-export const getAllProgress = async (userId: string): Promise<Record<string, number>> => {
+export const getAllProgress = async (
+  userId: string
+): Promise<Record<string, Record<CampaignContext['timeframe'], number>>> => {
   const raw = await redis.hGetAll(progressKey(userId));
-  const result: Record<string, number> = {};
-  for (const [sub, value] of Object.entries(raw)) {
-    const parsed = parseInt(value, 10);
-    result[sub] = Number.isFinite(parsed) ? parsed : PROGRESS_DEFAULT;
+  const result: Record<string, Record<CampaignContext['timeframe'], number>> = {};
+
+  for (const [field, value] of Object.entries(raw)) {
+    const parsedField = parseProgressField(field);
+    if (parsedField === null) continue;
+
+    const rankIndex = parseInt(value, 10);
+    const normalizedRank = Number.isFinite(rankIndex) ? rankIndex : PROGRESS_DEFAULT;
+
+    if (!result[parsedField.subredditName]) {
+      result[parsedField.subredditName] = {} as Record<CampaignContext['timeframe'], number>;
+    }
+    result[parsedField.subredditName]![parsedField.timeframe] = normalizedRank;
   }
+
   return result;
+};
+
+export type ParsedProgressEntry = {
+  subredditName: string;
+  timeframe: CampaignContext['timeframe'];
+  rankIndex: number;
+};
+
+/** Flat list of parsed progress entries for dashboard discovery. */
+export const listProgressEntries = async (userId: string): Promise<ParsedProgressEntry[]> => {
+  const nested = await getAllProgress(userId);
+  const entries: ParsedProgressEntry[] = [];
+
+  for (const [subredditName, timeframes] of Object.entries(nested)) {
+    for (const [timeframe, rankIndex] of Object.entries(timeframes)) {
+      entries.push({
+        subredditName,
+        timeframe: timeframe as CampaignContext['timeframe'],
+        rankIndex,
+      });
+    }
+  }
+
+  return entries;
 };

@@ -3,14 +3,19 @@ import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
 import { deriveLaunchContext, normalizeSubredditName } from '../launchContext';
 import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
-import { getAllProgress } from '../redis/progressStore';
+import { listProgressEntries } from '../redis/progressStore';
 import { getRankIndex, setRankIndex } from '../redis/rankProgress';
 import { resolveLadderPage } from '../reddit/ladderPipeline';
 import { SOFT_DEADLINE_MS } from '../../shared/api';
 import { SUBREDDIT_UNLOCK_COST } from '../../shared/coins';
 import { CURATED_SUBREDDITS } from '../../shared/subreddits';
 import { isDailyChallengeSubreddit } from '../../shared/dailyChallenge';
-import { deductCoins, getStats, setGameMode } from '../redis/statsStore';
+import {
+  CAMPAIGN_TIMEFRAME_IDS,
+  DEFAULT_CAMPAIGN_TIMEFRAME,
+  type CampaignContext,
+} from '../../shared/campaignContext';
+import { deductCoins, getStats, setGameMode, subredditHasAnyStats } from '../redis/statsStore';
 import type { SetGameModeResponse } from '../../shared/api';
 
 const WARM_DEADLINE_MS = Math.min(3000, SOFT_DEADLINE_MS);
@@ -29,13 +34,16 @@ const requiresUnlockPayment = async (
     return false;
   }
 
-  const [progress, stats] = await Promise.all([getAllProgress(userId), getStats(userId)]);
+  const [progressEntries, stats] = await Promise.all([
+    listProgressEntries(userId),
+    getStats(userId),
+  ]);
 
-  if (subreddit in progress) {
+  if (progressEntries.some((entry) => entry.subredditName === subreddit)) {
     return false;
   }
 
-  if ((stats.bySubreddit[subreddit]?.totalSlots ?? 0) > 0) {
+  if (subredditHasAnyStats(stats, subreddit)) {
     return false;
   }
 
@@ -44,7 +52,12 @@ const requiresUnlockPayment = async (
 
 export const sessionRouter = router({
   selectSubreddit: publicProcedure
-    .input(z.object({ subreddit: z.string() }))
+    .input(
+      z.object({
+        subreddit: z.string(),
+        timeframe: z.enum(CAMPAIGN_TIMEFRAME_IDS).optional(),
+      })
+    )
     .mutation(async ({ input, ctx }) => {
       const launchContext = deriveLaunchContext(ctx.subredditName, ctx.surface);
       if (launchContext.surface === 'community') {
@@ -62,6 +75,11 @@ export const sessionRouter = router({
         });
       }
 
+      const campaignCtx: CampaignContext = {
+        subredditName: subreddit,
+        timeframe: input.timeframe ?? DEFAULT_CAMPAIGN_TIMEFRAME,
+      };
+
       const metadata = await resolveSubredditMetadata(subreddit, ctx.reddit);
       if (!metadata) {
         throw new TRPCError({
@@ -75,7 +93,7 @@ export const sessionRouter = router({
         softDeadlineAt: Date.now() + WARM_DEADLINE_MS,
         itemsCheckedRemaining: 0,
       };
-      const warmResult = await resolveLadderPage(subreddit, 1, warmBudget, ctx.reddit);
+      const warmResult = await resolveLadderPage(campaignCtx, 1, warmBudget, ctx.reddit);
       if (warmResult.kind !== 'hit') {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
@@ -106,13 +124,14 @@ export const sessionRouter = router({
           }
 
           coins = deduction.coins;
-          await setRankIndex(ctx.userId, subreddit, 1);
+          await setRankIndex(ctx.userId, campaignCtx, 1);
         } else {
           coins = (await getStats(ctx.userId)).coins;
         }
       }
 
-      const currentRankIndex = ctx.userId ? await getRankIndex(ctx.userId, subreddit) : 1;
+      const currentRankIndex =
+        ctx.userId !== undefined ? await getRankIndex(ctx.userId, campaignCtx) : 1;
 
       return {
         activeSubreddit: subreddit,

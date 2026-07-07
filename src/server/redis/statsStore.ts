@@ -1,19 +1,33 @@
 import { redis } from '@devvit/web/server';
-import type { GameMode, RoundStatsDelta, UserStatsProfile } from '../../shared/api';
+import type { CampaignContext } from '../../shared/campaignContext';
+import type { CampaignTimeframe } from '../../shared/campaignTimeframes';
+import type {
+  GameMode,
+  PerformanceCounters,
+  RoundStatsDelta,
+  SubredditStatsProfile,
+  UserStatsProfile,
+} from '../../shared/api';
 import { DEFAULT_GAME_MODE } from '../../shared/api';
 import { computeHiveIQScore } from '../../shared/hiveIQ';
+import {
+  statsCampaignCorrectField,
+  statsCampaignTotalField,
+  statsSubredditCorrectField,
+  statsSubredditTotalField,
+} from './campaignKeys';
 import {
   statsKey,
   statsCoinsField,
   statsGameModeField,
   statsGlobalCorrectField,
   statsGlobalTotalField,
-  statsSubCorrectField,
-  statsSubTotalField,
 } from './keys';
 
 /** Welcome balance granted once when a user has no coins field yet. */
 export const WELCOME_COINS = 3;
+
+const EMPTY_COUNTERS: PerformanceCounters = { correctSlots: 0, totalSlots: 0 };
 
 const parseStoredGameMode = (raw: string | undefined): GameMode => {
   if (raw === 'casual' || raw === 'expert') {
@@ -22,18 +36,11 @@ const parseStoredGameMode = (raw: string | undefined): GameMode => {
   return DEFAULT_GAME_MODE;
 };
 
-/**
- * Read the player's stored gameplay mode preference.
- * Falls back to DEFAULT_GAME_MODE when unset or invalid.
- */
 export const getGameMode = async (userId: string): Promise<GameMode> => {
   const raw = await redis.hGet(statsKey(userId), statsGameModeField());
   return parseStoredGameMode(raw);
 };
 
-/**
- * Persist the player's gameplay mode preference on the stats hash.
- */
 export const setGameMode = async (
   userId: string,
   gameMode: GameMode
@@ -42,18 +49,11 @@ export const setGameMode = async (
   return gameMode;
 };
 
-/**
- * Compute Hive IQ from raw counters.
- * Returns null when totalSlots is 0 — not yet measured.
- */
 export const computeHiveIQ = (
   correctSlots: number,
   totalSlots: number
 ): number | null => computeHiveIQScore(correctSlots, totalSlots);
 
-/**
- * Grant the welcome coin balance on first access. Idempotent for existing wallets.
- */
 export const ensureWelcomeCoins = async (userId: string): Promise<number> => {
   const key = statsKey(userId);
   const field = statsCoinsField();
@@ -67,32 +67,25 @@ export const ensureWelcomeCoins = async (userId: string): Promise<number> => {
   return WELCOME_COINS;
 };
 
-/**
- * Increment stats counters atomically after a successful submit.
- * total always advances by 3 (one round = 3 slots).
- * correctSlots advances Hive IQ counters; coinAward advances the wallet.
- * Uses HINCRBY so missing fields start at 0 automatically.
- */
 export const incrementStats = async (
   userId: string,
-  subredditName: string,
+  ctx: CampaignContext,
   delta: RoundStatsDelta
 ): Promise<number> => {
   const key = statsKey(userId);
-  const [, , , , coins] = await Promise.all([
+  const [, , , , , , coins] = await Promise.all([
     redis.hIncrBy(key, statsGlobalCorrectField(), delta.correctSlots),
     redis.hIncrBy(key, statsGlobalTotalField(), 3),
-    redis.hIncrBy(key, statsSubCorrectField(subredditName), delta.correctSlots),
-    redis.hIncrBy(key, statsSubTotalField(subredditName), 3),
+    redis.hIncrBy(key, statsCampaignCorrectField(ctx), delta.correctSlots),
+    redis.hIncrBy(key, statsCampaignTotalField(ctx), 3),
+    redis.hIncrBy(key, statsSubredditCorrectField(ctx.subredditName), delta.correctSlots),
+    redis.hIncrBy(key, statsSubredditTotalField(ctx.subredditName), 3),
     redis.hIncrBy(key, statsCoinsField(), delta.coinAward),
   ]);
 
   return coins;
 };
 
-/**
- * Attempt to deduct Karma Coins. Rolls back if the balance would go negative.
- */
 export const deductCoins = async (
   userId: string,
   amount: number
@@ -112,52 +105,140 @@ export const deductCoins = async (
   return { ok: true, coins: newBalance };
 };
 
-/**
- * Attempt to deduct one Karma Coin. Rolls back if the balance would go negative.
- */
 export const deductCoin = async (
   userId: string
 ): Promise<{ ok: true; coins: number } | { ok: false }> => deductCoins(userId, 1);
 
-/**
- * Read all stats for a user and return them as a structured profile.
- * Counter fields that are absent default to 0.
- */
+const VALID_TIMEFRAMES: CampaignTimeframe[] = [
+  'all',
+  'year',
+  'month',
+  'week',
+  'day',
+  'now',
+];
+
+const parseStatsField = (
+  field: string
+): { subreddit: string; kind: 'aggregate' | 'campaign'; timeframe?: CampaignTimeframe; counter: 'correct' | 'total' } | null => {
+  const aggregateMatch = /^sub:(.+):(correct|total)$/.exec(field);
+  if (aggregateMatch) {
+    const [, subreddit, counterKind] = aggregateMatch;
+    if (subreddit === undefined || counterKind === undefined) return null;
+
+    const timeframeParts = subreddit.split(':');
+    if (timeframeParts.length === 2) {
+      const [subName, timeframeRaw] = timeframeParts;
+      if (
+        subName !== undefined &&
+        timeframeRaw !== undefined &&
+        VALID_TIMEFRAMES.includes(timeframeRaw as CampaignTimeframe) &&
+        (counterKind === 'correct' || counterKind === 'total')
+      ) {
+        return {
+          subreddit: subName,
+          kind: 'campaign',
+          timeframe: timeframeRaw as CampaignTimeframe,
+          counter: counterKind,
+        };
+      }
+    }
+
+    if (counterKind === 'correct' || counterKind === 'total') {
+      return { subreddit, kind: 'aggregate', counter: counterKind };
+    }
+  }
+
+  return null;
+};
+
 export const getStats = async (userId: string): Promise<UserStatsProfile> => {
   const fields = await redis.hGetAll(statsKey(userId));
 
-  const parseField = (field: string): number => {
+  const parseFieldValue = (field: string): number => {
     const v = fields[field];
     if (v === undefined) return 0;
     const n = parseInt(v, 10);
     return Number.isFinite(n) ? n : 0;
   };
 
-  const bySubreddit: Record<string, { correctSlots: number; totalSlots: number }> = {};
+  const bySubreddit: Record<string, SubredditStatsProfile> = {};
 
-  for (const field of Object.keys(fields)) {
-    // Match sub:{subredditName}:(correct|total)
-    const match = /^sub:(.+):(correct|total)$/.exec(field);
-    if (!match) continue;
-    const sub = match[1];
-    const kind = match[2];
-    if (sub === undefined || kind === undefined) continue;
-    if (!bySubreddit[sub]) {
-      bySubreddit[sub] = { correctSlots: 0, totalSlots: 0 };
+  const ensureSubreddit = (subreddit: string): SubredditStatsProfile => {
+    if (!bySubreddit[subreddit]) {
+      bySubreddit[subreddit] = {
+        aggregate: { ...EMPTY_COUNTERS },
+        byTimeframe: {},
+      };
     }
-    if (kind === 'correct') {
-      bySubreddit[sub].correctSlots = parseField(field);
+    return bySubreddit[subreddit]!;
+  };
+
+  for (const [field, value] of Object.entries(fields)) {
+    const parsed = parseStatsField(field);
+    if (parsed === null) continue;
+
+    const amount = parseInt(value, 10);
+    const normalized = Number.isFinite(amount) ? amount : 0;
+    const profile = ensureSubreddit(parsed.subreddit);
+
+    if (parsed.kind === 'aggregate') {
+      if (parsed.counter === 'correct') {
+        profile.aggregate.correctSlots = normalized;
+      } else {
+        profile.aggregate.totalSlots = normalized;
+      }
+      continue;
+    }
+
+    if (parsed.timeframe === undefined) continue;
+    if (!profile.byTimeframe[parsed.timeframe]) {
+      profile.byTimeframe[parsed.timeframe] = { ...EMPTY_COUNTERS };
+    }
+    const timeframeStats = profile.byTimeframe[parsed.timeframe]!;
+    if (parsed.counter === 'correct') {
+      timeframeStats.correctSlots = normalized;
     } else {
-      bySubreddit[sub].totalSlots = parseField(field);
+      timeframeStats.totalSlots = normalized;
     }
   }
 
   return {
     global: {
-      correctSlots: parseField(statsGlobalCorrectField()),
-      totalSlots: parseField(statsGlobalTotalField()),
+      correctSlots: parseFieldValue(statsGlobalCorrectField()),
+      totalSlots: parseFieldValue(statsGlobalTotalField()),
     },
     bySubreddit,
-    coins: parseField(statsCoinsField()),
+    coins: parseFieldValue(statsCoinsField()),
   };
 };
+
+export const getSubredditAggregate = (
+  stats: UserStatsProfile,
+  subredditName: string
+): PerformanceCounters =>
+  stats.bySubreddit[subredditName]?.aggregate ?? EMPTY_COUNTERS;
+
+export const getCampaignStats = (
+  stats: UserStatsProfile,
+  ctx: CampaignContext
+): PerformanceCounters =>
+  stats.bySubreddit[ctx.subredditName]?.byTimeframe[ctx.timeframe] ?? EMPTY_COUNTERS;
+
+export const subredditHasAnyStats = (
+  stats: UserStatsProfile,
+  subredditName: string
+): boolean => {
+  const profile = stats.bySubreddit[subredditName];
+  if (profile === undefined) return false;
+  if (profile.aggregate.totalSlots > 0) return true;
+  return Object.values(profile.byTimeframe).some((entry) => (entry?.totalSlots ?? 0) > 0);
+};
+
+export const listSubredditsWithStats = (stats: UserStatsProfile): string[] =>
+  Object.entries(stats.bySubreddit)
+    .filter(([, profile]) => {
+      if (profile.aggregate.totalSlots > 0) return true;
+      return Object.values(profile.byTimeframe).some((entry) => (entry?.totalSlots ?? 0) > 0);
+    })
+    .map(([subreddit]) => subreddit);

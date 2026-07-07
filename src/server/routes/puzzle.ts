@@ -3,10 +3,10 @@ import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { router, publicProcedure } from '../trpc';
 import { isDevPlaytestHost } from '../config';
+import { resolveCampaignContext } from '../campaignContext';
 import {
   deriveLaunchContext,
   normalizeSubredditName,
-  resolveRequestedSubreddit,
 } from '../launchContext';
 import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
 import {
@@ -19,7 +19,7 @@ import {
 } from '../reddit/ladderPipeline';
 import { resolvePostContent } from '../reddit/postContent';
 import { validateComments } from '../reddit/commentValidation';
-import { resolveLadderPageSize } from '../redis/keys';
+import { resolveCampaignLadderPageSize } from '../redis/campaignKeys';
 import {
   advanceRankIndex,
   getRankIndex,
@@ -37,11 +37,14 @@ import {
   deductCoin,
   getGameMode,
   getStats,
+  getSubredditAggregate,
   incrementStats,
 } from '../redis/statsStore';
 import { updateLeaderboard } from '../redis/leaderboardStore';
 import { ATTEMPT_TTL_S } from '../redis/keys';
-import type { PuzzleAttemptOwner, PuzzleSnapshot } from '../redis/types';
+import type { PuzzleAttempt, PuzzleAttemptOwner, PuzzleSnapshot } from '../redis/types';
+import type { CampaignContext } from '../../shared/campaignContext';
+import { CAMPAIGN_TIMEFRAME_IDS } from '../../shared/campaignContext';
 import {
   CASUAL_COIN_AWARDS,
   DEFAULT_GAME_MODE,
@@ -77,7 +80,7 @@ const resolveSubredditDisplayName = async (
   return (
     metadata?.displayName ??
     CURATED_SUBREDDITS.find((entry) => entry.name === subredditName)
-      ?.displayName ??
+      ?.subreddit ??
     subredditName
   );
 };
@@ -100,14 +103,19 @@ const shuffleCommentIds = (
 
 const advanceSkip = async (
   userId: string | undefined,
-  subreddit: string,
+  campaignCtx: CampaignContext,
   currentRankIndex: number
 ): Promise<number> => {
   if (userId !== undefined) {
-    return advanceRankIndex(userId, subreddit);
+    return advanceRankIndex(userId, campaignCtx);
   }
   return currentRankIndex + 1;
 };
+
+const attemptCampaignContext = (attempt: PuzzleAttempt): CampaignContext => ({
+  subredditName: attempt.subreddit,
+  timeframe: attempt.timeframe,
+});
 
 const submitError = (
   code: PuzzleSubmitErrorCode,
@@ -358,33 +366,34 @@ export const puzzleRouter = router({
     .input(
       z.object({
         subreddit: z.string().optional(),
+        timeframe: z.enum(CAMPAIGN_TIMEFRAME_IDS).optional(),
         rankIndex: z.number().int().min(1).optional(),
         gameMode: z.enum(['casual', 'expert']).optional(),
       })
     )
     .mutation(async ({ input, ctx }): Promise<PuzzleNextResponse> => {
       const launchContext = deriveLaunchContext(ctx.subredditName, ctx.surface);
+      const campaignResult = resolveCampaignContext(launchContext, input);
+      if (!campaignResult.ok) {
+        return {
+          status: 'error',
+          code: campaignResult.code,
+          message:
+            campaignResult.code === 'SUBREDDIT_REQUIRED'
+              ? 'A subreddit is required for Hub gameplay.'
+              : campaignResult.code === 'TIMEFRAME_REQUIRED'
+                ? 'A campaign timeframe is required.'
+                : 'Gameplay is locked to the host community subreddit.',
+        };
+      }
+
+      const campaignCtx = campaignResult.ctx;
+      const subreddit = campaignCtx.subredditName;
+
       const attemptGameMode =
         ctx.userId !== undefined
           ? await getGameMode(ctx.userId)
           : (input.gameMode ?? DEFAULT_GAME_MODE);
-      const subredditResult = resolveRequestedSubreddit(
-        launchContext,
-        input.subreddit
-      );
-
-      if (!subredditResult.ok) {
-        return {
-          status: 'error',
-          code: subredditResult.code,
-          message:
-            subredditResult.code === 'SUBREDDIT_REQUIRED'
-              ? 'A subreddit is required for Hub gameplay.'
-              : 'Gameplay is locked to the host community subreddit.',
-        };
-      }
-
-      const subreddit = subredditResult.subreddit;
 
       const metadata = await resolveSubredditMetadata(subreddit, ctx.reddit);
       if (launchContext.surface === 'hub' && metadata === null) {
@@ -398,12 +407,12 @@ export const puzzleRouter = router({
       const campaignDisplayName =
         metadata?.displayName ??
         CURATED_SUBREDDITS.find((entry) => entry.name === subreddit)
-          ?.displayName ??
+          ?.subreddit ??
         subreddit;
 
       let rankIndex =
         ctx.userId !== undefined
-          ? await getRankIndex(ctx.userId, subreddit)
+          ? await getRankIndex(ctx.userId, campaignCtx)
           : (input.rankIndex ?? 1);
 
       const budget: NextWorkBudget = {
@@ -414,7 +423,7 @@ export const puzzleRouter = router({
 
       while (budget.itemsCheckedRemaining > 0) {
         const ladderResult = await resolveLadderPage(
-          subreddit,
+          campaignCtx,
           rankIndex,
           budget,
           ctx.reddit
@@ -450,7 +459,7 @@ export const puzzleRouter = router({
         if (post === undefined) {
           const isTerminal =
             page.nextAfter === null ||
-            page.posts.length < resolveLadderPageSize(subreddit);
+            page.posts.length < resolveCampaignLadderPageSize(campaignCtx);
           if (isTerminal) {
             return {
               status: 'exhausted',
@@ -467,7 +476,7 @@ export const puzzleRouter = router({
 
         if (!fastFilterEligible(post)) {
           budget.itemsCheckedRemaining -= 1;
-          rankIndex = await advanceSkip(ctx.userId, subreddit, rankIndex);
+          rankIndex = await advanceSkip(ctx.userId, campaignCtx, rankIndex);
           continue;
         }
 
@@ -558,7 +567,7 @@ export const puzzleRouter = router({
 
         if (validation.kind === 'invalid') {
           budget.itemsCheckedRemaining -= 1;
-          rankIndex = await advanceSkip(ctx.userId, subreddit, rankIndex);
+          rankIndex = await advanceSkip(ctx.userId, campaignCtx, rankIndex);
           continue;
         }
 
@@ -581,6 +590,7 @@ export const puzzleRouter = router({
           attemptId,
           sourcePostId: snapshot.sourcePostId,
           subreddit,
+          timeframe: campaignCtx.timeframe,
           rankIndex,
           owner,
           commentOrder,
@@ -657,7 +667,7 @@ export const puzzleRouter = router({
 
         const currentRankIndex = await getRankIndex(
           attempt.owner.userId,
-          attempt.subreddit
+          attemptCampaignContext(attempt)
         );
         if (currentRankIndex !== attempt.rankIndex) {
           return submitError(
@@ -725,33 +735,25 @@ export const puzzleRouter = router({
       let coins: number | null = null;
 
       if (attempt.owner.kind === 'user') {
+        const attemptCtx = attemptCampaignContext(attempt);
         const updatedCoins = await incrementStats(
           attempt.owner.userId,
-          attempt.subreddit,
+          attemptCtx,
           scored.statsDelta
         );
         coins = updatedCoins;
-        nextRankIndex = await advanceRankIndex(
-          attempt.owner.userId,
-          attempt.subreddit
-        );
-        await updateLeaderboard(
-          attempt.subreddit,
-          attempt.owner.userId,
-          attempt.rankIndex
-        );
+        nextRankIndex = await advanceRankIndex(attempt.owner.userId, attemptCtx);
+        await updateLeaderboard(attemptCtx, attempt.owner.userId, attempt.rankIndex);
 
         const stats = await getStats(attempt.owner.userId);
-        const subStats = stats.bySubreddit[attempt.subreddit] ?? {
-          correctSlots: 0,
-          totalSlots: 0,
-        };
+        const aggregateStats = getSubredditAggregate(stats, attempt.subreddit);
         userHiveIQ = {
           userSubredditHiveIQ: computeHiveIQ(
-            subStats.correctSlots,
-            subStats.totalSlots
+            aggregateStats.correctSlots,
+            aggregateStats.totalSlots
           ),
           currentRankIndex: nextRankIndex,
+          activeTimeframe: attempt.timeframe,
         };
       } else {
         nextRankIndex = attempt.rankIndex + 1;
@@ -815,7 +817,7 @@ export const puzzleRouter = router({
 
         const currentRankIndex = await getRankIndex(
           attempt.owner.userId,
-          attempt.subreddit
+          attemptCampaignContext(attempt)
         );
         if (currentRankIndex !== attempt.rankIndex) {
           return skipError(
@@ -874,7 +876,10 @@ export const puzzleRouter = router({
 
       const nextRankIndex =
         attempt.owner.kind === 'user'
-          ? await advanceRankIndex(attempt.owner.userId, attempt.subreddit)
+          ? await advanceRankIndex(
+              attempt.owner.userId,
+              attemptCampaignContext(attempt)
+            )
           : attempt.rankIndex + 1;
 
       return {
@@ -942,7 +947,7 @@ export const puzzleRouter = router({
 
         const currentRankIndex = await getRankIndex(
           attempt.owner.userId,
-          attempt.subreddit
+          attemptCampaignContext(attempt)
         );
         if (currentRankIndex !== attempt.rankIndex) {
           return forfeitError(
@@ -981,32 +986,24 @@ export const puzzleRouter = router({
       let coins: number | null = null;
 
       if (attempt.owner.kind === 'user') {
+        const attemptCtx = attemptCampaignContext(attempt);
         coins = await incrementStats(
           attempt.owner.userId,
-          attempt.subreddit,
+          attemptCtx,
           statsDelta
         );
-        nextRankIndex = await advanceRankIndex(
-          attempt.owner.userId,
-          attempt.subreddit
-        );
-        await updateLeaderboard(
-          attempt.subreddit,
-          attempt.owner.userId,
-          attempt.rankIndex
-        );
+        nextRankIndex = await advanceRankIndex(attempt.owner.userId, attemptCtx);
+        await updateLeaderboard(attemptCtx, attempt.owner.userId, attempt.rankIndex);
 
         const stats = await getStats(attempt.owner.userId);
-        const subStats = stats.bySubreddit[attempt.subreddit] ?? {
-          correctSlots: 0,
-          totalSlots: 0,
-        };
+        const aggregateStats = getSubredditAggregate(stats, attempt.subreddit);
         userHiveIQ = {
           userSubredditHiveIQ: computeHiveIQ(
-            subStats.correctSlots,
-            subStats.totalSlots
+            aggregateStats.correctSlots,
+            aggregateStats.totalSlots
           ),
           currentRankIndex: nextRankIndex,
+          activeTimeframe: attempt.timeframe,
         };
       } else {
         nextRankIndex = attempt.rankIndex + 1;
@@ -1027,6 +1024,7 @@ export const puzzleRouter = router({
     .input(
       z.object({
         subreddit: z.string(),
+        timeframe: z.enum(CAMPAIGN_TIMEFRAME_IDS),
         rankIndex: z.number().int().min(1),
       })
     )
@@ -1053,7 +1051,7 @@ export const puzzleRouter = router({
         });
       }
 
-      await setRankIndex(ctx.userId, subreddit, input.rankIndex);
+      await setRankIndex(ctx.userId, { subredditName: subreddit, timeframe: input.timeframe }, input.rankIndex);
       return { ok: true as const };
     }),
 });

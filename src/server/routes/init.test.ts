@@ -4,7 +4,7 @@ import { DEFAULT_GAME_MODE, type UserStatsProfile } from '../../shared/api';
 import { CURATED_SUBREDDITS } from '../../shared/subreddits';
 
 const {
-  mockGetAllProgress,
+  mockListProgressEntries,
   mockGetProgress,
   mockGetStats,
   mockGetGameMode,
@@ -12,7 +12,7 @@ const {
   mockGetLeaderboardRank,
   mockEnsureWelcomeCoins,
 } = vi.hoisted(() => ({
-  mockGetAllProgress: vi.fn(),
+  mockListProgressEntries: vi.fn(),
   mockGetProgress: vi.fn(),
   mockGetStats: vi.fn(),
   mockGetGameMode: vi.fn(),
@@ -29,7 +29,7 @@ vi.mock('../redis/progressStore.js', () => ({
   getProgress: mockGetProgress,
   setProgress: vi.fn(),
   incrementProgress: vi.fn(),
-  getAllProgress: mockGetAllProgress,
+  listProgressEntries: mockListProgressEntries,
 }));
 
 vi.mock('../redis/statsStore.js', async (importOriginal) => {
@@ -86,11 +86,21 @@ const makeStats = (
     bySubreddit?: Record<string, { correctSlots: number; totalSlots: number }>;
     coins?: number;
   } = {}
-): UserStatsProfile => ({
-  global: overrides.global ?? { correctSlots: 0, totalSlots: 0 },
-  bySubreddit: overrides.bySubreddit ?? {},
-  coins: overrides.coins ?? 0,
-});
+): UserStatsProfile => {
+  const bySubreddit: UserStatsProfile['bySubreddit'] = {};
+  for (const [subreddit, counters] of Object.entries(overrides.bySubreddit ?? {})) {
+    bySubreddit[subreddit] = {
+      aggregate: counters,
+      byTimeframe: {},
+    };
+  }
+
+  return {
+    global: overrides.global ?? { correctSlots: 0, totalSlots: 0 },
+    bySubreddit,
+    coins: overrides.coins ?? 0,
+  };
+};
 
 describe('init — logged-out', () => {
   beforeEach(() => {
@@ -99,7 +109,7 @@ describe('init — logged-out', () => {
       makeMetadata(subreddit)
     );
     mockGetLeaderboardRank.mockResolvedValue(null);
-    mockGetAllProgress.mockResolvedValue({});
+    mockListProgressEntries.mockResolvedValue([]);
     mockGetStats.mockResolvedValue(emptyStats());
     mockGetProgress.mockResolvedValue(1);
     mockEnsureWelcomeCoins.mockResolvedValue(3);
@@ -121,9 +131,10 @@ describe('init — logged-out', () => {
       userGlobalHiveIQ: null,
       dashboardSubreddits: null,
       activeSubredditMetrics: null,
+      campaignMetrics: null,
       dailyChallenge: { subreddit: 'all', resetsAt: expect.any(Number) },
     });
-    expect(mockGetAllProgress).not.toHaveBeenCalled();
+    expect(mockListProgressEntries).not.toHaveBeenCalled();
     expect(mockGetProgress).not.toHaveBeenCalled();
     expect(mockGetStats).not.toHaveBeenCalled();
     expect(mockGetLeaderboardRank).not.toHaveBeenCalled();
@@ -159,9 +170,10 @@ describe('init — logged-out', () => {
         },
       ],
       activeSubredditMetrics: null,
+      campaignMetrics: null,
       dailyChallenge: null,
     });
-    expect(mockGetAllProgress).not.toHaveBeenCalled();
+    expect(mockListProgressEntries).not.toHaveBeenCalled();
     expect(mockGetProgress).not.toHaveBeenCalled();
     expect(mockGetStats).not.toHaveBeenCalled();
     expect(mockGetLeaderboardRank).not.toHaveBeenCalled();
@@ -176,7 +188,7 @@ describe('init — logged-in Hub', () => {
       makeMetadata(subreddit)
     );
     mockGetLeaderboardRank.mockResolvedValue(null);
-    mockGetAllProgress.mockResolvedValue({});
+    mockListProgressEntries.mockResolvedValue([]);
     mockGetStats.mockResolvedValue(emptyStats());
     mockGetProgress.mockResolvedValue(1);
     mockEnsureWelcomeCoins.mockResolvedValue(3);
@@ -212,7 +224,9 @@ describe('init — logged-in Hub', () => {
   });
 
   it('adds a custom subreddit present only in progress to dashboardSubreddits', async () => {
-    mockGetAllProgress.mockResolvedValue({ customsub: 5 });
+    mockListProgressEntries.mockResolvedValue([
+      { subredditName: 'customsub', timeframe: 'all', rankIndex: 5 },
+    ]);
     const caller = createCaller(makeCtx({ userId: 'user-1' }));
 
     const result = await caller.init();
@@ -238,7 +252,9 @@ describe('init — logged-in Hub', () => {
   });
 
   it('de-duplicates a subreddit that appears in both progress and stats', async () => {
-    mockGetAllProgress.mockResolvedValue({ customsub: 2 });
+    mockListProgressEntries.mockResolvedValue([
+      { subredditName: 'customsub', timeframe: 'all', rankIndex: 2 },
+    ]);
     mockGetStats.mockResolvedValue(
       makeStats({
         bySubreddit: {
@@ -291,7 +307,9 @@ describe('init — logged-in Hub', () => {
         },
       })
     );
-    mockGetAllProgress.mockResolvedValue({ customsub: 3 });
+    mockListProgressEntries.mockResolvedValue([
+      { subredditName: 'customsub', timeframe: 'all', rankIndex: 3 },
+    ]);
     const caller = createCaller(makeCtx({ userId: 'user-1' }));
 
     const result = await caller.init();
@@ -317,8 +335,8 @@ describe('init — logged-in Hub', () => {
   });
 
   it('sets leaderboardRank from getLeaderboardRank return value', async () => {
-    mockGetLeaderboardRank.mockImplementation(async (subreddit: string) =>
-      subreddit === 'askreddit' ? 3 : null
+    mockGetLeaderboardRank.mockImplementation(async (ctx) =>
+      ctx.subredditName === 'askreddit' ? 3 : null
     );
     const caller = createCaller(makeCtx({ userId: 'user-1' }));
 
@@ -329,7 +347,9 @@ describe('init — logged-in Hub', () => {
   });
 
   it('excludes the Daily Challenge subreddit from dashboardSubreddits even when it appears in progress or stats', async () => {
-    mockGetAllProgress.mockResolvedValue({ all: 5 });
+    mockListProgressEntries.mockResolvedValue([
+      { subredditName: 'all', timeframe: 'all', rankIndex: 5 },
+    ]);
     mockGetStats.mockResolvedValue(
       makeStats({
         bySubreddit: {
@@ -358,7 +378,9 @@ describe('init — logged-in Hub', () => {
   });
 
   it('excludes a card when resolveSubredditMetadata returns null', async () => {
-    mockGetAllProgress.mockResolvedValue({ inaccessible: 2 });
+    mockListProgressEntries.mockResolvedValue([
+      { subredditName: 'inaccessible', timeframe: 'all', rankIndex: 2 },
+    ]);
     mockResolveSubredditMetadata.mockImplementation(async (subreddit: string) =>
       subreddit === 'inaccessible' ? null : makeMetadata(subreddit)
     );
@@ -396,7 +418,9 @@ describe('init — logged-in Hub', () => {
   });
 
   it('returns hasGameData true when progress rankIndex is greater than 1', async () => {
-    mockGetAllProgress.mockResolvedValue({ askreddit: 3 });
+    mockListProgressEntries.mockResolvedValue([
+      { subredditName: 'askreddit', timeframe: 'all', rankIndex: 3 },
+    ]);
     const caller = createCaller(makeCtx({ userId: 'user-1' }));
 
     const result = await caller.init();
@@ -420,7 +444,7 @@ describe('init — logged-in Community', () => {
       makeMetadata(subreddit)
     );
     mockGetLeaderboardRank.mockResolvedValue(null);
-    mockGetAllProgress.mockResolvedValue({});
+    mockListProgressEntries.mockResolvedValue([]);
     mockGetStats.mockResolvedValue(emptyStats());
     mockGetProgress.mockResolvedValue(1);
     mockEnsureWelcomeCoins.mockResolvedValue(3);
@@ -445,8 +469,12 @@ describe('init — logged-in Community', () => {
     expect(result.activeSubredditMetrics).toEqual({
       currentRankIndex: 4,
       userSubredditHiveIQ: 125,
+      activeTimeframe: 'all',
     });
-    expect(mockGetProgress).toHaveBeenCalledWith('user-1', 'gaming');
+    expect(mockGetProgress).toHaveBeenCalledWith('user-1', {
+      subredditName: 'gaming',
+      timeframe: 'all',
+    });
   });
 
   it('returns null userSubredditHiveIQ in activeSubredditMetrics when totalSlots is 0', async () => {
@@ -487,9 +515,13 @@ describe('init — logged-in Community', () => {
         leaderboardRank: 2,
       },
     ]);
-    expect(mockGetAllProgress).not.toHaveBeenCalled();
+    expect(result.campaignMetrics).toHaveLength(6);
+    expect(mockListProgressEntries).toHaveBeenCalledWith('user-1');
     expect(mockResolveSubredditMetadata).toHaveBeenCalledWith('gaming', expect.anything());
-    expect(mockGetLeaderboardRank).toHaveBeenCalledWith('gaming', 'user-1');
+    expect(mockGetLeaderboardRank).toHaveBeenCalledWith(
+      { subredditName: 'gaming', timeframe: 'all' },
+      'user-1'
+    );
   });
 
   it('sets activeSubreddit to the normalized hostSubreddit', async () => {
@@ -505,6 +537,9 @@ describe('init — logged-in Community', () => {
 
   it('returns hasGameData true when community progress rankIndex is greater than 1', async () => {
     mockGetProgress.mockResolvedValue(2);
+    mockListProgressEntries.mockResolvedValue([
+      { subredditName: 'gaming', timeframe: 'all', rankIndex: 2 },
+    ]);
     const caller = createCaller(
       makeCtx({ userId: 'user-1', subredditName: 'gaming', surface: 'community' })
     );

@@ -59,7 +59,7 @@ export const resolveSubredditMetadata = async (
   if (curated) {
     return {
       subreddit: subredditName,
-      displayName: curated.displayName,
+      displayName: curated.subreddit,
       iconUrl: curated.iconUrl,
       metadataSource: 'curated',
     };

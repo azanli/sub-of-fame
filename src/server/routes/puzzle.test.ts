@@ -55,11 +55,13 @@ vi.mock('../reddit/commentValidation.js', () => ({
   validateComments: mockValidateComments,
 }));
 
-vi.mock('../redis/progressStore.js', () => ({
-  getProgress: mockGetProgress,
-  incrementProgress: mockIncrementProgress,
-  setProgress: vi.fn(),
-  getAllProgress: vi.fn(),
+const askredditAllCtx = { subredditName: 'askreddit', timeframe: 'all' as const };
+const dailyChallengeCtx = { subredditName: 'all', timeframe: 'all' as const };
+
+vi.mock('../redis/rankProgress.js', () => ({
+  getRankIndex: mockGetProgress,
+  advanceRankIndex: mockIncrementProgress,
+  setRankIndex: vi.fn(),
 }));
 
 vi.mock('../redis/attemptStore.js', () => ({
@@ -176,6 +178,7 @@ const makeAttempt = (overrides: Partial<PuzzleAttempt> = {}): PuzzleAttempt => (
   attemptId: 'attempt-1',
   sourcePostId: 't3_abc123',
   subreddit: 'askreddit',
+  timeframe: 'all',
   rankIndex: 3,
   owner: { kind: 'user', userId: 'user-1' },
   commentOrder: ['t1_c1', 't1_c2', 't1_c3'],
@@ -270,7 +273,7 @@ describe('puzzle.next', () => {
 
     await caller.puzzle.next({ subreddit: 'askreddit', rankIndex: 99 });
 
-    expect(mockGetProgress).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockGetProgress).toHaveBeenCalledWith('user-1', askredditAllCtx);
     expect(mockSetAttempt).toHaveBeenCalledWith(
       expect.objectContaining({ rankIndex: 3 })
     );
@@ -283,7 +286,7 @@ describe('puzzle.next', () => {
 
     expect(mockGetProgress).not.toHaveBeenCalled();
     expect(mockResolveLadderPage).toHaveBeenCalledWith(
-      'askreddit',
+      askredditAllCtx,
       5,
       expect.any(Object),
       expect.any(Object)
@@ -296,7 +299,7 @@ describe('puzzle.next', () => {
     await caller.puzzle.next({ subreddit: 'askreddit' });
 
     expect(mockResolveLadderPage).toHaveBeenCalledWith(
-      'askreddit',
+      askredditAllCtx,
       1,
       expect.any(Object),
       expect.any(Object)
@@ -313,7 +316,7 @@ describe('puzzle.next', () => {
 
     await caller.puzzle.next({ subreddit: 'askreddit' });
 
-    expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', askredditAllCtx);
     expect(mockResolveLadderPage).toHaveBeenCalledTimes(2);
   });
 
@@ -330,7 +333,7 @@ describe('puzzle.next', () => {
     expect(mockIncrementProgress).not.toHaveBeenCalled();
     expect(mockResolveLadderPage).toHaveBeenNthCalledWith(
       2,
-      'askreddit',
+      askredditAllCtx,
       3,
       expect.any(Object),
       expect.any(Object)
@@ -346,7 +349,7 @@ describe('puzzle.next', () => {
 
     await caller.puzzle.next({ subreddit: 'askreddit' });
 
-    expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', askredditAllCtx);
     expect(mockValidateComments).toHaveBeenCalledTimes(2);
   });
 
@@ -557,7 +560,12 @@ describe('puzzle.submit', () => {
     mockGetStats.mockResolvedValue({
       global: { correctSlots: 3, totalSlots: 6 },
       bySubreddit: {
-        askreddit: { correctSlots: 3, totalSlots: 6 },
+        askreddit: {
+          aggregate: { correctSlots: 3, totalSlots: 6 },
+          byTimeframe: {
+            all: { correctSlots: 3, totalSlots: 6 },
+          },
+        },
       },
       coins: 5,
     });
@@ -746,12 +754,12 @@ describe('puzzle.submit', () => {
 
     const result = await caller.puzzle.submit(makeSubmitInput());
 
-    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', 'askreddit', {
+    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', askredditAllCtx, {
       correctSlots: 3,
       coinAward: 3,
     });
-    expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', 'askreddit');
-    expect(mockUpdateLeaderboard).toHaveBeenCalledWith('askreddit', 'user-1', 3);
+    expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', askredditAllCtx);
+    expect(mockUpdateLeaderboard).toHaveBeenCalledWith(askredditAllCtx, 'user-1', 3);
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
 
     expect(result.status).toBe('submitted');
@@ -763,6 +771,7 @@ describe('puzzle.submit', () => {
     expect(result.userHiveIQ).toEqual({
       userSubredditHiveIQ: 125,
       currentRankIndex: 4,
+      activeTimeframe: 'all',
     });
     expect(result.coins).toBe(5);
   });
@@ -856,7 +865,7 @@ describe('puzzle.submit', () => {
         correct: false,
       },
     ]);
-    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', 'askreddit', {
+    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', askredditAllCtx, {
       correctSlots: 1,
       coinAward: 3,
     });
@@ -875,7 +884,7 @@ describe('puzzle.submit', () => {
 
     expect(result.score).toBe(1);
     expect(result.slots.every((slot) => slot.correct === false)).toBe(true);
-    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', 'askreddit', {
+    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', askredditAllCtx, {
       correctSlots: 0,
       coinAward: 1,
     });
@@ -893,7 +902,7 @@ describe('puzzle.submit', () => {
     }
 
     expect(result.score).toBe(0);
-    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', 'askreddit', {
+    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', askredditAllCtx, {
       correctSlots: 0,
       coinAward: 0,
     });
@@ -967,7 +976,7 @@ describe('puzzle.skip', () => {
     });
     expect(mockGetSnapshot).toHaveBeenCalledWith('t3_abc123');
     expect(mockDeductCoin).toHaveBeenCalledWith('user-1');
-    expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', askredditAllCtx);
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
     expect(mockIncrementStats).not.toHaveBeenCalled();
     expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
@@ -1051,7 +1060,10 @@ describe('puzzle.forfeit', () => {
     mockGetStats.mockResolvedValue({
       global: { correctSlots: 0, totalSlots: 3 },
       bySubreddit: {
-        askreddit: { correctSlots: 0, totalSlots: 3 },
+        askreddit: {
+          aggregate: { correctSlots: 0, totalSlots: 3 },
+          byTimeframe: {},
+        },
       },
       coins: 5,
     });
@@ -1121,16 +1133,17 @@ describe('puzzle.forfeit', () => {
       userHiveIQ: {
         userSubredditHiveIQ: 70,
         currentRankIndex: 4,
+        activeTimeframe: 'all',
       },
       nextRankIndex: 4,
       coins: 5,
     });
-    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', 'askreddit', {
+    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', askredditAllCtx, {
       correctSlots: 0,
       coinAward: 0,
     });
-    expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', 'askreddit');
-    expect(mockUpdateLeaderboard).toHaveBeenCalledWith('askreddit', 'user-1', 3);
+    expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', askredditAllCtx);
+    expect(mockUpdateLeaderboard).toHaveBeenCalledWith(askredditAllCtx, 'user-1', 3);
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
     expect(mockDeductCoin).not.toHaveBeenCalled();
   });
@@ -1190,5 +1203,57 @@ describe('puzzle.forfeit', () => {
     expect(mockIncrementProgress).not.toHaveBeenCalled();
     expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
+  });
+
+  it('isolates STALE_PROGRESS checks to the attempt timeframe', async () => {
+    mockGetAttempt.mockResolvedValue(makeAttempt({ timeframe: 'month', rankIndex: 3 }));
+    mockGetProgress.mockImplementation(async (_userId, ctx) => {
+      if (ctx.timeframe === 'month') {
+        return 5;
+      }
+      if (ctx.timeframe === 'all') {
+        return 3;
+      }
+      return 1;
+    });
+
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+    const result = await caller.puzzle.submit(makeSubmitInput());
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'STALE_PROGRESS',
+        currentRankIndex: 5,
+      })
+    );
+    expect(mockGetProgress).toHaveBeenCalledWith('user-1', {
+      subredditName: 'askreddit',
+      timeframe: 'month',
+    });
+    expectNoSubmitMutations();
+  });
+
+  it('does not treat progress in another timeframe as stale for the attempt', async () => {
+    mockGetAttempt.mockResolvedValue(makeAttempt({ timeframe: 'month', rankIndex: 3 }));
+    mockGetProgress.mockImplementation(async (_userId, ctx) => {
+      if (ctx.timeframe === 'month') {
+        return 3;
+      }
+      if (ctx.timeframe === 'all') {
+        return 10;
+      }
+      return 1;
+    });
+
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+    const result = await caller.puzzle.submit(makeSubmitInput());
+
+    expect(result.status).toBe('submitted');
+    expect(mockUpdateLeaderboard).toHaveBeenCalledWith(
+      { subredditName: 'askreddit', timeframe: 'month' },
+      'user-1',
+      3
+    );
   });
 });

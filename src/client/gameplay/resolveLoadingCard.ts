@@ -32,7 +32,7 @@ export const resolveLoadingCard = (
     kind: 'static',
     card: {
       name: subreddit,
-      displayName: subreddit,
+      subreddit,
       iconUrl: DEFAULT_SUBREDDIT_ICON,
     },
   };

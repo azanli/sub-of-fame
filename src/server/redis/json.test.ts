@@ -42,6 +42,7 @@ describe('parseJson', () => {
   it('round-trips a LadderCursorChain', () => {
     const chain: LadderCursorChain = {
       subreddit: 'gaming',
+      timeframe: 'all',
       startsAfter: { 1: null, 2: 'cursor_xyz' },
       deepestKnownPage: 2,
       terminalPage: null,
@@ -71,6 +72,7 @@ describe('parseJson', () => {
       attemptId: 'uuid-1',
       sourcePostId: 't3_abc',
       subreddit: 'gaming',
+      timeframe: 'all',
       rankIndex: 3,
       owner: { kind: 'user', userId: 'u999' },
       commentOrder: ['t1_2', 't1_1', 't1_3'],
@@ -87,6 +89,7 @@ describe('parseJson', () => {
       attemptId: 'uuid-2',
       sourcePostId: 't3_def',
       subreddit: 'askreddit',
+      timeframe: 'all',
       rankIndex: 1,
       owner: { kind: 'guest' },
       commentOrder: ['t1_a', 't1_b', 't1_c'],

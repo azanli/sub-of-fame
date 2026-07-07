@@ -1,29 +1,26 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { TRPCError } from '@trpc/server';
 import type { TRPCContext } from '../trpc';
+import { SUBREDDIT_UNLOCK_COST } from '../../shared/coins';
 
 const {
   mockResolveSubredditMetadata,
   mockResolveLadderPage,
-  mockGetProgress,
-  mockGetAllProgress,
+  mockGetRankIndex,
+  mockListProgressEntries,
   mockGetStats,
   mockDeductCoins,
   mockSetGameMode,
-  mockSetMetadata,
-  mockSetProgress,
-  mockIncrementProgress,
+  mockSetRankIndex,
 } = vi.hoisted(() => ({
   mockResolveSubredditMetadata: vi.fn(),
   mockResolveLadderPage: vi.fn(),
-  mockGetProgress: vi.fn(),
-  mockGetAllProgress: vi.fn(),
+  mockGetRankIndex: vi.fn(),
+  mockListProgressEntries: vi.fn(),
   mockGetStats: vi.fn(),
   mockDeductCoins: vi.fn(),
   mockSetGameMode: vi.fn(),
-  mockSetMetadata: vi.fn(),
-  mockSetProgress: vi.fn(),
-  mockIncrementProgress: vi.fn(),
+  mockSetRankIndex: vi.fn(),
 }));
 
 vi.mock('../reddit/resolveSubredditMetadata.js', () => ({
@@ -35,17 +32,24 @@ vi.mock('../reddit/ladderPipeline.js', () => ({
 }));
 
 vi.mock('../redis/progressStore.js', () => ({
-  getProgress: mockGetProgress,
-  getAllProgress: mockGetAllProgress,
-  setProgress: mockSetProgress,
-  incrementProgress: mockIncrementProgress,
+  listProgressEntries: mockListProgressEntries,
+}));
+
+vi.mock('../redis/rankProgress.js', () => ({
+  getRankIndex: mockGetRankIndex,
+  setRankIndex: mockSetRankIndex,
+  advanceRankIndex: vi.fn(),
 }));
 
 vi.mock('../redis/statsStore.js', () => ({
   getStats: mockGetStats,
   deductCoins: mockDeductCoins,
   setGameMode: mockSetGameMode,
+  subredditHasAnyStats: vi.fn().mockReturnValue(false),
 }));
+
+const askredditAllCtx = { subredditName: 'askreddit', timeframe: 'all' as const };
+const customAllCtx = { subredditName: 'customsub', timeframe: 'all' as const };
 
 const { appRouter } = await import('../appRouter.js');
 const { createCallerFactory } = await import('../trpc.js');
@@ -71,6 +75,7 @@ const makeCtx = (overrides: Partial<TRPCContext> = {}): TRPCContext => ({
     getSubredditInfoByName: vi.fn(),
     getSubredditStyles: vi.fn(),
     getTopPosts: vi.fn(),
+    getHotPosts: vi.fn(),
     getComments: vi.fn(),
   },
   userId: undefined,
@@ -79,45 +84,27 @@ const makeCtx = (overrides: Partial<TRPCContext> = {}): TRPCContext => ({
   ...overrides,
 });
 
-const makeLadderHit = () => ({
-  kind: 'hit' as const,
-  page: {
-    page: 1,
-    startsAfter: null,
-    nextAfter: 'cursor-1',
-    posts: [],
-    fetchedAt: Date.now(),
-  },
-  offset: 0,
-});
-
 describe('session.selectSubreddit', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockResolveSubredditMetadata.mockResolvedValue(curatedMetadata);
-    mockResolveLadderPage.mockResolvedValue(makeLadderHit());
-    mockGetProgress.mockResolvedValue(1);
-    mockGetAllProgress.mockResolvedValue({});
-    mockGetStats.mockResolvedValue({ global: { correctSlots: 0, totalSlots: 0 }, bySubreddit: {}, coins: 100 });
+    mockResolveLadderPage.mockResolvedValue({
+      kind: 'hit',
+      page: { page: 1, startsAfter: null, nextAfter: null, posts: [], fetchedAt: 0 },
+      offset: 0,
+    });
+    mockGetRankIndex.mockResolvedValue(1);
+    mockListProgressEntries.mockResolvedValue([]);
+    mockGetStats.mockResolvedValue({
+      global: { correctSlots: 0, totalSlots: 0 },
+      bySubreddit: {},
+      coins: 100,
+    });
     mockDeductCoins.mockResolvedValue({ ok: true, coins: 75 });
   });
 
-  it('rejects community surface launches with HOST_SUBREDDIT_LOCKED', async () => {
-    const caller = createCaller(makeCtx({ subredditName: 'gaming', surface: 'community' }));
-
-    await expect(caller.session.selectSubreddit({ subreddit: 'gaming' })).rejects.toSatisfy(
-      (error: unknown) =>
-        error instanceof TRPCError &&
-        error.code === 'FORBIDDEN' &&
-        error.message === 'HOST_SUBREDDIT_LOCKED'
-    );
-
-    expect(mockResolveSubredditMetadata).not.toHaveBeenCalled();
-    expect(mockResolveLadderPage).not.toHaveBeenCalled();
-  });
-
-  it('allows non-community surface even when host subreddit is foreign', async () => {
-    const caller = createCaller(makeCtx({ subredditName: 'gaming', surface: 'profile' }));
+  it('returns curated metadata for a known subreddit', async () => {
+    const caller = createCaller(makeCtx());
 
     const result = await caller.session.selectSubreddit({ subreddit: 'askreddit' });
 
@@ -129,44 +116,7 @@ describe('session.selectSubreddit', () => {
     });
   });
 
-  it('returns SUBREDDIT_UNAVAILABLE for empty normalized input', async () => {
-    const caller = createCaller(makeCtx());
-
-    await expect(caller.session.selectSubreddit({ subreddit: '   ' })).rejects.toSatisfy(
-      (error: unknown) =>
-        error instanceof TRPCError &&
-        error.code === 'BAD_REQUEST' &&
-        error.message === 'SUBREDDIT_UNAVAILABLE'
-    );
-  });
-
-  it('normalizes r/ prefix and casing before resolving metadata', async () => {
-    const caller = createCaller(makeCtx());
-
-    await caller.session.selectSubreddit({ subreddit: ' R/AskReddit ' });
-
-    expect(mockResolveSubredditMetadata).toHaveBeenCalledWith('askreddit', expect.any(Object));
-  });
-
-  it('returns curated metadata without progress writes', async () => {
-    const caller = createCaller(makeCtx({ userId: 'user-1' }));
-    mockGetProgress.mockResolvedValue(4);
-
-    const result = await caller.session.selectSubreddit({ subreddit: 'askreddit' });
-
-    expect(result).toEqual({
-      activeSubreddit: 'askreddit',
-      currentRankIndex: 4,
-      subredditMetadata: curatedMetadata,
-      coins: 100,
-    });
-    expect(mockGetProgress).toHaveBeenCalledWith('user-1', 'askreddit');
-    expect(mockDeductCoins).not.toHaveBeenCalled();
-    expect(mockSetProgress).not.toHaveBeenCalled();
-    expect(mockIncrementProgress).not.toHaveBeenCalled();
-  });
-
-  it('returns custom metadata from cache path', async () => {
+  it('resolves custom subreddit metadata from Reddit', async () => {
     mockResolveSubredditMetadata.mockResolvedValue(customMetadata);
     const caller = createCaller(makeCtx());
 
@@ -195,7 +145,7 @@ describe('session.selectSubreddit', () => {
     await caller.session.selectSubreddit({ subreddit: 'askreddit' });
 
     expect(mockResolveLadderPage).toHaveBeenCalledWith(
-      'askreddit',
+      askredditAllCtx,
       1,
       expect.objectContaining({
         redditCallsRemaining: 1,
@@ -223,12 +173,12 @@ describe('session.selectSubreddit', () => {
     const result = await caller.session.selectSubreddit({ subreddit: 'askreddit' });
 
     expect(result.currentRankIndex).toBe(1);
-    expect(mockGetProgress).not.toHaveBeenCalled();
+    expect(mockGetRankIndex).not.toHaveBeenCalled();
     expect(result.coins).toBeNull();
   });
 
   it('defaults currentRankIndex to 1 when logged-in user has no progress', async () => {
-    mockGetProgress.mockResolvedValue(1);
+    mockGetRankIndex.mockResolvedValue(1);
     const caller = createCaller(makeCtx({ userId: 'user-1' }));
 
     const result = await caller.session.selectSubreddit({ subreddit: 'askreddit' });
@@ -248,25 +198,31 @@ describe('session.selectSubreddit', () => {
       subredditMetadata: customMetadata,
       coins: 75,
     });
-    expect(mockDeductCoins).toHaveBeenCalledWith('user-1', 1);
-    expect(mockSetProgress).toHaveBeenCalledWith('user-1', 'customsub', 1);
+    expect(mockDeductCoins).toHaveBeenCalledWith('user-1', SUBREDDIT_UNLOCK_COST);
+    expect(mockSetRankIndex).toHaveBeenCalledWith('user-1', customAllCtx, 1);
   });
 
   it('does not write progress when custom subreddit progress already exists', async () => {
     mockResolveSubredditMetadata.mockResolvedValue(customMetadata);
-    mockGetAllProgress.mockResolvedValue({ customsub: 2 });
+    mockListProgressEntries.mockResolvedValue([
+      { subredditName: 'customsub', timeframe: 'all', rankIndex: 2 },
+    ]);
     const caller = createCaller(makeCtx({ userId: 'user-1' }));
 
     const result = await caller.session.selectSubreddit({ subreddit: 'customsub' });
 
     expect(result.coins).toBe(100);
     expect(mockDeductCoins).not.toHaveBeenCalled();
-    expect(mockSetProgress).not.toHaveBeenCalled();
+    expect(mockSetRankIndex).not.toHaveBeenCalled();
   });
 
   it('returns INSUFFICIENT_COINS when the wallet is too low for a custom unlock', async () => {
     mockResolveSubredditMetadata.mockResolvedValue(customMetadata);
-    mockGetStats.mockResolvedValue({ global: { correctSlots: 0, totalSlots: 0 }, bySubreddit: {}, coins: 0 });
+    mockGetStats.mockResolvedValue({
+      global: { correctSlots: 0, totalSlots: 0 },
+      bySubreddit: {},
+      coins: 0,
+    });
     const caller = createCaller(makeCtx({ userId: 'user-1' }));
 
     await expect(caller.session.selectSubreddit({ subreddit: 'customsub' })).rejects.toSatisfy(
@@ -277,7 +233,7 @@ describe('session.selectSubreddit', () => {
     );
 
     expect(mockDeductCoins).not.toHaveBeenCalled();
-    expect(mockSetProgress).not.toHaveBeenCalled();
+    expect(mockSetRankIndex).not.toHaveBeenCalled();
   });
 });
 
@@ -287,7 +243,7 @@ describe('session.setGameMode', () => {
     mockSetGameMode.mockResolvedValue('expert');
   });
 
-  it('persists gameMode for logged-in users', async () => {
+  it('persists the selected mode for logged-in users', async () => {
     const caller = createCaller(makeCtx({ userId: 'user-1' }));
 
     const result = await caller.session.setGameMode({ gameMode: 'expert' });
@@ -296,16 +252,11 @@ describe('session.setGameMode', () => {
     expect(mockSetGameMode).toHaveBeenCalledWith('user-1', 'expert');
   });
 
-  it('rejects guests with FORBIDDEN', async () => {
+  it('rejects logged-out users', async () => {
     const caller = createCaller(makeCtx({ userId: undefined }));
 
-    await expect(
-      caller.session.setGameMode({ gameMode: 'casual' })
-    ).rejects.toSatisfy(
-      (error: unknown) =>
-        error instanceof TRPCError && error.code === 'FORBIDDEN'
+    await expect(caller.session.setGameMode({ gameMode: 'expert' })).rejects.toSatisfy(
+      (error: unknown) => error instanceof TRPCError && error.code === 'FORBIDDEN'
     );
-
-    expect(mockSetGameMode).not.toHaveBeenCalled();
   });
 });

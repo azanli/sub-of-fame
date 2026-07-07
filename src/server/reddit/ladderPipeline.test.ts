@@ -47,6 +47,8 @@ const {
 
 const { rankIndexToOffset, rankIndexToPage } = await import('../redis/ladderStore.js');
 
+const gamingAllCtx = { subredditName: 'gaming', timeframe: 'all' as const };
+
 const basePostData = {
   id: 'abc123',
   title: 'A long enough title',
@@ -112,18 +114,18 @@ beforeEach(() => {
 
 describe('rank math – page', () => {
   it('returns 1 for rank 1, 1 for rank 100, 2 for rank 101, 2 for rank 200', () => {
-    expect(rankIndexToPage(1)).toBe(1);
-    expect(rankIndexToPage(100)).toBe(1);
-    expect(rankIndexToPage(101)).toBe(2);
-    expect(rankIndexToPage(200)).toBe(2);
+    expect(rankIndexToPage(1, gamingAllCtx)).toBe(1);
+    expect(rankIndexToPage(100, gamingAllCtx)).toBe(1);
+    expect(rankIndexToPage(101, gamingAllCtx)).toBe(2);
+    expect(rankIndexToPage(200, gamingAllCtx)).toBe(2);
   });
 });
 
 describe('rank math – offset', () => {
   it('returns 0 for rank 1, 99 for rank 100, 0 for rank 101', () => {
-    expect(rankIndexToOffset(1)).toBe(0);
-    expect(rankIndexToOffset(100)).toBe(99);
-    expect(rankIndexToOffset(101)).toBe(0);
+    expect(rankIndexToOffset(1, gamingAllCtx)).toBe(0);
+    expect(rankIndexToOffset(100, gamingAllCtx)).toBe(99);
+    expect(rankIndexToOffset(101, gamingAllCtx)).toBe(0);
   });
 });
 
@@ -657,7 +659,7 @@ describe('resolveLadderPage – cache hit', () => {
     mockGetLadderPage.mockResolvedValue(cachedPage);
 
     const reddit = { getTopPosts: mockGetTopPosts };
-    const result = await resolveLadderPage('gaming', 5, makeBudget(), reddit);
+    const result = await resolveLadderPage(gamingAllCtx, 5, makeBudget(), reddit);
 
     expect(result).toEqual({ kind: 'hit', page: cachedPage, offset: 4 });
     expect(mockGetTopPosts).not.toHaveBeenCalled();
@@ -669,6 +671,7 @@ describe('resolveLadderPage – direct cursor fetch', () => {
     mockGetLadderPage.mockResolvedValue(null);
     const chain: LadderCursorChain = {
       subreddit: 'gaming',
+      timeframe: 'all',
       startsAfter: { 1: null, 2: 'cursor_page1' },
       deepestKnownPage: 2,
       terminalPage: null,
@@ -681,7 +684,7 @@ describe('resolveLadderPage – direct cursor fetch', () => {
 
     const reddit = { getTopPosts: mockGetTopPosts };
     const budget = makeBudget();
-    const result = await resolveLadderPage('gaming', 150, budget, reddit);
+    const result = await resolveLadderPage(gamingAllCtx, 150, budget, reddit);
 
     expect(mockGetTopPosts).toHaveBeenCalledTimes(1);
     expect(mockGetTopPosts).toHaveBeenCalledWith({
@@ -706,6 +709,7 @@ describe('resolveLadderPage – warm forward', () => {
     mockGetLadderPage.mockResolvedValue(null);
     const chain: LadderCursorChain = {
       subreddit: 'gaming',
+      timeframe: 'all',
       startsAfter: { 1: null, 2: 'cursor_page1' },
       deepestKnownPage: 1,
       terminalPage: null,
@@ -724,7 +728,7 @@ describe('resolveLadderPage – warm forward', () => {
 
     const reddit = { getTopPosts: mockGetTopPosts };
     const budget = makeBudget({ redditCallsRemaining: 2 });
-    const result = await resolveLadderPage('gaming', 201, budget, reddit);
+    const result = await resolveLadderPage(gamingAllCtx, 201, budget, reddit);
 
     expect(mockGetTopPosts).toHaveBeenCalledTimes(2);
     expect(mockSetLadderPage).toHaveBeenCalledTimes(2);
@@ -743,6 +747,7 @@ describe('resolveLadderPage – terminal before target', () => {
     mockGetLadderPage.mockResolvedValue(null);
     const chain: LadderCursorChain = {
       subreddit: 'gaming',
+      timeframe: 'all',
       startsAfter: { 1: null, 2: 'cursor_page1' },
       deepestKnownPage: 1,
       terminalPage: null,
@@ -754,7 +759,7 @@ describe('resolveLadderPage – terminal before target', () => {
     mockGetTopPosts.mockReturnValue(makeListing(terminalPosts, null));
 
     const reddit = { getTopPosts: mockGetTopPosts };
-    const result = await resolveLadderPage('gaming', 201, makeBudget(), reddit);
+    const result = await resolveLadderPage(gamingAllCtx, 201, makeBudget(), reddit);
 
     expect(result).toEqual({ kind: 'exhausted' });
   });
@@ -767,7 +772,7 @@ describe('resolveLadderPage – budget exhaustion', () => {
 
     const reddit = { getTopPosts: mockGetTopPosts };
     const result = await resolveLadderPage(
-      'gaming',
+      gamingAllCtx,
       1,
       makeBudget({ redditCallsRemaining: 0 }),
       reddit
@@ -789,7 +794,7 @@ describe('resolveLadderPage – malformed cache', () => {
     mockGetTopPosts.mockReturnValue(makeListing(posts, 'cursor_after_page1'));
 
     const reddit = { getTopPosts: mockGetTopPosts };
-    const result = await resolveLadderPage('gaming', 1, makeBudget(), reddit);
+    const result = await resolveLadderPage(gamingAllCtx, 1, makeBudget(), reddit);
 
     expect(mockGetTopPosts).toHaveBeenCalledTimes(1);
     expect(result.kind).toBe('hit');
@@ -807,7 +812,7 @@ describe('resolveLadderPage – cold start page 1', () => {
     mockGetTopPosts.mockReturnValue(makeListing(posts, 'cursor_after_page1'));
 
     const reddit = { getTopPosts: mockGetTopPosts };
-    const result = await resolveLadderPage('gaming', 1, makeBudget(), reddit);
+    const result = await resolveLadderPage(gamingAllCtx, 1, makeBudget(), reddit);
 
     expect(mockGetTopPosts).toHaveBeenCalledWith({
       subredditName: 'gaming',
@@ -834,7 +839,7 @@ describe('resolveLadderPage – reddit fetch failure', () => {
     });
 
     const reddit = { getTopPosts: mockGetTopPosts };
-    const result = await resolveLadderPage('gaming', 1, makeBudget(), reddit);
+    const result = await resolveLadderPage(gamingAllCtx, 1, makeBudget(), reddit);
 
     expect(result).toEqual({ kind: 'error', message: '403 Forbidden: private' });
   });
@@ -843,7 +848,7 @@ describe('resolveLadderPage – reddit fetch failure', () => {
 describe('resolveLadderPage – invalid rankIndex', () => {
   it('returns error when rankIndex is 0', async () => {
     const reddit = { getTopPosts: mockGetTopPosts };
-    const result = await resolveLadderPage('gaming', 0, makeBudget(), reddit);
+    const result = await resolveLadderPage(gamingAllCtx, 0, makeBudget(), reddit);
 
     expect(result.kind).toBe('error');
     expect(mockGetTopPosts).not.toHaveBeenCalled();

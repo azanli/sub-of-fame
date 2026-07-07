@@ -10,6 +10,7 @@ export type TRPCContext = {
     | 'getSubredditInfoByName'
     | 'getSubredditStyles'
     | 'getTopPosts'
+    | 'getHotPosts'
     | 'getComments'
     | 'getCurrentUsername'
     | 'getPostById'

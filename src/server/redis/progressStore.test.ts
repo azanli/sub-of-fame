@@ -3,14 +3,14 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 const mockHGet = vi.fn();
 const mockHGetAll = vi.fn();
 const mockHSet = vi.fn();
-const mockHIncrBy = vi.fn();
+const mockHDel = vi.fn();
 
 vi.mock('@devvit/web/server', () => ({
   redis: {
     hGet: mockHGet,
     hGetAll: mockHGetAll,
     hSet: mockHSet,
-    hIncrBy: mockHIncrBy,
+    hDel: mockHDel,
   },
 }));
 
@@ -18,8 +18,10 @@ beforeEach(() => {
   mockHGet.mockReset();
   mockHGetAll.mockReset();
   mockHSet.mockReset();
-  mockHIncrBy.mockReset();
+  mockHDel.mockReset();
 });
+
+const askredditAllCtx = { subredditName: 'askreddit', timeframe: 'all' as const };
 
 const { getProgress, setProgress, incrementProgress, getAllProgress } = await import(
   './progressStore'
@@ -28,31 +30,40 @@ const { getProgress, setProgress, incrementProgress, getAllProgress } = await im
 describe('getProgress', () => {
   it('returns 1 (default) when the hash field is missing (undefined)', async () => {
     mockHGet.mockResolvedValue(undefined);
-    expect(await getProgress('u1', 'askreddit')).toBe(1);
+    expect(await getProgress('u1', askredditAllCtx)).toBe(1);
   });
 
   it('returns the parsed integer when a stored value exists', async () => {
     mockHGet.mockResolvedValue('7');
-    expect(await getProgress('u1', 'askreddit')).toBe(7);
+    expect(await getProgress('u1', askredditAllCtx)).toBe(7);
   });
 
   it('returns 1 for a non-numeric stored value (defensive default)', async () => {
     mockHGet.mockResolvedValue('NaN');
-    expect(await getProgress('u1', 'askreddit')).toBe(1);
+    expect(await getProgress('u1', askredditAllCtx)).toBe(1);
   });
 
-  it('uses the correct key and field', async () => {
+  it('uses the composite progress field', async () => {
     mockHGet.mockResolvedValue('3');
-    await getProgress('u1', 'gaming');
-    expect(mockHGet).toHaveBeenCalledWith('user:u1:progress', 'gaming');
+    await getProgress('u1', askredditAllCtx);
+    expect(mockHGet).toHaveBeenCalledWith('user:u1:progress', 'askreddit:all');
+  });
+
+  it('lazy-migrates legacy subreddit-only fields for all timeframe', async () => {
+    mockHGet.mockResolvedValueOnce(undefined).mockResolvedValueOnce('9');
+    expect(await getProgress('u1', askredditAllCtx)).toBe(9);
+    expect(mockHGet).toHaveBeenNthCalledWith(1, 'user:u1:progress', 'askreddit:all');
+    expect(mockHGet).toHaveBeenNthCalledWith(2, 'user:u1:progress', 'askreddit');
   });
 });
 
 describe('setProgress', () => {
-  it('calls hSet with stringified rankIndex', async () => {
+  it('calls hSet with stringified rankIndex on the composite field', async () => {
     mockHSet.mockResolvedValue(1);
-    await setProgress('u1', 'gaming', 5);
-    expect(mockHSet).toHaveBeenCalledWith('user:u1:progress', { gaming: '5' });
+    mockHDel.mockResolvedValue(1);
+    await setProgress('u1', askredditAllCtx, 5);
+    expect(mockHSet).toHaveBeenCalledWith('user:u1:progress', { 'askreddit:all': '5' });
+    expect(mockHDel).toHaveBeenCalledWith('user:u1:progress', ['askreddit']);
   });
 });
 
@@ -60,20 +71,20 @@ describe('incrementProgress', () => {
   it('writes rank 2 when the hash field is missing (first advance from default rank 1)', async () => {
     mockHGet.mockResolvedValue(undefined);
     mockHSet.mockResolvedValue(1);
+    mockHDel.mockResolvedValue(1);
 
-    const result = await incrementProgress('u1', 'gaming');
+    const result = await incrementProgress('u1', askredditAllCtx);
 
-    expect(mockHSet).toHaveBeenCalledWith('user:u1:progress', { gaming: '2' });
-    expect(mockHIncrBy).not.toHaveBeenCalled();
+    expect(mockHSet).toHaveBeenCalledWith('user:u1:progress', { 'askreddit:all': '2' });
     expect(result).toBe(2);
   });
 
-  it('calls hIncrBy with +1 and returns the new value when progress exists', async () => {
+  it('increments from the current stored rankIndex', async () => {
     mockHGet.mockResolvedValue('3');
-    mockHIncrBy.mockResolvedValue(4);
-    const result = await incrementProgress('u1', 'gaming');
-    expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:progress', 'gaming', 1);
-    expect(mockHSet).not.toHaveBeenCalled();
+    mockHSet.mockResolvedValue(1);
+    mockHDel.mockResolvedValue(1);
+    const result = await incrementProgress('u1', askredditAllCtx);
+    expect(mockHSet).toHaveBeenCalledWith('user:u1:progress', { 'askreddit:all': '4' });
     expect(result).toBe(4);
   });
 });
@@ -84,13 +95,16 @@ describe('getAllProgress', () => {
     expect(await getAllProgress('u1')).toEqual({});
   });
 
-  it('parses all fields and returns a subreddit→rankIndex map', async () => {
-    mockHGetAll.mockResolvedValue({ askreddit: '3', gaming: '10' });
-    expect(await getAllProgress('u1')).toEqual({ askreddit: 3, gaming: 10 });
+  it('parses composite fields into nested timeframe maps', async () => {
+    mockHGetAll.mockResolvedValue({ 'askreddit:all': '3', 'gaming:week': '10' });
+    expect(await getAllProgress('u1')).toEqual({
+      askreddit: { all: 3 },
+      gaming: { week: 10 },
+    });
   });
 
-  it('defaults non-numeric fields to 1', async () => {
+  it('maps legacy subreddit-only fields to all timeframe', async () => {
     mockHGetAll.mockResolvedValue({ askreddit: 'bad' });
-    expect(await getAllProgress('u1')).toEqual({ askreddit: 1 });
+    expect(await getAllProgress('u1')).toEqual({ askreddit: { all: 1 } });
   });
 });

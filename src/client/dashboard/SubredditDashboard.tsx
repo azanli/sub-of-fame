@@ -4,12 +4,15 @@ import {
   CAMPAIGN_TIMEFRAMES,
   type CampaignTimeframe,
 } from '../../shared/campaignTimeframes';
-import { resolveHiveIQDisplay } from '../../shared/hiveIQ';
+import { resolveHiveIQDisplay, formatHiveIQDisplayText } from '../../shared/hiveIQ';
 import { CommunityProfileHeader } from './CommunityProfileHeader';
 import { DashboardSection } from './DashboardSection';
 import { DashboardTopBar } from './DashboardTopBar';
 import { HubSettingsPanel } from './HubSettingsPanel';
-import { SubredditDashboardCard } from './SubredditDashboardCard';
+import {
+  SubredditDashboardCard,
+  type DashboardCardBadge,
+} from './SubredditDashboardCard';
 
 type SubredditDashboardProps = {
   initData: InitResponse;
@@ -93,6 +96,45 @@ export const SubredditDashboard = ({
       <DashboardSection label="Campaigns">
         {CAMPAIGN_TIMEFRAMES.map((campaign) => {
           const isLoading = loadingTimeframe === campaign.id;
+          const metrics = initData.campaignMetrics?.find(
+            (entry) => entry.timeframe === campaign.id
+          );
+          const hiveIQDisplay =
+            metrics !== undefined
+              ? resolveHiveIQDisplay(
+                  metrics.userCampaignHiveIQ,
+                  metrics.completedRoundCount
+                )
+              : null;
+          const badges: DashboardCardBadge[] = [];
+
+          if (metrics !== undefined && metrics.currentRankIndex > 1) {
+            badges.push({
+              label: `Rank ${metrics.currentRankIndex}`,
+              emoji: '🎯',
+              ariaLabel: `Next playable rank ${metrics.currentRankIndex}`,
+            });
+          }
+
+          if (metrics?.leaderboardRank !== null && metrics?.leaderboardRank !== undefined) {
+            badges.push({
+              label: `#${metrics.leaderboardRank}`,
+              emoji: '🏆',
+              variant: 'accent',
+              ariaLabel: `Leaderboard rank ${metrics.leaderboardRank}`,
+            });
+          }
+
+          if (hiveIQDisplay !== null && hiveIQDisplay.kind !== 'unplayed') {
+            const hiveIQBadge: DashboardCardBadge = {
+              label: formatHiveIQDisplayText(hiveIQDisplay),
+              ariaLabel: `Hive IQ ${formatHiveIQDisplayText(hiveIQDisplay)}`,
+            };
+            if (hiveIQDisplay.kind === 'score') {
+              hiveIQBadge.emoji = '🧠';
+            }
+            badges.push(hiveIQBadge);
+          }
 
           return (
             <SubredditDashboardCard
@@ -100,6 +142,7 @@ export const SubredditDashboard = ({
               icon={campaign.icon}
               title={campaign.title}
               description={campaign.description}
+              badges={badges}
               onSelect={() => {
                 onSelectCampaign(campaign.id);
               }}

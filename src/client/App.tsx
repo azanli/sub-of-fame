@@ -1,4 +1,5 @@
 import {
+  DEFAULT_CAMPAIGN_TIMEFRAME,
   DEFAULT_GAME_MODE,
   type GameMode,
   type InitResponse,
@@ -59,6 +60,7 @@ type SessionContext = {
   isHub: boolean;
   isLoggedIn: boolean;
   campaignSubreddit: string | null;
+  campaignTimeframe: CampaignTimeframe | null;
 };
 
 type AppProps = {
@@ -68,7 +70,8 @@ type AppProps = {
 const buildSessionFromInit = (init: InitResponse): SessionContext => ({
   isHub: init.isHub,
   isLoggedIn: init.userGlobalHiveIQ !== null,
-  campaignSubreddit: null,
+  campaignSubreddit: init.isHub ? null : init.activeSubreddit,
+  campaignTimeframe: null,
 });
 
 const buildNextRequest = (
@@ -76,7 +79,8 @@ const buildNextRequest = (
   rankIndex: number | undefined,
   gameMode: GameMode
 ): PuzzleNextRequest => {
-  const input: PuzzleNextRequest = {};
+  const timeframe = session.campaignTimeframe ?? DEFAULT_CAMPAIGN_TIMEFRAME;
+  const input: PuzzleNextRequest = { timeframe };
 
   if (session.isHub) {
     if (session.campaignSubreddit !== null) {
@@ -116,6 +120,8 @@ export const App = ({ preloadedInit }: AppProps) => {
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [gameModeError, setGameModeError] = useState<string | null>(null);
   const [isSavingGameMode, setIsSavingGameMode] = useState(false);
+  const [loadingCampaignTimeframe, setLoadingCampaignTimeframe] =
+    useState<CampaignTimeframe | null>(null);
   const guestRankIndexRef = useRef(1);
   const retryTimeoutRef = useRef<number | undefined>(undefined);
   const activePuzzleRef = useRef<ReadyPuzzle | null>(null);
@@ -183,8 +189,11 @@ export const App = ({ preloadedInit }: AppProps) => {
         throw { type: 'network' } satisfies PuzzleLoadFailure;
       }
 
-      if (activeSession.campaignSubreddit === null) {
-        throw { type: 'problem', message: 'No subreddit selected.' } satisfies PuzzleLoadFailure;
+      if (
+        activeSession.campaignSubreddit === null ||
+        activeSession.campaignTimeframe === null
+      ) {
+        throw { type: 'problem', message: 'No campaign selected.' } satisfies PuzzleLoadFailure;
       }
 
       const effectiveRankIndex = activeSession.isLoggedIn
@@ -354,7 +363,7 @@ export const App = ({ preloadedInit }: AppProps) => {
         return;
       }
 
-      if (activeSession.campaignSubreddit === null) {
+      if (activeSession.campaignSubreddit === null || activeSession.campaignTimeframe === null) {
         setState({ phase: 'hub_dashboard' });
         return;
       }
@@ -407,7 +416,8 @@ export const App = ({ preloadedInit }: AppProps) => {
     if (activeSession !== null) {
       const resetSession: SessionContext = {
         ...activeSession,
-        campaignSubreddit: null,
+        campaignSubreddit: activeSession.isHub ? null : activeSession.campaignSubreddit,
+        campaignTimeframe: null,
       };
       sessionRef.current = resetSession;
       setSession(resetSession);
@@ -474,9 +484,47 @@ export const App = ({ preloadedInit }: AppProps) => {
     []
   );
 
-  const handleSelectCampaign = useCallback((timeframe: CampaignTimeframe) => {
-    selectedTimeframeRef.current = timeframe;
-  }, []);
+  const handleSelectCampaign = useCallback(
+    (timeframe: CampaignTimeframe) => {
+      const activeSession = sessionRef.current;
+      const currentInit = initDataRef.current;
+      if (activeSession === null || currentInit === null || currentInit.isHub) {
+        return;
+      }
+
+      const hostSubreddit = currentInit.activeSubreddit ?? currentInit.hostSubreddit;
+      const updatedSession: SessionContext = {
+        ...activeSession,
+        campaignSubreddit: hostSubreddit,
+        campaignTimeframe: timeframe,
+      };
+      sessionRef.current = updatedSession;
+      setSession(updatedSession);
+      selectedTimeframeRef.current = timeframe;
+      setSelectionError(null);
+      setLoadingCampaignTimeframe(timeframe);
+
+      if (!activeSession.isLoggedIn) {
+        const campaignMetrics = currentInit.campaignMetrics?.find(
+          (entry) => entry.timeframe === timeframe
+        );
+        guestRankIndexRef.current = campaignMetrics?.currentRankIndex ?? 1;
+      }
+
+      const puzzlePromise = fetchNextPuzzle(0, undefined).finally(() => {
+        setLoadingCampaignTimeframe(null);
+      });
+
+      beginPuzzleLoad(
+        puzzlePromise,
+        0,
+        undefined,
+        hostSubreddit,
+        false
+      );
+    },
+    [beginPuzzleLoad, fetchNextPuzzle]
+  );
 
   const handleSelectSubreddit = useCallback(
     (subreddit: string) => {
@@ -496,6 +544,7 @@ export const App = ({ preloadedInit }: AppProps) => {
           const updatedSession: SessionContext = {
             ...activeSession,
             campaignSubreddit: result.activeSubreddit,
+            campaignTimeframe: DEFAULT_CAMPAIGN_TIMEFRAME,
           };
           sessionRef.current = updatedSession;
           setSession(updatedSession);
@@ -695,12 +744,14 @@ export const App = ({ preloadedInit }: AppProps) => {
 
     if (session?.isLoggedIn) {
       const subreddit = session.campaignSubreddit;
-      if (subreddit === null) {
+      const timeframe = session.campaignTimeframe;
+      if (subreddit === null || timeframe === null) {
         return;
       }
 
       void trpcClient.puzzle.devResetRankIndex.mutate({
         subreddit,
+        timeframe,
         rankIndex,
       });
       return;
@@ -770,8 +821,15 @@ export const App = ({ preloadedInit }: AppProps) => {
               <StartPuzzleGateSkeleton
                 subredditDisplayName={
                   state.subredditDisplayName.length > 0
-                    ? resolveLoadingCard(state.subredditDisplayName, initData)
-                        .card.displayName
+                    ? (() => {
+                        const loadingCard = resolveLoadingCard(
+                          state.subredditDisplayName,
+                          initData
+                        );
+                        return loadingCard.kind === 'hydrated'
+                          ? loadingCard.card.displayName
+                          : loadingCard.card.subreddit;
+                      })()
                     : ''
                 }
               />
@@ -823,6 +881,7 @@ export const App = ({ preloadedInit }: AppProps) => {
           <SubredditDashboard
             initData={initData}
             onSelectCampaign={handleSelectCampaign}
+            loadingTimeframe={loadingCampaignTimeframe}
             gameMode={initData.gameMode}
             onGameModeChange={handleGameModeChange}
             isSavingGameMode={isSavingGameMode}

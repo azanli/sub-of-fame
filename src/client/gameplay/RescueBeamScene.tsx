@@ -27,7 +27,7 @@ export const RescueBeamScene = ({ animationState }: RescueBeamSceneProps) => {
     let cancelled = false;
     let delayId: number | undefined;
 
-    void waitForImage(RESCUE_SCENE_IMAGES.spaceship).then(() => {
+    void waitForImage(RESCUE_SCENE_IMAGES.spaceshipHappy).then(() => {
       if (cancelled) {
         return;
       }

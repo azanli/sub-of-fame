@@ -33,6 +33,9 @@ const {
   setGameMode,
 } = await import('./statsStore');
 
+const gamingAllCtx = { subredditName: 'gaming', timeframe: 'all' as const };
+const askredditAllCtx = { subredditName: 'askreddit', timeframe: 'all' as const };
+
 describe('computeHiveIQ', () => {
   it('returns null when totalSlots is 0 (not yet measured)', () => {
     expect(computeHiveIQ(0, 0)).toBeNull();
@@ -101,27 +104,30 @@ describe('setGameMode', () => {
 });
 
 describe('incrementStats', () => {
-  it('calls hIncrBy for all 5 counter fields with correct amounts', async () => {
+  it('calls hIncrBy for campaign, rollup, global, and coin fields', async () => {
     mockHIncrBy.mockResolvedValue(3);
-    const coins = await incrementStats('u1', 'gaming', {
+    const coins = await incrementStats('u1', gamingAllCtx, {
       correctSlots: 2,
       coinAward: 2,
     });
 
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'global:correct', 2);
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'global:total', 3);
+    expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'sub:gaming:all:correct', 2);
+    expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'sub:gaming:all:total', 3);
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'sub:gaming:correct', 2);
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'sub:gaming:total', 3);
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'coins', 2);
-    expect(mockHIncrBy).toHaveBeenCalledTimes(5);
+    expect(mockHIncrBy).toHaveBeenCalledTimes(7);
     expect(coins).toBe(3);
   });
 
   it('increments total by 3 regardless of correctSlots (0 score round)', async () => {
     mockHIncrBy.mockResolvedValue(0);
-    await incrementStats('u1', 'askreddit', { correctSlots: 0, coinAward: 0 });
+    await incrementStats('u1', askredditAllCtx, { correctSlots: 0, coinAward: 0 });
 
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'global:total', 3);
+    expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'sub:askreddit:all:total', 3);
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'sub:askreddit:total', 3);
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'global:correct', 0);
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'coins', 0);
@@ -129,7 +135,7 @@ describe('incrementStats', () => {
 
   it('decouples Hive IQ correctSlots from coinAward for casual consolation tiers', async () => {
     mockHIncrBy.mockResolvedValue(4);
-    await incrementStats('u1', 'gaming', { correctSlots: 0, coinAward: 1 });
+    await incrementStats('u1', gamingAllCtx, { correctSlots: 0, coinAward: 1 });
 
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'global:correct', 0);
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'coins', 1);
@@ -186,20 +192,30 @@ describe('getStats', () => {
     expect(stats.bySubreddit).toEqual({});
   });
 
-  it('parses global and per-subreddit counters correctly', async () => {
+  it('parses rollup and per-campaign counters correctly', async () => {
     mockHGetAll.mockResolvedValue({
       'global:correct': '5',
       'global:total': '9',
       'sub:gaming:correct': '3',
       'sub:gaming:total': '6',
+      'sub:gaming:all:correct': '3',
+      'sub:gaming:all:total': '6',
       'sub:askreddit:correct': '2',
       'sub:askreddit:total': '3',
       coins: '12',
     });
     const stats = await getStats('u1');
     expect(stats.global).toEqual({ correctSlots: 5, totalSlots: 9 });
-    expect(stats.bySubreddit['gaming']).toEqual({ correctSlots: 3, totalSlots: 6 });
-    expect(stats.bySubreddit['askreddit']).toEqual({ correctSlots: 2, totalSlots: 3 });
+    expect(stats.bySubreddit['gaming']).toEqual({
+      aggregate: { correctSlots: 3, totalSlots: 6 },
+      byTimeframe: {
+        all: { correctSlots: 3, totalSlots: 6 },
+      },
+    });
+    expect(stats.bySubreddit['askreddit']).toEqual({
+      aggregate: { correctSlots: 2, totalSlots: 3 },
+      byTimeframe: {},
+    });
     expect(stats.coins).toBe(12);
   });
 

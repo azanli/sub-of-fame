@@ -4,6 +4,7 @@
 
 import type { T3 } from '@devvit/shared-types/tid.js';
 import type { GameMode } from '../../shared/api.js';
+import type { CampaignTimeframe } from '../../shared/campaignTimeframes.js';
 import type { PostContentBlock } from '../../shared/postContent.js';
 
 export type SubredditMetadataCacheEntry = {
@@ -42,6 +43,7 @@ export type LadderCachePage = {
 // deep pages can be re-fetched directly without re-warming from page 1.
 export type LadderCursorChain = {
   subreddit: string;
+  timeframe: CampaignTimeframe;
   startsAfter: Record<number, string | null>;
   deepestKnownPage: number;
   terminalPage: number | null;
@@ -78,6 +80,7 @@ export type PuzzleAttempt = {
   attemptId: string;
   sourcePostId: string;
   subreddit: string;
+  timeframe: CampaignTimeframe;
   rankIndex: number;
   owner: PuzzleAttemptOwner;
   commentOrder: [string, string, string];

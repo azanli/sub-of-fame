@@ -1,4 +1,12 @@
+import type { CampaignTimeframe } from './campaignTimeframes.js';
 import type { PostContentBlock } from './postContent.js';
+
+export type { CampaignTimeframe } from './campaignTimeframes.js';
+export {
+  CAMPAIGN_TIMEFRAMES,
+  DEFAULT_CAMPAIGN_TIMEFRAME,
+  type CampaignContext,
+} from './campaignContext.js';
 
 export type GameMode = 'casual' | 'expert';
 
@@ -40,14 +48,20 @@ export type RoundStatsDelta = {
   coinAward: number;
 };
 
-type PerformanceCounters = {
+export type PerformanceCounters = {
   correctSlots: number;
   totalSlots: number;
 };
 
+export type SubredditStatsProfile = {
+  /** Rolled up across all timeframe campaigns in this subreddit. */
+  aggregate: PerformanceCounters;
+  byTimeframe: Partial<Record<CampaignTimeframe, PerformanceCounters>>;
+};
+
 export type UserStatsProfile = {
   global: PerformanceCounters;
-  bySubreddit: Record<string, PerformanceCounters>;
+  bySubreddit: Record<string, SubredditStatsProfile>;
   coins: number;
 };
 
@@ -57,9 +71,19 @@ export type UserGlobalHiveIQMetrics = {
   totalSlots: number;
 };
 
-export type UserActiveSubredditMetrics = {
-  userSubredditHiveIQ: number | null; // Hive IQ score; null when sub:total = 0
+export type CampaignMetrics = {
+  timeframe: CampaignTimeframe;
   currentRankIndex: number;
+  userCampaignHiveIQ: number | null;
+  completedRoundCount: number;
+  leaderboardRank: number | null;
+};
+
+export type UserActiveSubredditMetrics = {
+  /** Subreddit rollup Hive IQ across all campaigns. */
+  userSubredditHiveIQ: number | null;
+  currentRankIndex: number;
+  activeTimeframe: CampaignTimeframe;
 };
 
 export type SubredditDisplayMetadata = {
@@ -105,11 +129,14 @@ export type InitResponse = {
   userGlobalHiveIQ: UserGlobalHiveIQMetrics | null;
   dashboardSubreddits: SubredditDashboardCard[] | null;
   activeSubredditMetrics: UserActiveSubredditMetrics | null;
+  /** Community host only: one entry per selectable campaign. */
+  campaignMetrics: CampaignMetrics[] | null;
   dailyChallenge: DailyChallengeMetrics | null;
 };
 
 export type SessionSubRequest = {
   subreddit: string;
+  timeframe?: CampaignTimeframe;
 };
 
 export type SessionSubResponse = {
@@ -131,6 +158,7 @@ export type SessionSubError = {
 
 export type PuzzleNextRequest = {
   subreddit?: string;
+  timeframe: CampaignTimeframe;
   rankIndex?: number;
   /** Guest-only hint; logged-in users always use server-stored preference. */
   gameMode?: GameMode;
@@ -169,7 +197,8 @@ export type PuzzleNextResponse =
       code:
         | 'SUBREDDIT_REQUIRED'
         | 'SUBREDDIT_UNAVAILABLE'
-        | 'HOST_SUBREDDIT_LOCKED';
+        | 'HOST_SUBREDDIT_LOCKED'
+        | 'TIMEFRAME_REQUIRED';
       message: string;
     };
 

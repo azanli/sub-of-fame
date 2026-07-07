@@ -1,10 +1,11 @@
 import type { Listing, Post, RedditClient } from '@devvit/reddit';
 import type { T3 } from '@devvit/shared-types/tid.js';
+import type { CampaignContext } from '../../shared/campaignContext.js';
 import type { NextWorkBudget } from '../../shared/api.js';
 import {
-  resolveLadderPageSize,
-  resolveLadderTimeframe,
-} from '../redis/keys.js';
+  resolveCampaignLadderPageSize,
+  resolveRedditListingStrategy,
+} from '../redis/campaignKeys.js';
 import { resolvePostPlainText } from './postContent.js';
 import {
   getCursorChain,
@@ -20,7 +21,7 @@ import type {
   LadderPostSummary,
 } from '../redis/types.js';
 
-type Reddit = Pick<RedditClient, 'getTopPosts'>;
+type Reddit = Pick<RedditClient, 'getTopPosts' | 'getHotPosts'>;
 
 export type LadderResolveResult =
   | { kind: 'hit'; page: LadderCachePage; offset: number }
@@ -302,8 +303,9 @@ export const fastFilterEligible = (summary: LadderPostSummary): boolean => {
 
 type MutableCursorChain = LadderCursorChain;
 
-const emptyChain = (subredditName: string): MutableCursorChain => ({
-  subreddit: subredditName,
+const emptyChain = (ctx: CampaignContext): MutableCursorChain => ({
+  subreddit: ctx.subredditName,
+  timeframe: ctx.timeframe,
   startsAfter: {},
   deepestKnownPage: 0,
   terminalPage: null,
@@ -311,9 +313,17 @@ const emptyChain = (subredditName: string): MutableCursorChain => ({
 });
 
 const normalizeChain = (
-  subredditName: string,
+  ctx: CampaignContext,
   chain: LadderCursorChain | null
-): MutableCursorChain => chain ?? emptyChain(subredditName);
+): MutableCursorChain => {
+  if (chain === null) {
+    return emptyChain(ctx);
+  }
+  if (chain.subreddit !== ctx.subredditName || chain.timeframe !== ctx.timeframe) {
+    return emptyChain(ctx);
+  }
+  return chain;
+};
 
 const hasStartsAfter = (chain: MutableCursorChain, page: number): boolean =>
   Object.hasOwn(chain.startsAfter, page);
@@ -335,7 +345,7 @@ const extractListingAfter = (
 };
 
 const resolveAfterCursor = async (
-  subredditName: string,
+  ctx: CampaignContext,
   page: number,
   chain: MutableCursorChain,
   lastNextAfter: string | null
@@ -349,7 +359,7 @@ const resolveAfterCursor = async (
   if (lastNextAfter !== null) {
     return lastNextAfter;
   }
-  const previousPage = await getLadderPage(subredditName, page - 1);
+  const previousPage = await getLadderPage(ctx, page - 1);
   return previousPage?.nextAfter ?? null;
 };
 
@@ -362,21 +372,39 @@ type FetchPageResult =
     }
   | { kind: 'terminal'; page: LadderCachePage };
 
+const fetchListing = (
+  ctx: CampaignContext,
+  after: string | null,
+  pageSize: number,
+  reddit: Reddit
+): Listing<Post> => {
+  const strategy = resolveRedditListingStrategy(ctx);
+  if (strategy.kind === 'hot') {
+    return reddit.getHotPosts({
+      subredditName: ctx.subredditName,
+      after: after ?? undefined,
+      limit: pageSize,
+    });
+  }
+
+  return reddit.getTopPosts({
+    subredditName: ctx.subredditName,
+    after: after ?? undefined,
+    limit: pageSize,
+    timeframe: strategy.timeframe,
+  });
+};
+
 const fetchAndPersistPage = async (
-  subredditName: string,
+  ctx: CampaignContext,
   page: number,
   after: string | null,
   budget: NextWorkBudget,
   reddit: Reddit,
   chain: MutableCursorChain
 ): Promise<FetchPageResult> => {
-  const pageSize = resolveLadderPageSize(subredditName);
-  const listing = reddit.getTopPosts({
-    subredditName,
-    after: after ?? undefined,
-    limit: pageSize,
-    timeframe: resolveLadderTimeframe(subredditName),
-  });
+  const pageSize = resolveCampaignLadderPageSize(ctx);
+  const listing = fetchListing(ctx, after, pageSize, reddit);
   const posts = await listing.get(pageSize);
   spendRedditCall(budget);
 
@@ -391,9 +419,10 @@ const fetchAndPersistPage = async (
     fetchedAt: Date.now(),
   };
 
-  await setLadderPage(subredditName, page, cachePage);
+  await setLadderPage(ctx, page, cachePage);
 
-  chain.subreddit = subredditName;
+  chain.subreddit = ctx.subredditName;
+  chain.timeframe = ctx.timeframe;
   chain.startsAfter[page] = after;
   if (nextAfter !== null) {
     chain.startsAfter[page + 1] = nextAfter;
@@ -403,7 +432,7 @@ const fetchAndPersistPage = async (
     chain.terminalPage = page;
   }
   chain.updatedAt = Date.now();
-  await setCursorChain(subredditName, chain);
+  await setCursorChain(ctx, chain);
 
   if (isTerminal) {
     return { kind: 'terminal', page: cachePage };
@@ -412,7 +441,7 @@ const fetchAndPersistPage = async (
 };
 
 export const resolveLadderPage = async (
-  subredditName: string,
+  ctx: CampaignContext,
   rankIndex: number,
   budget: NextWorkBudget,
   reddit: Reddit
@@ -421,16 +450,16 @@ export const resolveLadderPage = async (
     return { kind: 'error', message: 'rankIndex must be >= 1' };
   }
 
-  const targetPage = rankIndexToPage(rankIndex, subredditName);
-  const offset = rankIndexToOffset(rankIndex, subredditName);
+  const targetPage = rankIndexToPage(rankIndex, ctx);
+  const offset = rankIndexToOffset(rankIndex, ctx);
 
-  const cachedPage = await getLadderPage(subredditName, targetPage);
+  const cachedPage = await getLadderPage(ctx, targetPage);
   if (cachedPage !== null) {
     return { kind: 'hit', page: cachedPage, offset };
   }
 
-  const loadedChain = await getCursorChain(subredditName);
-  const chain = normalizeChain(subredditName, loadedChain);
+  const loadedChain = await getCursorChain(ctx);
+  const chain = normalizeChain(ctx, loadedChain);
 
   if (hasStartsAfter(chain, targetPage)) {
     if (!canSpendRedditCall(budget)) {
@@ -441,7 +470,7 @@ export const resolveLadderPage = async (
     let fetchResult: FetchPageResult;
     try {
       fetchResult = await fetchAndPersistPage(
-        subredditName,
+        ctx,
         targetPage,
         after,
         budget,
@@ -471,16 +500,11 @@ export const resolveLadderPage = async (
       return { kind: 'unplayable', continuationRankIndex: rankIndex };
     }
 
-    const after = await resolveAfterCursor(
-      subredditName,
-      page,
-      chain,
-      lastNextAfter
-    );
+    const after = await resolveAfterCursor(ctx, page, chain, lastNextAfter);
     let fetchResult: FetchPageResult;
     try {
       fetchResult = await fetchAndPersistPage(
-        subredditName,
+        ctx,
         page,
         after,
         budget,

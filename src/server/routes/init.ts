@@ -1,14 +1,28 @@
 import { router, publicProcedure } from '../trpc';
 import { deriveLaunchContext, normalizeSubredditName } from '../launchContext';
-import { getProgress, getAllProgress } from '../redis/progressStore';
-import { getStats, computeHiveIQ, ensureWelcomeCoins, getGameMode } from '../redis/statsStore';
+import { getProgress, listProgressEntries } from '../redis/progressStore';
+import {
+  getStats,
+  computeHiveIQ,
+  ensureWelcomeCoins,
+  getGameMode,
+  getSubredditAggregate,
+  getCampaignStats,
+  subredditHasAnyStats,
+} from '../redis/statsStore';
 import { getLeaderboardRank } from '../redis/leaderboardStore';
 import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
 import { getDailyChallengeResetAt } from '../redis/dailyChallengeStore';
 import { CURATED_SUBREDDITS } from '../../shared/subreddits';
 import { DAILY_CHALLENGE_SUBREDDIT, isDailyChallengeSubreddit } from '../../shared/dailyChallenge';
 import {
+  CAMPAIGN_TIMEFRAMES,
+  DEFAULT_CAMPAIGN_TIMEFRAME,
+  type CampaignContext,
+} from '../../shared/campaignContext';
+import {
   DEFAULT_GAME_MODE,
+  type CampaignMetrics,
   type DailyChallengeMetrics,
   type InitResponse,
   type SubredditDashboardCard,
@@ -26,21 +40,27 @@ const buildGlobalHiveIQ = (stats: UserStatsProfile): UserGlobalHiveIQMetrics => 
 const getCompletedRoundCount = (
   stats: UserStatsProfile,
   subreddit: string
-): number => Math.floor((stats.bySubreddit[subreddit]?.totalSlots ?? 0) / 3);
+): number =>
+  Math.floor((getSubredditAggregate(stats, subreddit).totalSlots ?? 0) / 3);
 
 const buildDashboardSubreddits = async (
   userId: string,
-  progress: Record<string, number>,
+  progressEntries: Awaited<ReturnType<typeof listProgressEntries>>,
   stats: UserStatsProfile,
   reddit: TRPCContext['reddit']
 ): Promise<SubredditDashboardCard[]> => {
   const curatedNames = CURATED_SUBREDDITS.map((entry) => entry.name);
   const curatedSet = new Set(curatedNames);
 
+  const progressSubreddits = new Set(
+    progressEntries.map((entry) => entry.subredditName)
+  );
+
   const customNames = [
-    ...new Set(
-      [...Object.keys(progress), ...Object.keys(stats.bySubreddit)].map(normalizeSubredditName)
-    ),
+    ...new Set([
+      ...progressSubreddits,
+      ...Object.keys(stats.bySubreddit).map(normalizeSubredditName),
+    ]),
   ].filter(
     (name) => name.length > 0 && !curatedSet.has(name) && !isDailyChallengeSubreddit(name)
   );
@@ -58,17 +78,26 @@ const buildDashboardSubreddits = async (
         return null;
       }
 
-      const subStats = stats.bySubreddit[subreddit] ?? {
-        correctSlots: 0,
-        totalSlots: 0,
+      const aggregateStats = getSubredditAggregate(stats, subreddit);
+      const allTimeCtx: CampaignContext = {
+        subredditName: subreddit,
+        timeframe: DEFAULT_CAMPAIGN_TIMEFRAME,
       };
-      const leaderboardRank = await getLeaderboardRank(subreddit, userId);
+      const allTimeProgress =
+        progressEntries.find(
+          (entry) =>
+            entry.subredditName === subreddit && entry.timeframe === DEFAULT_CAMPAIGN_TIMEFRAME
+        )?.rankIndex ?? 1;
+      const leaderboardRank = await getLeaderboardRank(allTimeCtx, userId);
 
       return {
         ...metadata,
-        currentRankIndex: progress[subreddit] ?? 1,
-        userSubredditHiveIQ: computeHiveIQ(subStats.correctSlots, subStats.totalSlots),
-        completedRoundCount: Math.floor(subStats.totalSlots / 3),
+        currentRankIndex: allTimeProgress,
+        userSubredditHiveIQ: computeHiveIQ(
+          aggregateStats.correctSlots,
+          aggregateStats.totalSlots
+        ),
+        completedRoundCount: Math.floor(aggregateStats.totalSlots / 3),
         leaderboardRank,
       };
     })
@@ -88,10 +117,10 @@ const resolvePlayerName = async (ctx: TRPCContext): Promise<string> => {
 
 const playerHasGameData = (
   stats: UserStatsProfile,
-  progress: Record<string, number>
+  progressEntries: Awaited<ReturnType<typeof listProgressEntries>>
 ): boolean =>
   stats.global.totalSlots > 0 ||
-  Object.values(progress).some((rankIndex) => rankIndex > 1);
+  progressEntries.some((entry) => entry.rankIndex > 1);
 
 const buildDailyChallengeMetrics = (): DailyChallengeMetrics => ({
   subreddit: DAILY_CHALLENGE_SUBREDDIT,
@@ -116,7 +145,10 @@ const buildHostDashboardCard = async (
   const hostStats = options.hostStats ?? { correctSlots: 0, totalSlots: 0 };
   const leaderboardRank =
     options.userId !== undefined
-      ? await getLeaderboardRank(hostSubreddit, options.userId)
+      ? await getLeaderboardRank(
+          { subredditName: hostSubreddit, timeframe: DEFAULT_CAMPAIGN_TIMEFRAME },
+          options.userId
+        )
       : null;
 
   return {
@@ -141,6 +173,35 @@ const buildHostDashboardSubreddits = async (
   return card !== null ? [card] : null;
 };
 
+const buildCampaignMetrics = async (
+  hostSubreddit: string,
+  userId: string,
+  stats: UserStatsProfile,
+  progressEntries: Awaited<ReturnType<typeof listProgressEntries>>
+): Promise<CampaignMetrics[]> =>
+  Promise.all(
+    CAMPAIGN_TIMEFRAMES.map(async ({ id: timeframe }) => {
+      const campaignCtx: CampaignContext = { subredditName: hostSubreddit, timeframe };
+      const campaignStats = getCampaignStats(stats, campaignCtx);
+      const currentRankIndex =
+        progressEntries.find(
+          (entry) => entry.subredditName === hostSubreddit && entry.timeframe === timeframe
+        )?.rankIndex ?? 1;
+      const leaderboardRank = await getLeaderboardRank(campaignCtx, userId);
+
+      return {
+        timeframe,
+        currentRankIndex,
+        userCampaignHiveIQ: computeHiveIQ(
+          campaignStats.correctSlots,
+          campaignStats.totalSlots
+        ),
+        completedRoundCount: Math.floor(campaignStats.totalSlots / 3),
+        leaderboardRank,
+      };
+    })
+  );
+
 export const initRouter = router({
   init: publicProcedure.query(async ({ ctx }): Promise<InitResponse> => {
     const launchContext = deriveLaunchContext(ctx.subredditName, ctx.surface);
@@ -164,6 +225,7 @@ export const initRouter = router({
         userGlobalHiveIQ: null,
         dashboardSubreddits,
         activeSubredditMetrics: null,
+        campaignMetrics: null,
         dailyChallenge: isHub ? buildDailyChallengeMetrics() : null,
       };
     }
@@ -175,14 +237,14 @@ export const initRouter = router({
     ]);
 
     if (isHub) {
-      const [progress, stats] = await Promise.all([
-        getAllProgress(userId),
+      const [progressEntries, stats] = await Promise.all([
+        listProgressEntries(userId),
         getStats(userId),
       ]);
 
       const dashboardSubreddits = await buildDashboardSubreddits(
         userId,
-        progress,
+        progressEntries,
         stats,
         ctx.reddit
       );
@@ -193,34 +255,37 @@ export const initRouter = router({
         activeSubreddit: null,
         playerName,
         gameMode,
-        hasGameData: playerHasGameData(stats, progress),
+        hasGameData: playerHasGameData(stats, progressEntries),
         coins,
         userGlobalHiveIQ: buildGlobalHiveIQ(stats),
         dashboardSubreddits,
         activeSubredditMetrics: null,
+        campaignMetrics: null,
         dailyChallenge: buildDailyChallengeMetrics(),
       };
     }
 
-    const [currentRankIndex, stats] = await Promise.all([
-      getProgress(userId, hostSubreddit),
-      getStats(userId),
-    ]);
-
-    const hostStats = stats.bySubreddit[hostSubreddit] ?? {
-      correctSlots: 0,
-      totalSlots: 0,
+    const defaultCampaignCtx: CampaignContext = {
+      subredditName: hostSubreddit,
+      timeframe: DEFAULT_CAMPAIGN_TIMEFRAME,
     };
 
-    const dashboardSubreddits = await buildHostDashboardSubreddits(
-      hostSubreddit,
-      ctx.reddit,
-      {
+    const [currentRankIndex, stats, progressEntries] = await Promise.all([
+      getProgress(userId, defaultCampaignCtx),
+      getStats(userId),
+      listProgressEntries(userId),
+    ]);
+
+    const hostAggregateStats = getSubredditAggregate(stats, hostSubreddit);
+
+    const [dashboardSubreddits, campaignMetrics] = await Promise.all([
+      buildHostDashboardSubreddits(hostSubreddit, ctx.reddit, {
         userId,
         currentRankIndex,
-        hostStats,
-      }
-    );
+        hostStats: hostAggregateStats,
+      }),
+      buildCampaignMetrics(hostSubreddit, userId, stats, progressEntries),
+    ]);
 
     return {
       hostSubreddit,
@@ -228,14 +293,21 @@ export const initRouter = router({
       activeSubreddit: hostSubreddit,
       playerName,
       gameMode,
-      hasGameData: playerHasGameData(stats, { [hostSubreddit]: currentRankIndex }),
+      hasGameData:
+        playerHasGameData(stats, progressEntries) ||
+        subredditHasAnyStats(stats, hostSubreddit),
       coins,
       userGlobalHiveIQ: buildGlobalHiveIQ(stats),
       dashboardSubreddits,
       activeSubredditMetrics: {
-        userSubredditHiveIQ: computeHiveIQ(hostStats.correctSlots, hostStats.totalSlots),
+        userSubredditHiveIQ: computeHiveIQ(
+          hostAggregateStats.correctSlots,
+          hostAggregateStats.totalSlots
+        ),
         currentRankIndex,
+        activeTimeframe: DEFAULT_CAMPAIGN_TIMEFRAME,
       },
+      campaignMetrics,
       dailyChallenge: null,
     };
   }),
