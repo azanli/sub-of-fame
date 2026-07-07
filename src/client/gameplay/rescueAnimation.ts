@@ -5,7 +5,8 @@ export const RESCUE_SCENE = {
   snooPeakPercent: 88,
   /** Lowest Snoo position during panic; full exit happens only on expiry */
   snooPanicLowPercent: 38,
-  snooDropOutPercent: 110,
+  /** bottom % far enough below the scene to hide the full Snoo sprite */
+  snooDropOutPercent: -50,
   snooMaxScale: 1,
   snooMinScale: 0.6,
   risePhaseEndRatio: 0.75,
@@ -55,6 +56,9 @@ export type RescueAnimationState = {
   isSpaceshipFaltering: boolean;
   snooBottomPercent: number;
   snooScale: number;
+  /** Pose to begin the expiry drop from (last tick before time runs out) */
+  snooDropFromBottomPercent: number;
+  snooDropFromScale: number;
   /** 0–1 vertical scale for the beam cone */
   beamScale: number;
 };
@@ -91,6 +95,14 @@ export const getRescueAnimationState = (
   totalSeconds: number
 ): RescueAnimationState => {
   if (secondsRemaining <= 0 || totalSeconds <= 0) {
+    const dropFromState =
+      totalSeconds > 0
+        ? getRescueAnimationState(Math.min(1, totalSeconds), totalSeconds)
+        : {
+            snooBottomPercent: RESCUE_SCENE.snooPanicLowPercent,
+            snooScale: getSnooScale(0),
+          };
+
     return {
       phase: 'expired',
       liftProgress: 0,
@@ -99,6 +111,8 @@ export const getRescueAnimationState = (
       isSpaceshipFaltering: false,
       snooBottomPercent: RESCUE_SCENE.snooPanicLowPercent,
       snooScale: getSnooScale(0),
+      snooDropFromBottomPercent: dropFromState.snooBottomPercent,
+      snooDropFromScale: dropFromState.snooScale,
       beamScale: 0,
     };
   }
@@ -118,6 +132,8 @@ export const getRescueAnimationState = (
       isSpaceshipFaltering: false,
       snooBottomPercent,
       snooScale: getSnooScale(liftProgress),
+      snooDropFromBottomPercent: snooBottomPercent,
+      snooDropFromScale: getSnooScale(liftProgress),
       beamScale: getBeamScale(snooBottomPercent),
     };
   }
@@ -137,6 +153,8 @@ export const getRescueAnimationState = (
     isSpaceshipFaltering: true,
     snooBottomPercent,
     snooScale: getSnooScale(liftProgress),
+    snooDropFromBottomPercent: snooBottomPercent,
+    snooDropFromScale: getSnooScale(liftProgress),
     beamScale: getBeamScale(snooBottomPercent),
   };
 };

@@ -203,13 +203,11 @@
 
 @keyframes rescue-snoo-drop-out-keyframes {
   from {
-    opacity: 1;
-    transform: translateY(0);
+    bottom: var(--snoo-fall-from);
   }
 
   to {
-    opacity: 0;
-    transform: translateY(min(28vh, 180px));
+    bottom: var(--snoo-fall-to);
   }
 }
 
@@ -270,7 +268,7 @@
 }
 
 .rescue-snoo-drop-out {
-  animation: rescue-snoo-drop-out-keyframes 400ms ease-in forwards;
+  animation: rescue-snoo-drop-out-keyframes 650ms ease-in forwards;
   transition: none;
 }
 
@@ -338,7 +336,7 @@
 
   .rescue-snoo-drop-out {
     animation: none;
-    opacity: 0;
+    bottom: var(--snoo-fall-to) !important;
   }
 
   .rescue-snoo-falling-frame-a {

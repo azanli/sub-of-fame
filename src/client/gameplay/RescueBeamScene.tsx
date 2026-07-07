@@ -55,6 +55,8 @@ export const RescueBeamScene = ({ animationState }: RescueBeamSceneProps) => {
       <RescuedSnoo
         bottomPercent={animationState.snooBottomPercent}
         snooScale={animationState.snooScale}
+        dropFromBottomPercent={animationState.snooDropFromBottomPercent}
+        dropFromScale={animationState.snooDropFromScale}
         phase={animationState.phase}
       />
       <RescueBeamGlow

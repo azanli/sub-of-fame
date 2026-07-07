@@ -1,10 +1,11 @@
-import { useRef } from 'react';
 import type { RescueAnimationPhase } from '../rescueAnimation';
-import { RESCUE_SCENE_IMAGES } from '../rescueAnimation';
+import { RESCUE_SCENE, RESCUE_SCENE_IMAGES } from '../rescueAnimation';
 
 type RescuedSnooProps = {
   bottomPercent: number;
   snooScale: number;
+  dropFromBottomPercent: number;
+  dropFromScale: number;
   phase: RescueAnimationPhase;
 };
 
@@ -40,35 +41,32 @@ const CheerSnoo = () => (
 export const RescuedSnoo = ({
   bottomPercent,
   snooScale,
+  dropFromBottomPercent,
+  dropFromScale,
   phase,
 }: RescuedSnooProps) => {
   const isExpired = phase === 'expired';
-  const lastBottomPercentRef = useRef(bottomPercent);
-
-  if (!isExpired) {
-    lastBottomPercentRef.current = bottomPercent;
-  }
-
-  const displayBottomPercent = isExpired
-    ? lastBottomPercentRef.current
-    : bottomPercent;
-
   const showFallingSprite = phase === 'panic' || phase === 'expired';
 
   return (
     <div
       aria-hidden="true"
       className={`rescue-snoo absolute left-1/2 z-[2] origin-bottom ${
-        isExpired ? '' : 'rescue-snoo-lift'
+        isExpired ? 'rescue-snoo-drop-out' : 'rescue-snoo-lift'
       }`}
       style={{
-        bottom: `${displayBottomPercent}%`,
-        transform: `translateX(-50%) scale(${snooScale})`,
+        ...(isExpired
+          ? {
+              '--snoo-fall-from': `${dropFromBottomPercent}%`,
+              '--snoo-fall-to': `${RESCUE_SCENE.snooDropOutPercent}%`,
+            }
+          : { bottom: `${bottomPercent}%` }),
+        transform: `translateX(-50%) scale(${
+          isExpired ? dropFromScale : snooScale
+        })`,
       }}
     >
-      <div className={isExpired ? 'rescue-snoo-drop-out' : ''}>
-        {showFallingSprite ? <FallingSnooSprite /> : <CheerSnoo />}
-      </div>
+      {showFallingSprite ? <FallingSnooSprite /> : <CheerSnoo />}
     </div>
   );
 };

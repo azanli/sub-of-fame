@@ -136,6 +136,9 @@ describe('getRescueAnimationState', () => {
     expect(state.beamIntensity).toBe(0);
     expect(state.snooBottomPercent).toBe(RESCUE_SCENE.snooPanicLowPercent);
     expect(state.beamScale).toBe(0);
+    expect(state.snooDropFromBottomPercent).toBeCloseTo(
+      getPanicSnooBottomPercent(0.04)
+    );
   });
 });
 
