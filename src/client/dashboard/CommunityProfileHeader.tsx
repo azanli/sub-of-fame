@@ -37,29 +37,21 @@ export const CommunityProfileHeader = ({
       <div className="flex shrink-0 flex-col items-end gap-1">
         {hiveIQText !== null && (
           <p
-            className="flex items-center gap-0.5 text-sm text-gray-500 dark:text-gray-400"
+            className="flex items-center gap-1 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400"
             aria-label={`Hive IQ ${hiveIQText}`}
           >
-            <span className="tabular-nums">{hiveIQText}</span>
             {showHiveIQScore ? (
-              <span
-                className="ml-1 inline-flex w-4 shrink-0 justify-center"
-                aria-hidden="true"
-              >
-                🧠
-              </span>
+              <span aria-hidden="true">🧠 Hive IQ:</span>
             ) : null}
+            <span className="tabular-nums">{hiveIQText}</span>
           </p>
         )}
         {leaderboardRank !== null && (
-          <p className="flex items-center gap-0.5 text-sm font-medium text-orange-600 dark:text-orange-400">
-            <span className="tabular-nums">#{leaderboardRank}</span>
-            <span
-              className="ml-1 inline-flex w-4 shrink-0 justify-center"
-              aria-hidden="true"
-            >
-              🏆
+          <p className="flex items-center gap-1 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+            <span aria-hidden="true">
+              🏅 {formatSubredditLabel(displayName)} Rank:
             </span>
+            <span className="tabular-nums">#{leaderboardRank}</span>
           </p>
         )}
       </div>
