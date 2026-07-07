@@ -53,7 +53,7 @@ export const SubredditDashboardCard = ({
             {description}
           </p>
         )}
-        {badges.length > 0 && (
+        {/* {badges.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             {badges.map((badge) => (
               <span
@@ -68,7 +68,7 @@ export const SubredditDashboardCard = ({
               </span>
             ))}
           </div>
-        )}
+        )} */}
       </div>
     </>
   );
