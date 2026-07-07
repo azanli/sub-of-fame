@@ -44,7 +44,7 @@ export const LeaderboardView = ({ initData, onBack }: LeaderboardViewProps) => {
           type="button"
           onClick={onBack}
           aria-label="Back to dashboard"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-lg text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-lg text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
         >
           ←
         </button>
