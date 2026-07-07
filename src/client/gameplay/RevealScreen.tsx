@@ -1,8 +1,16 @@
 import { navigateTo } from '@devvit/web/client';
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { GameMode, PuzzleRevealResult } from '../../shared/api';
 import { formatCompactNumber } from '../../shared/formatNumber';
 import { formatSubredditLabel } from '../../shared/subreddits';
+import { ForfeitAngelScene } from './ForfeitAngelScene';
+import {
+  FORFEIT_ANGEL_SCENE,
+  createReducedMotionPath,
+  generateZigZagPath,
+  prefersReducedMotion,
+  type ZigZagPathPoint,
+} from './forfeitAnimation';
 import { pickRevealRemark, resolveCasualSlotHighlight } from './helpers';
 import {
   getForfeitRevealRemarkKey,
@@ -154,6 +162,14 @@ export const RevealScreen = ({
   const [flashingSlotIndex, setFlashingSlotIndex] = useState<number | null>(
     null
   );
+  const [showForfeitAngel, setShowForfeitAngel] = useState(false);
+  const [forfeitPath] = useState<ZigZagPathPoint[] | null>(() =>
+    isForfeited
+      ? prefersReducedMotion()
+        ? createReducedMotionPath()
+        : generateZigZagPath()
+      : null
+  );
 
   const [oneCoinCheerSnoo] = useState(() =>
     result.score === 1 ? pickRandomCheerSnoo() : null
@@ -205,6 +221,28 @@ export const RevealScreen = ({
     showCheerSnoo && result.score >= 3 && revealedCoinCount >= 2;
   const showOneCoinCheerSnoo = showCheerSnoo && result.score === 1;
 
+  const triggerZeroScoreCoinHeaderPulse = useCallback(() => {
+    if (coinBalance === null) {
+      return;
+    }
+
+    setCoinHeaderPulse(true);
+    window.setTimeout(() => setCoinHeaderPulse(false), COIN_HEADER_PULSE_MS);
+  }, [coinBalance]);
+
+  const handleForfeitAngelComplete = () => {
+    setShowVerdict(true);
+
+    if (isCasualMode && result.score === 0) {
+      triggerZeroScoreCoinHeaderPulse();
+      return;
+    }
+
+    if (!isCasualMode && isZeroScore && !isSkipped) {
+      triggerZeroScoreCoinHeaderPulse();
+    }
+  };
+
   useEffect(() => {
     const timers: number[] = [];
 
@@ -225,19 +263,21 @@ export const RevealScreen = ({
 
     const lastSlotRevealMs =
       Math.max(0, result.slots.length - 1) * SLOT_REVEAL_STAGGER_MS;
+    const verdictDelayMs = isForfeited
+      ? FORFEIT_ANGEL_SCENE.postRevealDelayMs
+      : VERDICT_DELAY_AFTER_LAST_SLOT_MS;
     timers.push(
       window.setTimeout(() => {
+        if (isForfeited) {
+          setShowForfeitAngel(true);
+          return;
+        }
+
         setShowVerdict(true);
 
         if (isCasualMode) {
           if (result.score === 0 && coinBalance !== null) {
-            setCoinHeaderPulse(true);
-            timers.push(
-              window.setTimeout(
-                () => setCoinHeaderPulse(false),
-                COIN_HEADER_PULSE_MS
-              )
-            );
+            triggerZeroScoreCoinHeaderPulse();
             return;
           }
 
@@ -273,13 +313,7 @@ export const RevealScreen = ({
         }
 
         if (isZeroScore && !isSkipped && coinBalance !== null) {
-          setCoinHeaderPulse(true);
-          timers.push(
-            window.setTimeout(
-              () => setCoinHeaderPulse(false),
-              COIN_HEADER_PULSE_MS
-            )
-          );
+          triggerZeroScoreCoinHeaderPulse();
           return;
         }
 
@@ -311,7 +345,7 @@ export const RevealScreen = ({
             );
           }
         }
-      }, lastSlotRevealMs + VERDICT_DELAY_AFTER_LAST_SLOT_MS)
+      }, lastSlotRevealMs + verdictDelayMs)
     );
 
     return () => {
@@ -321,13 +355,21 @@ export const RevealScreen = ({
     result.slots,
     isZeroScore,
     isSkipped,
+    isForfeited,
     isCasualMode,
     coinBalance,
     result.score,
+    triggerZeroScoreCoinHeaderPulse,
   ]);
 
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden">
+      {isForfeited && showForfeitAngel && forfeitPath !== null ? (
+        <ForfeitAngelScene
+          path={forfeitPath}
+          onComplete={handleForfeitAngelComplete}
+        />
+      ) : null}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="flex flex-col gap-6 p-4 pb-6">
           <div

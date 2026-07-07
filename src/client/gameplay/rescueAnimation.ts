@@ -21,6 +21,7 @@ export const RESCUE_SCENE_IMAGES = {
   spaceshipPanic: '/spaceship-panic.png',
   spaceshipSad: '/spaceship-sad.png',
   snoo: '/snoo-cheer-two.png',
+  snooAngel: '/snoo-angel.png',
 } as const;
 
 export const preloadRescueSceneImages = (): void => {
