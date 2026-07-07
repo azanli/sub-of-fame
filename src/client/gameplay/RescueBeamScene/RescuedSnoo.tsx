@@ -50,30 +50,27 @@ export const RescuedSnoo = ({
   phase,
 }: RescuedSnooProps) => {
   const isExpired = phase === 'expired';
-  const [showPanicSprite, setShowPanicSprite] = useState(
+  const [panicSpriteReady, setPanicSpriteReady] = useState(
     () => phase === 'expired' || (phase === 'panic' && prefersReducedMotion())
   );
+  const [prevPhase, setPrevPhase] = useState(phase);
+
+  if (phase !== prevPhase) {
+    setPrevPhase(phase);
+    setPanicSpriteReady(
+      phase === 'expired' || (phase === 'panic' && prefersReducedMotion())
+    );
+  }
 
   useEffect(() => {
-    if (phase === 'expired') {
-      setShowPanicSprite(true);
-      return;
-    }
-
-    if (phase !== 'panic') {
-      setShowPanicSprite(false);
-      return;
-    }
-
-    if (prefersReducedMotion()) {
-      setShowPanicSprite(true);
+    if (phase !== 'panic' || prefersReducedMotion()) {
       return;
     }
 
     let cancelled = false;
     const delayId = window.setTimeout(() => {
       if (!cancelled) {
-        setShowPanicSprite(true);
+        setPanicSpriteReady(true);
       }
     }, RESCUE_SCENE.panicSnooSpriteDelayMs);
 
@@ -84,7 +81,7 @@ export const RescuedSnoo = ({
   }, [phase]);
 
   const showFallingSprite =
-    (phase === 'panic' && showPanicSprite) || phase === 'expired';
+    phase === 'expired' || (phase === 'panic' && panicSpriteReady);
 
   return (
     <div
