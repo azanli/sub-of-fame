@@ -13,7 +13,7 @@ const FAQ_ENTRIES: FaqEntry[] = [
   },
   {
     question: 'What is the difference between Casual and Expert mode?',
-    answer: `Casual mode gives you more time and lets you return to the post while deciding which is the top comment.\n\nExpert mode is strictly timed and locks you in the comments puzzle until you rank the comments from most to least popular.`,
+    answer: `Casual mode gives you more time and lets you return to the post while deciding which is the top comment.\n\nExpert mode is strictly timed and locks you in the comments puzzle until you rank the comments from most to least upvotes.`,
   },
   {
     question: 'How do coins work?',
