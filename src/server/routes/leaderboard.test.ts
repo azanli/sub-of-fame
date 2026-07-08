@@ -3,17 +3,15 @@ import type { TRPCContext } from '../trpc';
 import type { LeaderboardEntry } from '../../shared/api';
 
 const {
-  mockGetEcosystemLeaderboardPage,
-  mockGetEcosystemLeaderboardRank,
-  mockGetLeaderboardPage,
+  mockGetEcosystemLeaderboardDisplayPage,
+  mockGetLeaderboardDisplayPage,
   mockGetLeaderboardRank,
   mockListProgressEntries,
   mockGetStats,
   mockResolveSubredditMetadata,
 } = vi.hoisted(() => ({
-  mockGetEcosystemLeaderboardPage: vi.fn(),
-  mockGetEcosystemLeaderboardRank: vi.fn(),
-  mockGetLeaderboardPage: vi.fn(),
+  mockGetEcosystemLeaderboardDisplayPage: vi.fn(),
+  mockGetLeaderboardDisplayPage: vi.fn(),
   mockGetLeaderboardRank: vi.fn(),
   mockListProgressEntries: vi.fn(),
   mockGetStats: vi.fn(),
@@ -22,10 +20,9 @@ const {
 
 vi.mock('../redis/leaderboardStore.js', () => ({
   updateLeaderboard: vi.fn(),
-  getLeaderboardPage: mockGetLeaderboardPage,
+  getLeaderboardDisplayPage: mockGetLeaderboardDisplayPage,
   getLeaderboardRank: mockGetLeaderboardRank,
-  getEcosystemLeaderboardPage: mockGetEcosystemLeaderboardPage,
-  getEcosystemLeaderboardRank: mockGetEcosystemLeaderboardRank,
+  getEcosystemLeaderboardDisplayPage: mockGetEcosystemLeaderboardDisplayPage,
 }));
 
 vi.mock('../redis/progressStore.js', () => ({
@@ -63,6 +60,16 @@ const makeEntry = (
   ...overrides,
 });
 
+const makeTopTen = (): LeaderboardEntry[] =>
+  Array.from({ length: 10 }, (_, index) =>
+    makeEntry({
+      userId: `top-${index + 1}`,
+      username: `player${index + 1}`,
+      displayRank: index + 1,
+      isCurrentUser: false,
+    })
+  );
+
 const makeCtx = (overrides: Partial<TRPCContext> = {}): TRPCContext => ({
   reddit: {
     getSubredditInfoByName: vi.fn(),
@@ -88,9 +95,10 @@ describe('leaderboard.getPage', () => {
       iconUrl: `https://example.com/${subreddit}.png`,
       metadataSource: 'curated' as const,
     }));
-    mockGetEcosystemLeaderboardPage.mockResolvedValue([makeEntry()]);
-    mockGetEcosystemLeaderboardRank.mockResolvedValue(1);
-    mockGetLeaderboardPage.mockResolvedValue([makeEntry({ username: 'beta', isCurrentUser: false })]);
+    mockGetEcosystemLeaderboardDisplayPage.mockResolvedValue([makeEntry()]);
+    mockGetLeaderboardDisplayPage.mockResolvedValue([
+      makeEntry({ username: 'beta', isCurrentUser: false }),
+    ]);
     mockGetLeaderboardRank.mockResolvedValue(2);
     mockListProgressEntries.mockResolvedValue([
       { subredditName: 'askreddit', timeframe: 'all', rankIndex: 4 },
@@ -119,6 +127,7 @@ describe('leaderboard.getPage', () => {
       kind: 'subreddit',
       subredditName: 'askreddit',
     });
+    expect(mockGetEcosystemLeaderboardDisplayPage).toHaveBeenCalledWith(10, 'u1');
   });
 
   it('returns only the global section for logged-out Hub users', async () => {
@@ -127,6 +136,7 @@ describe('leaderboard.getPage', () => {
 
     expect(result.sections).toHaveLength(1);
     expect(result.sections[0]?.scope).toEqual({ kind: 'ecosystem' });
+    expect(mockGetEcosystemLeaderboardDisplayPage).toHaveBeenCalledWith(10, undefined);
   });
 
   it('returns a single all-time host section in community context', async () => {
@@ -145,11 +155,58 @@ describe('leaderboard.getPage', () => {
       kind: 'subreddit',
       subredditName: 'gaming',
     });
-    expect(mockGetLeaderboardPage).toHaveBeenCalledWith(
+    expect(mockGetLeaderboardDisplayPage).toHaveBeenCalledWith(
       { subredditName: 'gaming', timeframe: 'all' },
-      0,
-      25,
+      10,
       'u1'
     );
+  });
+
+  it('passes through viewer-in-top-ten entries with highlight', async () => {
+    const topTenWithViewer = makeTopTen().map((entry, index) =>
+      index === 4
+        ? { ...entry, userId: 'u1', username: 'viewer', isCurrentUser: true }
+        : entry
+    );
+    mockGetEcosystemLeaderboardDisplayPage.mockResolvedValue(topTenWithViewer);
+
+    const caller = createCaller(makeCtx());
+    const result = await caller.leaderboard.getPage({});
+
+    const entries = result.sections[0]?.entries ?? [];
+    expect(entries).toHaveLength(10);
+    expect(entries.filter((entry) => entry.isCurrentUser)).toHaveLength(1);
+    expect(entries[4]?.username).toBe('viewer');
+  });
+
+  it('passes through appended viewer row when outside top ten', async () => {
+    const topTen = makeTopTen();
+    const appendedViewer = makeEntry({
+      userId: 'u1',
+      username: 'viewer',
+      displayRank: 15,
+      isCurrentUser: true,
+    });
+    mockGetEcosystemLeaderboardDisplayPage.mockResolvedValue([...topTen, appendedViewer]);
+
+    const caller = createCaller(makeCtx());
+    const result = await caller.leaderboard.getPage({});
+
+    const entries = result.sections[0]?.entries ?? [];
+    expect(entries).toHaveLength(11);
+    expect(entries[10]?.isCurrentUser).toBe(true);
+    expect(entries[10]?.displayRank).toBe(15);
+    expect(entries.filter((entry) => entry.isCurrentUser)).toHaveLength(1);
+  });
+
+  it('returns top ten without viewer highlight for guests', async () => {
+    mockGetEcosystemLeaderboardDisplayPage.mockResolvedValue(makeTopTen());
+
+    const caller = createCaller(makeCtx({ userId: undefined }));
+    const result = await caller.leaderboard.getPage({});
+
+    const entries = result.sections[0]?.entries ?? [];
+    expect(entries).toHaveLength(10);
+    expect(entries.some((entry) => entry.isCurrentUser)).toBe(false);
   });
 });

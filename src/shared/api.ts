@@ -117,12 +117,9 @@ export type LeaderboardSection = {
   title: string;
   subredditMetadata: SubredditDisplayMetadata | null;
   entries: LeaderboardRow[];
-  viewerRank: number | null;
 };
 
-export type LeaderboardPageRequest = {
-  limit?: number;
-};
+export type LeaderboardPageRequest = Record<string, never>;
 
 export type LeaderboardPageResponse = {
   isHub: boolean;

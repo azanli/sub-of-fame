@@ -221,6 +221,59 @@ const buildLeaderboardRank = async (
   return higherCount + 1;
 };
 
+const buildLeaderboardEntryForUser = async (
+  key: string,
+  userId: string,
+  scope: StatsHydrationScope
+): Promise<LeaderboardEntry | null> => {
+  const userScore = await redis.zScore(key, userId);
+  if (userScore === undefined) {
+    return null;
+  }
+
+  const [statsFields, displayRank, usernames] = await Promise.all([
+    redis.hGetAll(statsKey(userId)),
+    buildLeaderboardRank(key, userId, scope),
+    getUsernames([userId]),
+  ]);
+
+  if (displayRank === null) {
+    return null;
+  }
+
+  const member = hydrateMember(userId, userScore, statsFields, scope);
+
+  return {
+    userId: member.userId,
+    username: usernames.get(userId) ?? 'Redditor',
+    bestClearedRankIndex: member.primaryScore,
+    userSubredditHiveIQ: member.hiveIQ,
+    completedRoundCount: member.completedRoundCount,
+    displayRank,
+    isCurrentUser: true,
+  };
+};
+
+const buildLeaderboardDisplayPage = async (
+  key: string,
+  count: number,
+  scope: StatsHydrationScope,
+  currentUserId: string | undefined
+): Promise<LeaderboardEntry[]> => {
+  const entries = await buildLeaderboardPage(key, 0, count, scope, currentUserId);
+
+  if (currentUserId === undefined || entries.some((entry) => entry.isCurrentUser)) {
+    return entries;
+  }
+
+  const viewerEntry = await buildLeaderboardEntryForUser(key, currentUserId, scope);
+  if (viewerEntry === null) {
+    return entries;
+  }
+
+  return [...entries, viewerEntry];
+};
+
 export const updateLeaderboard = async (
   ctx: CampaignContext,
   userId: string,
@@ -288,6 +341,32 @@ export const getEcosystemLeaderboardPage = async (
   buildLeaderboardPage(
     ecosystemLeaderboardKey(),
     offset,
+    count,
+    { kind: 'global' },
+    currentUserId
+  );
+
+export const getLeaderboardDisplayPage = async (
+  ctx: CampaignContext,
+  count: number,
+  currentUserId?: string
+): Promise<LeaderboardEntry[]> => {
+  await copyLegacyLeaderboardIfEmpty(ctx);
+
+  return buildLeaderboardDisplayPage(
+    campaignLeaderboardKey(ctx),
+    count,
+    { kind: 'subreddit', subredditName: ctx.subredditName },
+    currentUserId
+  );
+};
+
+export const getEcosystemLeaderboardDisplayPage = async (
+  count: number,
+  currentUserId?: string
+): Promise<LeaderboardEntry[]> =>
+  buildLeaderboardDisplayPage(
+    ecosystemLeaderboardKey(),
     count,
     { kind: 'global' },
     currentUserId

@@ -25,6 +25,7 @@ const {
   getLeaderboardPage,
   getLeaderboardRank,
   getEcosystemLeaderboardPage,
+  getLeaderboardDisplayPage,
 } = await import('./leaderboardStore.js');
 
 beforeEach(() => {
@@ -180,5 +181,123 @@ describe('getEcosystemLeaderboardPage', () => {
     expect(entries[0]?.bestClearedRankIndex).toBe(20);
     expect(entries[0]?.userSubredditHiveIQ).toBe(150);
     expect(entries[0]?.username).toBe('alpha');
+  });
+});
+
+describe('getLeaderboardDisplayPage', () => {
+  it('returns top entries without appending when the viewer is already included', async () => {
+    mockHGet.mockImplementation(async (key: string, field: string) => {
+      if (field !== 'username') {
+        return undefined;
+      }
+      if (key === 'user:u1:profile') {
+        return 'alpha';
+      }
+      if (key === 'user:u2:profile') {
+        return 'beta';
+      }
+      if (key === 'user:u3:profile') {
+        return 'gamma';
+      }
+      return undefined;
+    });
+
+    const entries = await getLeaderboardDisplayPage(askredditAllCtx, 3, 'u2');
+
+    expect(entries).toHaveLength(3);
+    expect(entries.some((entry) => entry.isCurrentUser)).toBe(true);
+    expect(entries.filter((entry) => entry.isCurrentUser)).toHaveLength(1);
+  });
+
+  it('appends the viewer row when they are outside the top slice', async () => {
+    mockZRange.mockImplementation(async (key, min, max, options) => {
+      if (options?.reverse === true && key === 'leaderboard:askreddit:all') {
+        return [
+          { member: 'top-1', score: 20 },
+          { member: 'top-2', score: 19 },
+          { member: 'top-3', score: 18 },
+        ].slice(min, max + 1);
+      }
+
+      if (min === 5 && max === 5) {
+        return [{ member: 'u-viewer', score: 5 }];
+      }
+
+      if (min === 6) {
+        return [
+          { member: 'top-1', score: 20 },
+          { member: 'top-2', score: 19 },
+          { member: 'top-3', score: 18 },
+        ];
+      }
+
+      return [];
+    });
+
+    mockZScore.mockImplementation(async (_key, userId: string) => {
+      if (userId === 'u-viewer') {
+        return 5;
+      }
+      return undefined;
+    });
+
+    mockHGetAll.mockImplementation(async (key: string) => {
+      if (key.startsWith('user:top-')) {
+        return { 'sub:askreddit:correct': '9', 'sub:askreddit:total': '9' };
+      }
+      if (key === 'user:u-viewer:stats') {
+        return { 'sub:askreddit:correct': '3', 'sub:askreddit:total': '9' };
+      }
+      return {};
+    });
+
+    mockHGet.mockImplementation(async (key: string, field: string) => {
+      if (field !== 'username') {
+        return undefined;
+      }
+      if (key === 'user:top-1:profile') {
+        return 'leader1';
+      }
+      if (key === 'user:top-2:profile') {
+        return 'leader2';
+      }
+      if (key === 'user:top-3:profile') {
+        return 'leader3';
+      }
+      if (key === 'user:u-viewer:profile') {
+        return 'viewer';
+      }
+      return undefined;
+    });
+
+    const entries = await getLeaderboardDisplayPage(askredditAllCtx, 3, 'u-viewer');
+
+    expect(entries).toHaveLength(4);
+    expect(entries[3]?.username).toBe('viewer');
+    expect(entries[3]?.isCurrentUser).toBe(true);
+    expect(entries[3]?.displayRank).toBe(4);
+  });
+
+  it('returns top entries only for guests', async () => {
+    mockHGet.mockImplementation(async (key: string, field: string) => {
+      if (field !== 'username') {
+        return undefined;
+      }
+      if (key === 'user:u1:profile') {
+        return 'alpha';
+      }
+      if (key === 'user:u2:profile') {
+        return 'beta';
+      }
+      if (key === 'user:u3:profile') {
+        return 'gamma';
+      }
+      return undefined;
+    });
+
+    const entries = await getLeaderboardDisplayPage(askredditAllCtx, 3, undefined);
+
+    expect(entries).toHaveLength(3);
+    expect(entries.some((entry) => entry.isCurrentUser)).toBe(false);
   });
 });

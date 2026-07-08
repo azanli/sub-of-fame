@@ -8,9 +8,8 @@ import {
   getSubredditAggregate,
 } from '../redis/statsStore';
 import {
-  getEcosystemLeaderboardPage,
-  getEcosystemLeaderboardRank,
-  getLeaderboardPage,
+  getEcosystemLeaderboardDisplayPage,
+  getLeaderboardDisplayPage,
   getLeaderboardRank,
 } from '../redis/leaderboardStore';
 import { resolveSubredditMetadata } from '../reddit/resolveSubredditMetadata';
@@ -30,8 +29,7 @@ import type {
 import { resolveHiveIQDisplay } from '../../shared/hiveIQ';
 import type { TRPCContext } from '../trpc';
 
-const DEFAULT_LIMIT = 25;
-const MAX_LIMIT = 50;
+const LEADERBOARD_TOP_COUNT = 10;
 
 const toLeaderboardRow = (entry: LeaderboardEntry): LeaderboardRow => ({
   displayRank: entry.displayRank,
@@ -115,7 +113,6 @@ const buildActiveSubredditCards = async (
 const buildSubredditSection = async (
   subredditName: string,
   title: string,
-  limit: number,
   userId: string | undefined,
   reddit: TRPCContext['reddit']
 ): Promise<LeaderboardSection | null> => {
@@ -129,36 +126,29 @@ const buildSubredditSection = async (
     timeframe: DEFAULT_CAMPAIGN_TIMEFRAME,
   };
 
-  const [entries, viewerRank] = await Promise.all([
-    getLeaderboardPage(ctx, 0, limit, userId),
-    userId !== undefined ? getLeaderboardRank(ctx, userId) : Promise.resolve(null),
-  ]);
+  const entries = await getLeaderboardDisplayPage(ctx, LEADERBOARD_TOP_COUNT, userId);
 
   return {
     scope: { kind: 'subreddit', subredditName },
     title,
     subredditMetadata: metadata,
     entries: entries.map(toLeaderboardRow),
-    viewerRank,
   };
 };
 
 export const leaderboardRouter = router({
   getPage: publicProcedure
-    .input(z.object({ limit: z.number().int().min(1).max(MAX_LIMIT).optional() }))
-    .query(async ({ input, ctx }): Promise<LeaderboardPageResponse> => {
+    .input(z.object({}))
+    .query(async ({ ctx }): Promise<LeaderboardPageResponse> => {
       const launchContext = deriveLaunchContext(ctx.subredditName, ctx.surface);
       const isHub = launchContext.surface === 'hub';
-      const limit = input.limit ?? DEFAULT_LIMIT;
       const userId = ctx.userId;
 
       if (isHub) {
-        const [ecosystemEntries, ecosystemViewerRank] = await Promise.all([
-          getEcosystemLeaderboardPage(0, limit, userId),
-          userId !== undefined
-            ? getEcosystemLeaderboardRank(userId)
-            : Promise.resolve(null),
-        ]);
+        const ecosystemEntries = await getEcosystemLeaderboardDisplayPage(
+          LEADERBOARD_TOP_COUNT,
+          userId
+        );
 
         const sections: LeaderboardSection[] = [
           {
@@ -166,7 +156,6 @@ export const leaderboardRouter = router({
             title: 'Global Leaderboard',
             subredditMetadata: null,
             entries: ecosystemEntries.map(toLeaderboardRow),
-            viewerRank: ecosystemViewerRank,
           },
         ];
 
@@ -177,7 +166,6 @@ export const leaderboardRouter = router({
               buildSubredditSection(
                 card.subreddit,
                 card.displayName,
-                limit,
                 userId,
                 ctx.reddit
               )
@@ -198,7 +186,6 @@ export const leaderboardRouter = router({
       const hostSection = await buildSubredditSection(
         hostSubreddit,
         'Leaderboard',
-        limit,
         userId,
         ctx.reddit
       );
