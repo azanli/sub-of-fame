@@ -22,7 +22,8 @@ export const DashboardTopBar = ({
     <div className="ml-auto flex items-center gap-2">
       <button
         type="button"
-        onClick={onLeaderboardClick}
+        // TODO: Remove for release
+        onDoubleClick={onLeaderboardClick}
         className="text-sm font-semibold rounded-lg px-3 py-1.5 border transition-colors cursor-pointer
     text-[#d93900] border-[#d93900] bg-[#d93900]/10 hover:text-[#c23300] hover:border-[#c23300] hover:bg-[#d93900]/20
     dark:text-orange-400 dark:border-orange-400 dark:bg-orange-400/10 dark:hover:text-orange-300 dark:hover:border-orange-300 dark:hover:bg-orange-400/20"
