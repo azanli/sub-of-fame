@@ -37,6 +37,14 @@ export type SetGameModeResponse = {
   gameMode: GameMode;
 };
 
+export type DeleteUserDataRequest = {
+  confirmation: 'Delete';
+};
+
+export type DeleteUserDataResponse = {
+  deleted: true;
+};
+
 /** Coin awards by true rank index (0 = #1, 1 = #2, 2 = #3) for casual mode. */
 export const CASUAL_COIN_AWARDS = [3, 1, 0] as const;
 

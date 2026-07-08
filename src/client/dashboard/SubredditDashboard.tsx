@@ -23,6 +23,9 @@ type SubredditDashboardProps = {
   onGameModeChange: (mode: GameMode) => void;
   isSavingGameMode?: boolean;
   gameModeError?: string | null;
+  onDeleteUserData: () => Promise<void>;
+  isDeletingUserData?: boolean;
+  deleteUserDataError?: string | null;
 };
 
 const SETTINGS_PANEL_ID = 'subreddit-settings-panel';
@@ -36,6 +39,9 @@ export const SubredditDashboard = ({
   onGameModeChange,
   isSavingGameMode = false,
   gameModeError = null,
+  onDeleteUserData,
+  isDeletingUserData = false,
+  deleteUserDataError = null,
 }: SubredditDashboardProps) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const isLoggedIn = initData.userGlobalHiveIQ !== null;
@@ -94,6 +100,10 @@ export const SubredditDashboard = ({
         onGameModeChange={onGameModeChange}
         isSavingGameMode={isSavingGameMode}
         gameModeError={gameModeError}
+        isLoggedIn={isLoggedIn}
+        onDeleteUserData={onDeleteUserData}
+        isDeletingUserData={isDeletingUserData}
+        deleteUserDataError={deleteUserDataError}
       />
 
       <DashboardSection label="Campaigns">

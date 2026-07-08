@@ -30,6 +30,7 @@ export const PuzzleLoadTransition = ({
           selectionError={selectionError}
           gameMode={initData.gameMode}
           onGameModeChange={() => undefined}
+          onDeleteUserData={async () => {}}
         />
       );
     }
@@ -44,6 +45,7 @@ export const PuzzleLoadTransition = ({
           loadingTimeframe={loadingTimeframe}
           gameMode={initData.gameMode}
           onGameModeChange={() => undefined}
+          onDeleteUserData={async () => {}}
         />
       );
     }

@@ -1,4 +1,5 @@
 import type { GameMode } from '../../shared/api';
+import { DeleteUserDataSection } from './DeleteUserDataSection';
 import { FaqSection } from './FaqSection';
 import { GameModeSelector } from './GameModeSelector';
 import { HowToPlaySection } from './HowToPlaySection';
@@ -10,6 +11,10 @@ type HubSettingsPanelProps = {
   onGameModeChange: (mode: GameMode) => void;
   isSavingGameMode?: boolean;
   gameModeError?: string | null;
+  isLoggedIn: boolean;
+  onDeleteUserData: () => Promise<void>;
+  isDeletingUserData?: boolean;
+  deleteUserDataError?: string | null;
 };
 
 export const HubSettingsPanel = ({
@@ -19,6 +24,10 @@ export const HubSettingsPanel = ({
   onGameModeChange,
   isSavingGameMode = false,
   gameModeError = null,
+  isLoggedIn,
+  onDeleteUserData,
+  isDeletingUserData = false,
+  deleteUserDataError = null,
 }: HubSettingsPanelProps) => (
   <div
     id={id}
@@ -41,6 +50,13 @@ export const HubSettingsPanel = ({
         ) : null}
         <HowToPlaySection />
         <FaqSection />
+        {isLoggedIn ? (
+          <DeleteUserDataSection
+            onDelete={onDeleteUserData}
+            isDeleting={isDeletingUserData}
+            error={deleteUserDataError}
+          />
+        ) : null}
       </div>
     </div>
   </div>

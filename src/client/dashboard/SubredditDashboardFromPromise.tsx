@@ -13,6 +13,8 @@ type SubredditDashboardFromPromiseProps = {
   gameModeError?: string | null;
 };
 
+const noopDeleteUserData = async (): Promise<void> => {};
+
 export const SubredditDashboardFromPromise = ({
   initPromise,
   onSelectCampaign,
@@ -33,6 +35,7 @@ export const SubredditDashboardFromPromise = ({
       onGameModeChange={onGameModeChange}
       isSavingGameMode={isSavingGameMode}
       gameModeError={gameModeError}
+      onDeleteUserData={noopDeleteUserData}
     />
   );
 };

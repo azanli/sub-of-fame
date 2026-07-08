@@ -20,6 +20,9 @@ type HubDashboardProps = {
   onGameModeChange: (mode: GameMode) => void;
   isSavingGameMode?: boolean;
   gameModeError?: string | null;
+  onDeleteUserData: () => Promise<void>;
+  isDeletingUserData?: boolean;
+  deleteUserDataError?: string | null;
 };
 
 const SETTINGS_PANEL_ID = 'hub-settings-panel';
@@ -43,6 +46,9 @@ export const HubDashboard = ({
   onGameModeChange,
   isSavingGameMode = false,
   gameModeError = null,
+  onDeleteUserData,
+  isDeletingUserData = false,
+  deleteUserDataError = null,
 }: HubDashboardProps) => {
   const [customSubreddit, setCustomSubreddit] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -134,6 +140,10 @@ export const HubDashboard = ({
         onGameModeChange={onGameModeChange}
         isSavingGameMode={isSavingGameMode}
         gameModeError={gameModeError}
+        isLoggedIn={isLoggedIn}
+        onDeleteUserData={onDeleteUserData}
+        isDeletingUserData={isDeletingUserData}
+        deleteUserDataError={deleteUserDataError}
       />
 
       {initData.dailyChallenge !== null && (

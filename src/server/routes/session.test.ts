@@ -12,6 +12,7 @@ const {
   mockDeductCoins,
   mockSetGameMode,
   mockSetRankIndex,
+  mockDeleteAllUserData,
 } = vi.hoisted(() => ({
   mockResolveSubredditMetadata: vi.fn(),
   mockResolveLadderPage: vi.fn(),
@@ -21,6 +22,7 @@ const {
   mockDeductCoins: vi.fn(),
   mockSetGameMode: vi.fn(),
   mockSetRankIndex: vi.fn(),
+  mockDeleteAllUserData: vi.fn(),
 }));
 
 vi.mock('../reddit/resolveSubredditMetadata.js', () => ({
@@ -46,6 +48,10 @@ vi.mock('../redis/statsStore.js', () => ({
   deductCoins: mockDeductCoins,
   setGameMode: mockSetGameMode,
   subredditHasAnyStats: vi.fn().mockReturnValue(false),
+}));
+
+vi.mock('../redis/userDataStore.js', () => ({
+  deleteAllUserData: mockDeleteAllUserData,
 }));
 
 const askredditAllCtx = { subredditName: 'askreddit', timeframe: 'all' as const };
@@ -258,5 +264,40 @@ describe('session.setGameMode', () => {
     await expect(caller.session.setGameMode({ gameMode: 'expert' })).rejects.toSatisfy(
       (error: unknown) => error instanceof TRPCError && error.code === 'FORBIDDEN'
     );
+  });
+});
+
+describe('session.deleteUserData', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDeleteAllUserData.mockResolvedValue(undefined);
+  });
+
+  it('wipes player data for logged-in users with the correct confirmation', async () => {
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.session.deleteUserData({ confirmation: 'Delete' });
+
+    expect(result).toEqual({ deleted: true });
+    expect(mockDeleteAllUserData).toHaveBeenCalledWith('user-1');
+  });
+
+  it('rejects logged-out users', async () => {
+    const caller = createCaller(makeCtx({ userId: undefined }));
+
+    await expect(
+      caller.session.deleteUserData({ confirmation: 'Delete' })
+    ).rejects.toSatisfy(
+      (error: unknown) => error instanceof TRPCError && error.code === 'FORBIDDEN'
+    );
+  });
+
+  it('rejects requests without the exact confirmation text', async () => {
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    await expect(
+      caller.session.deleteUserData({ confirmation: 'delete' })
+    ).rejects.toThrow();
+    expect(mockDeleteAllUserData).not.toHaveBeenCalled();
   });
 });

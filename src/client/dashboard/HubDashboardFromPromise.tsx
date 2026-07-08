@@ -13,6 +13,8 @@ type HubDashboardFromPromiseProps = {
   gameModeError?: string | null;
 };
 
+const noopDeleteUserData = async (): Promise<void> => {};
+
 export const HubDashboardFromPromise = ({
   initPromise,
   onSelectSubreddit,
@@ -35,6 +37,7 @@ export const HubDashboardFromPromise = ({
       onGameModeChange={onGameModeChange}
       isSavingGameMode={isSavingGameMode}
       gameModeError={gameModeError}
+      onDeleteUserData={noopDeleteUserData}
     />
   );
 };

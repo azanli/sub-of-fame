@@ -122,6 +122,10 @@ export const App = ({ preloadedInit }: AppProps) => {
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [gameModeError, setGameModeError] = useState<string | null>(null);
   const [isSavingGameMode, setIsSavingGameMode] = useState(false);
+  const [deleteUserDataError, setDeleteUserDataError] = useState<string | null>(
+    null
+  );
+  const [isDeletingUserData, setIsDeletingUserData] = useState(false);
   const [loadingCampaignTimeframe, setLoadingCampaignTimeframe] =
     useState<CampaignTimeframe | null>(null);
   const guestRankIndexRef = useRef(1);
@@ -775,6 +779,25 @@ export const App = ({ preloadedInit }: AppProps) => {
     beginHubLoad(trpcClient.init.query());
   }, [beginHubLoad]);
 
+  const handleDeleteUserData = useCallback(async () => {
+    const activeSession = sessionRef.current;
+    if (activeSession?.isLoggedIn !== true) {
+      return;
+    }
+
+    setDeleteUserDataError(null);
+    setIsDeletingUserData(true);
+    try {
+      await trpcClient.session.deleteUserData.mutate({ confirmation: 'Delete' });
+      refreshHubDashboard();
+    } catch {
+      setDeleteUserDataError('Could not delete your data. Please try again.');
+      throw new Error('DELETE_USER_DATA_FAILED');
+    } finally {
+      setIsDeletingUserData(false);
+    }
+  }, [refreshHubDashboard]);
+
   const handleDashboard = useCallback(() => {
     refreshHubDashboard();
   }, [refreshHubDashboard]);
@@ -900,6 +923,9 @@ export const App = ({ preloadedInit }: AppProps) => {
             onGameModeChange={handleGameModeChange}
             isSavingGameMode={isSavingGameMode}
             gameModeError={gameModeError}
+            onDeleteUserData={handleDeleteUserData}
+            isDeletingUserData={isDeletingUserData}
+            deleteUserDataError={deleteUserDataError}
           />
         ) : (
           <SubredditDashboard
@@ -911,6 +937,9 @@ export const App = ({ preloadedInit }: AppProps) => {
             onGameModeChange={handleGameModeChange}
             isSavingGameMode={isSavingGameMode}
             gameModeError={gameModeError}
+            onDeleteUserData={handleDeleteUserData}
+            isDeletingUserData={isDeletingUserData}
+            deleteUserDataError={deleteUserDataError}
           />
         )}
       </div>

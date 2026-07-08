@@ -16,7 +16,8 @@ import {
   type CampaignContext,
 } from '../../shared/campaignContext';
 import { deductCoins, getStats, setGameMode, subredditHasAnyStats } from '../redis/statsStore';
-import type { SetGameModeResponse } from '../../shared/api';
+import { deleteAllUserData } from '../redis/userDataStore';
+import type { DeleteUserDataResponse, SetGameModeResponse } from '../../shared/api';
 
 const WARM_DEADLINE_MS = Math.min(3000, SOFT_DEADLINE_MS);
 
@@ -153,5 +154,19 @@ export const sessionRouter = router({
 
       const gameMode = await setGameMode(ctx.userId, input.gameMode);
       return { gameMode };
+    }),
+
+  deleteUserData: publicProcedure
+    .input(z.object({ confirmation: z.literal('Delete') }))
+    .mutation(async ({ ctx }): Promise<DeleteUserDataResponse> => {
+      if (ctx.userId === undefined) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Deleting player data requires a logged-in player.',
+        });
+      }
+
+      await deleteAllUserData(ctx.userId);
+      return { deleted: true };
     }),
 });
