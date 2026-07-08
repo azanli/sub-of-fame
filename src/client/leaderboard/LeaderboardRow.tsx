@@ -23,12 +23,22 @@ export const LeaderboardRow = ({ row }: LeaderboardRowProps) => {
       <td className="min-w-0 px-2 py-2 text-sm font-medium text-gray-900 dark:text-white">
         <span className="truncate">u/{row.username}</span>
       </td>
-      <td className="w-24 px-2 py-2 text-right text-sm tabular-nums text-gray-700 dark:text-gray-300">
-        <span className="inline-flex items-center justify-end gap-1">
+      <td className="px-2 py-2 text-right text-sm text-gray-700 dark:text-gray-300">
+        <span className="inline-flex items-center gap-2">
           {showHiveIQScore ? (
-            <span aria-hidden="true">🧠</span>
+            <span aria-hidden="true" className="leading-none">
+              🧠
+            </span>
           ) : null}
-          <span>{hiveIQText}</span>
+          <span
+            className={
+              showHiveIQScore
+                ? 'inline-block w-[3ch] text-right tabular-nums'
+                : 'tabular-nums'
+            }
+          >
+            {hiveIQText}
+          </span>
         </span>
       </td>
     </tr>
