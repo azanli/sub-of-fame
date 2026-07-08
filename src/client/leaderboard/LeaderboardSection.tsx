@@ -1,4 +1,5 @@
 import type { LeaderboardSection as LeaderboardSectionData } from '../../shared/api';
+import { formatSubredditLabel } from '../../shared/subreddits';
 import { LeaderboardTable } from './LeaderboardTable';
 
 type LeaderboardSectionProps = {
@@ -12,7 +13,7 @@ export const LeaderboardSection = ({
 }: LeaderboardSectionProps) => (
   <section className="flex flex-col gap-2">
     {showHeading && (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 mb-2">
         {section.subredditMetadata !== null ? (
           <img
             src={section.subredditMetadata.iconUrl}
@@ -25,7 +26,7 @@ export const LeaderboardSection = ({
           </span>
         )}
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-          {section.title}
+          {formatSubredditLabel(section.title)}
         </h2>
       </div>
     )}
