@@ -172,6 +172,7 @@ describe('getEcosystemLeaderboardPage', () => {
     mockHGetAll.mockResolvedValue({
       'global:correct': '6',
       'global:total': '9',
+      'streak:highest': '7',
     });
     mockHGet.mockResolvedValue('alpha');
 
@@ -180,6 +181,7 @@ describe('getEcosystemLeaderboardPage', () => {
     expect(entries).toHaveLength(1);
     expect(entries[0]?.bestClearedRankIndex).toBe(20);
     expect(entries[0]?.userSubredditHiveIQ).toBe(150);
+    expect(entries[0]?.highestStreak).toBe(7);
     expect(entries[0]?.username).toBe('alpha');
   });
 });

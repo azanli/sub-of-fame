@@ -11,6 +11,7 @@ import {
 import {
   statsGlobalCorrectField,
   statsGlobalTotalField,
+  statsHighestStreakField,
   statsKey,
 } from './keys';
 import { getUsernames } from './profileStore';
@@ -21,6 +22,7 @@ type HydratedMember = {
   primaryScore: number;
   hiveIQ: number;
   completedRoundCount: number;
+  highestStreak: number;
 };
 
 type StatsHydrationScope =
@@ -50,12 +52,23 @@ const copyLegacyLeaderboardIfEmpty = async (ctx: CampaignContext): Promise<void>
   );
 };
 
+const parseHighestStreak = (statsFields: Record<string, string>): number => {
+  const raw = statsFields[statsHighestStreakField()];
+  if (raw === undefined) {
+    return 0;
+  }
+  const parsed = parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+};
+
 const hydrateMember = (
   userId: string,
   primaryScore: number,
   statsFields: Record<string, string>,
   scope: StatsHydrationScope
 ): HydratedMember => {
+  const highestStreak = parseHighestStreak(statsFields);
+
   if (scope.kind === 'global') {
     const correct = parseInt(statsFields[statsGlobalCorrectField()] ?? '0', 10);
     const total = parseInt(statsFields[statsGlobalTotalField()] ?? '0', 10);
@@ -64,6 +77,7 @@ const hydrateMember = (
       primaryScore,
       hiveIQ: computeHiveIQ(correct, total) ?? 0,
       completedRoundCount: Math.floor(total / 3),
+      highestStreak,
     };
   }
 
@@ -80,6 +94,7 @@ const hydrateMember = (
     primaryScore,
     hiveIQ: computeHiveIQ(correct, total) ?? 0,
     completedRoundCount: Math.floor(total / 3),
+    highestStreak,
   };
 };
 
@@ -168,6 +183,7 @@ const buildLeaderboardPage = async (
     bestClearedRankIndex: member.primaryScore,
     userSubredditHiveIQ: member.hiveIQ,
     completedRoundCount: member.completedRoundCount,
+    highestStreak: member.highestStreak,
     displayRank: member.displayRank,
     isCurrentUser: currentUserId !== undefined && member.userId === currentUserId,
   }));
@@ -249,6 +265,7 @@ const buildLeaderboardEntryForUser = async (
     bestClearedRankIndex: member.primaryScore,
     userSubredditHiveIQ: member.hiveIQ,
     completedRoundCount: member.completedRoundCount,
+    highestStreak: member.highestStreak,
     displayRank,
     isCurrentUser: true,
   };

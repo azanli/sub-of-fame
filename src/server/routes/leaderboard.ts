@@ -38,6 +38,7 @@ const toLeaderboardRow = (entry: LeaderboardEntry): LeaderboardRow => ({
     entry.userSubredditHiveIQ,
     entry.completedRoundCount
   ),
+  highestStreak: entry.highestStreak,
   isCurrentUser: entry.isCurrentUser,
 });
 

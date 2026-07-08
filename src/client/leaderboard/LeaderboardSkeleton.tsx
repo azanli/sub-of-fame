@@ -12,6 +12,7 @@ export const LeaderboardSkeleton = () => (
               <div className="h-4 w-6 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
               <div className="h-4 flex-1 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
               <div className="h-4 w-12 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+              <div className="h-4 w-10 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
             </div>
           ))}
         </div>

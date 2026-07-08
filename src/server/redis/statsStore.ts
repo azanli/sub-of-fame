@@ -8,7 +8,7 @@ import type {
   SubredditStatsProfile,
   UserStatsProfile,
 } from '../../shared/api';
-import { DEFAULT_GAME_MODE } from '../../shared/api';
+import { DEFAULT_GAME_MODE, PERFECT_ROUND_COIN_AWARD } from '../../shared/api';
 import { computeHiveIQScore } from '../../shared/hiveIQ';
 import {
   statsCampaignCorrectField,
@@ -19,9 +19,11 @@ import {
 import {
   statsKey,
   statsCoinsField,
+  statsCurrentStreakField,
   statsGameModeField,
   statsGlobalCorrectField,
   statsGlobalTotalField,
+  statsHighestStreakField,
 } from './keys';
 
 /** Welcome balance granted once when a user has no coins field yet. */
@@ -84,6 +86,50 @@ export const incrementStats = async (
   ]);
 
   return coins;
+};
+
+const parseStoredStreak = (raw: string | undefined): number => {
+  if (raw === undefined) {
+    return 0;
+  }
+  const parsed = parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+};
+
+export const updateStreakAfterRound = async (
+  userId: string,
+  coinAward: number
+): Promise<void> => {
+  const key = statsKey(userId);
+  const currentField = statsCurrentStreakField();
+  const highestField = statsHighestStreakField();
+
+  if (coinAward === PERFECT_ROUND_COIN_AWARD) {
+    const newCurrent = await redis.hIncrBy(key, currentField, 1);
+    const highestRaw = await redis.hGet(key, highestField);
+    const highest = parseStoredStreak(highestRaw);
+    if (newCurrent > highest) {
+      await redis.hSet(key, { [highestField]: String(newCurrent) });
+    }
+    return;
+  }
+
+  const [currentRaw, highestRaw] = await Promise.all([
+    redis.hGet(key, currentField),
+    redis.hGet(key, highestField),
+  ]);
+  const current = parseStoredStreak(currentRaw);
+  const highest = parseStoredStreak(highestRaw);
+
+  if (current > highest) {
+    await redis.hSet(key, {
+      [highestField]: String(current),
+      [currentField]: '0',
+    });
+    return;
+  }
+
+  await redis.hSet(key, { [currentField]: '0' });
 };
 
 export const deductCoins = async (

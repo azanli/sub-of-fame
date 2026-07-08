@@ -102,3 +102,9 @@ export const statsCoinsField = (): string => 'coins';
 
 /** `gameMode` — player gameplay mode preference (`casual` | `expert`) */
 export const statsGameModeField = (): string => 'gameMode';
+
+/** `streak:current` — consecutive perfect-round streak (global across campaigns) */
+export const statsCurrentStreakField = (): string => 'streak:current';
+
+/** `streak:highest` — all-time best perfect-round streak */
+export const statsHighestStreakField = (): string => 'streak:highest';

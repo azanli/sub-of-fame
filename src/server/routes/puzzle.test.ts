@@ -19,6 +19,7 @@ const {
   mockGetGameMode,
   mockUpdateLeaderboard,
   mockDeductCoin,
+  mockUpdateStreakAfterRound,
 } = vi.hoisted(() => ({
   mockResolveSubredditMetadata: vi.fn(),
   mockResolveLadderPage: vi.fn(),
@@ -36,6 +37,7 @@ const {
   mockGetGameMode: vi.fn(),
   mockUpdateLeaderboard: vi.fn(),
   mockDeductCoin: vi.fn(),
+  mockUpdateStreakAfterRound: vi.fn(),
 }));
 
 vi.mock('../reddit/resolveSubredditMetadata.js', () => ({
@@ -86,6 +88,7 @@ vi.mock('../redis/statsStore.js', async (importOriginal) => {
     getStats: mockGetStats,
     getGameMode: mockGetGameMode,
     deductCoin: mockDeductCoin,
+    updateStreakAfterRound: mockUpdateStreakAfterRound,
   };
 });
 
@@ -112,6 +115,7 @@ const makeCtx = (overrides: Partial<TRPCContext> = {}): TRPCContext => ({
     getTopPosts: vi.fn(),
     getComments: vi.fn(),
     getPostById: vi.fn(),
+    getCurrentUsername: vi.fn().mockResolvedValue(undefined),
   },
   userId: undefined,
   subredditName: 'suboffame',
@@ -208,6 +212,7 @@ const makeSkipInput = () => ({
 const expectNoSubmitMutations = () => {
   expect(mockMarkAttemptSubmitted).not.toHaveBeenCalled();
   expect(mockIncrementStats).not.toHaveBeenCalled();
+  expect(mockUpdateStreakAfterRound).not.toHaveBeenCalled();
   expect(mockIncrementProgress).not.toHaveBeenCalled();
   expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
 };
@@ -557,6 +562,7 @@ describe('puzzle.submit', () => {
     mockGetProgress.mockResolvedValue(3);
     mockIncrementProgress.mockResolvedValue(4);
     mockIncrementStats.mockResolvedValue(5);
+    mockUpdateStreakAfterRound.mockResolvedValue(undefined);
     mockGetStats.mockResolvedValue({
       global: { correctSlots: 3, totalSlots: 6 },
       bySubreddit: {
@@ -758,6 +764,7 @@ describe('puzzle.submit', () => {
       correctSlots: 3,
       coinAward: 3,
     });
+    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 3);
     expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', askredditAllCtx);
     expect(mockUpdateLeaderboard).toHaveBeenCalledWith(askredditAllCtx, 'user-1', 3);
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
@@ -785,6 +792,7 @@ describe('puzzle.submit', () => {
     const result = await caller.puzzle.submit(makeSubmitInput());
 
     expect(mockIncrementStats).not.toHaveBeenCalled();
+    expect(mockUpdateStreakAfterRound).not.toHaveBeenCalled();
     expect(mockIncrementProgress).not.toHaveBeenCalled();
     expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
     expect(mockGetProgress).not.toHaveBeenCalled();
@@ -869,6 +877,7 @@ describe('puzzle.submit', () => {
       correctSlots: 1,
       coinAward: 3,
     });
+    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 3);
   });
 
   it('returns score 1 for a casual #2 pick with no Hive IQ credit', async () => {
@@ -888,6 +897,7 @@ describe('puzzle.submit', () => {
       correctSlots: 0,
       coinAward: 1,
     });
+    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 1);
   });
 
   it('returns score 0 for a casual #3 pick', async () => {
@@ -906,6 +916,7 @@ describe('puzzle.submit', () => {
       correctSlots: 0,
       coinAward: 0,
     });
+    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 0);
   });
 });
 
@@ -924,6 +935,7 @@ describe('puzzle.skip', () => {
       coins: 3,
     });
     mockDeductCoin.mockResolvedValue({ ok: true, coins: 2 });
+    mockUpdateStreakAfterRound.mockResolvedValue(undefined);
   });
 
   it('returns ATTEMPT_EXPIRED when attempt is missing', async () => {
@@ -979,6 +991,7 @@ describe('puzzle.skip', () => {
     expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', askredditAllCtx);
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
     expect(mockIncrementStats).not.toHaveBeenCalled();
+    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 0);
     expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
   });
 
@@ -1020,6 +1033,7 @@ describe('puzzle.skip', () => {
     expect(mockDeductCoin).not.toHaveBeenCalled();
     expect(mockIncrementProgress).not.toHaveBeenCalled();
     expect(mockIncrementStats).not.toHaveBeenCalled();
+    expect(mockUpdateStreakAfterRound).not.toHaveBeenCalled();
     expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
   });
@@ -1057,6 +1071,7 @@ describe('puzzle.forfeit', () => {
     mockAcquireSubmitLock.mockResolvedValue(true);
     mockMarkAttemptSubmitted.mockResolvedValue(undefined);
     mockIncrementStats.mockResolvedValue(5);
+    mockUpdateStreakAfterRound.mockResolvedValue(undefined);
     mockGetStats.mockResolvedValue({
       global: { correctSlots: 0, totalSlots: 3 },
       bySubreddit: {
@@ -1142,6 +1157,7 @@ describe('puzzle.forfeit', () => {
       correctSlots: 0,
       coinAward: 0,
     });
+    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 0);
     expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', askredditAllCtx);
     expect(mockUpdateLeaderboard).toHaveBeenCalledWith(askredditAllCtx, 'user-1', 3);
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
@@ -1200,6 +1216,7 @@ describe('puzzle.forfeit', () => {
       coins: null,
     });
     expect(mockIncrementStats).not.toHaveBeenCalled();
+    expect(mockUpdateStreakAfterRound).not.toHaveBeenCalled();
     expect(mockIncrementProgress).not.toHaveBeenCalled();
     expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();

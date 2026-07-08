@@ -39,6 +39,7 @@ import {
   getStats,
   getSubredditAggregate,
   incrementStats,
+  updateStreakAfterRound,
 } from '../redis/statsStore';
 import { updateLeaderboard } from '../redis/leaderboardStore';
 import { upsertUsername } from '../redis/profileStore';
@@ -737,11 +738,17 @@ export const puzzleRouter = router({
 
       if (attempt.owner.kind === 'user') {
         const attemptCtx = attemptCampaignContext(attempt);
-        const updatedCoins = await incrementStats(
-          attempt.owner.userId,
-          attemptCtx,
-          scored.statsDelta
-        );
+        const [updatedCoins] = await Promise.all([
+          incrementStats(
+            attempt.owner.userId,
+            attemptCtx,
+            scored.statsDelta
+          ),
+          updateStreakAfterRound(
+            attempt.owner.userId,
+            scored.statsDelta.coinAward
+          ),
+        ]);
         coins = updatedCoins;
         nextRankIndex = await advanceRankIndex(attempt.owner.userId, attemptCtx);
         await updateLeaderboard(attemptCtx, attempt.owner.userId, attempt.rankIndex);
@@ -875,6 +882,7 @@ export const puzzleRouter = router({
           );
         }
         coins = deduction.coins;
+        await updateStreakAfterRound(attempt.owner.userId, 0);
       }
 
       await markAttemptSubmitted(attempt);
@@ -992,11 +1000,15 @@ export const puzzleRouter = router({
 
       if (attempt.owner.kind === 'user') {
         const attemptCtx = attemptCampaignContext(attempt);
-        coins = await incrementStats(
-          attempt.owner.userId,
-          attemptCtx,
-          statsDelta
-        );
+        const [updatedCoins] = await Promise.all([
+          incrementStats(
+            attempt.owner.userId,
+            attemptCtx,
+            statsDelta
+          ),
+          updateStreakAfterRound(attempt.owner.userId, 0),
+        ]);
+        coins = updatedCoins;
         nextRankIndex = await advanceRankIndex(attempt.owner.userId, attemptCtx);
         await updateLeaderboard(attemptCtx, attempt.owner.userId, attempt.rankIndex);
 

@@ -48,6 +48,9 @@ export type DeleteUserDataResponse = {
 /** Coin awards by true rank index (0 = #1, 1 = #2, 2 = #3) for casual mode. */
 export const CASUAL_COIN_AWARDS = [3, 1, 0] as const;
 
+/** Coin award for a perfect round in either game mode. */
+export const PERFECT_ROUND_COIN_AWARD = 3;
+
 export type CasualRevealScore = 0 | 1 | 3;
 
 export type RoundStatsDelta = {
@@ -117,6 +120,7 @@ export type LeaderboardRow = {
   displayRank: number;
   username: string;
   hiveIQDisplay: HiveIQDisplayState;
+  highestStreak: number;
   isCurrentUser: boolean;
 };
 
@@ -140,6 +144,7 @@ export type LeaderboardEntry = {
   bestClearedRankIndex: number;
   userSubredditHiveIQ: number;
   completedRoundCount: number;
+  highestStreak: number;
   displayRank: number;
   isCurrentUser: boolean;
 };

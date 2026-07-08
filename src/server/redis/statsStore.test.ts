@@ -31,6 +31,7 @@ const {
   incrementStats,
   getStats,
   setGameMode,
+  updateStreakAfterRound,
 } = await import('./statsStore');
 
 const gamingAllCtx = { subredditName: 'gaming', timeframe: 'all' as const };
@@ -139,6 +140,62 @@ describe('incrementStats', () => {
 
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'global:correct', 0);
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'coins', 1);
+  });
+});
+
+describe('updateStreakAfterRound', () => {
+  it('increments current streak and updates highest on a perfect round', async () => {
+    mockHIncrBy.mockResolvedValue(4);
+    mockHGet.mockResolvedValue('3');
+
+    await updateStreakAfterRound('u1', 3);
+
+    expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'streak:current', 1);
+    expect(mockHGet).toHaveBeenCalledWith('user:u1:stats', 'streak:highest');
+    expect(mockHSet).toHaveBeenCalledWith('user:u1:stats', { 'streak:highest': '4' });
+  });
+
+  it('increments current streak without updating highest when not a new record', async () => {
+    mockHIncrBy.mockResolvedValue(2);
+    mockHGet.mockResolvedValue('5');
+
+    await updateStreakAfterRound('u1', 3);
+
+    expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'streak:current', 1);
+    expect(mockHSet).not.toHaveBeenCalled();
+  });
+
+  it('promotes highest and resets current on a broken streak', async () => {
+    mockHGet
+      .mockResolvedValueOnce('4')
+      .mockResolvedValueOnce('2');
+
+    await updateStreakAfterRound('u1', 1);
+
+    expect(mockHSet).toHaveBeenCalledWith('user:u1:stats', {
+      'streak:highest': '4',
+      'streak:current': '0',
+    });
+  });
+
+  it('resets current without updating highest when current does not exceed highest', async () => {
+    mockHGet
+      .mockResolvedValueOnce('2')
+      .mockResolvedValueOnce('5');
+
+    await updateStreakAfterRound('u1', 0);
+
+    expect(mockHSet).toHaveBeenCalledWith('user:u1:stats', { 'streak:current': '0' });
+  });
+
+  it('handles a break from zero current streak', async () => {
+    mockHGet
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined);
+
+    await updateStreakAfterRound('u1', 0);
+
+    expect(mockHSet).toHaveBeenCalledWith('user:u1:stats', { 'streak:current': '0' });
   });
 });
 

@@ -55,6 +55,7 @@ const makeEntry = (
   bestClearedRankIndex: 10,
   userSubredditHiveIQ: 150,
   completedRoundCount: 3,
+  highestStreak: 0,
   displayRank: 1,
   isCurrentUser: true,
   ...overrides,
@@ -123,6 +124,7 @@ describe('leaderboard.getPage', () => {
     expect(result.sections).toHaveLength(2);
     expect(result.sections[0]?.scope).toEqual({ kind: 'ecosystem' });
     expect(result.sections[0]?.title).toBe('Global Leaderboard');
+    expect(result.sections[0]?.entries[0]?.highestStreak).toBe(0);
     expect(result.sections[1]?.scope).toEqual({
       kind: 'subreddit',
       subredditName: 'askreddit',

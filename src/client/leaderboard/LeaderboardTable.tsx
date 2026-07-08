@@ -22,6 +22,7 @@ export const LeaderboardTable = ({ entries }: LeaderboardTableProps) => {
             <th className="w-12 px-2 py-2">Rank</th>
             <th className="px-2 py-2">Player</th>
             <th className="w-24 px-2 py-2 text-right">Hive IQ</th>
+            <th className="w-20 px-2 py-2 text-right">Streak</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
