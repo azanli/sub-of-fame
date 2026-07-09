@@ -52,22 +52,6 @@ const SNOO_CHEER_ENTRANCE_MS = 500;
 const SNOO_CHEER_LEFT_WALL_OFFSET_PX = 5;
 const DEV_RESET_DOUBLE_TAP_MS = 400;
 
-type CheerSnooSide = 'left' | 'right';
-
-type CheerSnooConfig = {
-  src: string;
-  side: CheerSnooSide;
-};
-
-const CHEER_SNOOS: CheerSnooConfig[] = [
-  { src: '/snoo-cheer-one.png', side: 'left' },
-  { src: '/snoo-cheer-two.png', side: 'right' },
-];
-
-const pickRandomCheerSnoo = (): CheerSnooConfig =>
-  CHEER_SNOOS[Math.floor(Math.random() * CHEER_SNOOS.length)] ??
-  CHEER_SNOOS[0]!;
-
 const CommentIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -184,10 +168,6 @@ export const RevealScreen = ({
       : null
   );
 
-  const [oneCoinCheerSnoo] = useState(() =>
-    result.score === 1 ? pickRandomCheerSnoo() : null
-  );
-
   const [revealRemark] = useState(() =>
     isSkipped
       ? null
@@ -231,14 +211,12 @@ export const RevealScreen = ({
   };
 
   const maxSlotScore = Math.max(...result.slots.map((slot) => slot.score), 0);
-  const showCheerSnoo =
-    coinsEarned >= 1 && !isSkipped && revealedCoinCount >= 1;
-  const showCheerRightSnoo =
-    showCheerSnoo && coinsEarned >= 2 && coinsEarned < 3;
-  const showCheerLeftSnoo =
-    showCheerSnoo && coinsEarned >= 3 && revealedCoinCount >= 2;
-  const showOneCoinCheerSnoo =
-    showVerdict && !isSkipped && !hintUsed && result.score === 1;
+  const showMarginalCheerSnoo =
+    showVerdict && !isSkipped && !hintUsed && coinsEarned === 1;
+  const showPerfectCheerLeftSnoo =
+    coinsEarned === 3 && !isSkipped && revealedCoinCount >= 2;
+  const showPerfectCheerRightSnoo =
+    coinsEarned === 3 && !isSkipped && revealedCoinCount >= 3;
 
   const triggerZeroScoreCoinHeaderPulse = useCallback(() => {
     if (coinBalance === null) {
@@ -537,67 +515,39 @@ export const RevealScreen = ({
           </div>
 
           <div className="relative flex flex-col gap-3">
-            {(coinsEarned >= 1 && !isSkipped) ||
-            (showOneCoinCheerSnoo && result.score >= 1) ? (
+            {coinsEarned >= 1 && !isSkipped ? (
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute -left-4 -right-4 bottom-full z-10 h-24 sm:h-28"
               >
-                {coinsEarned >= 3 ? (
+                {coinsEarned === 1 || coinsEarned === 3 ? (
                   <img
                     src="/snoo-cheer-one.png"
                     alt=""
                     className={`absolute bottom-0 h-full w-auto max-w-[45%] object-contain object-left-bottom ${
-                      showCheerLeftSnoo
+                      showMarginalCheerSnoo || showPerfectCheerLeftSnoo
                         ? 'animate-[snoo-cheer-slide-left_ease-out_forwards]'
                         : 'opacity-0 -translate-x-full'
                     }`}
                     style={{
                       left: `-${SNOO_CHEER_LEFT_WALL_OFFSET_PX}px`,
-                      ...(showCheerLeftSnoo
+                      ...(showMarginalCheerSnoo || showPerfectCheerLeftSnoo
                         ? { animationDuration: `${SNOO_CHEER_ENTRANCE_MS}ms` }
                         : undefined),
                     }}
                   />
                 ) : null}
-                {showOneCoinCheerSnoo && oneCoinCheerSnoo?.side === 'left' ? (
-                  <img
-                    src={oneCoinCheerSnoo.src}
-                    alt=""
-                    className={`absolute bottom-0 h-full w-auto max-w-[45%] object-contain object-left-bottom ${
-                      showOneCoinCheerSnoo
-                        ? 'animate-[snoo-cheer-slide-left_ease-out_forwards]'
-                        : 'opacity-0 -translate-x-full'
-                    }`}
-                    style={{
-                      left: `-${SNOO_CHEER_LEFT_WALL_OFFSET_PX}px`,
-                      animationDuration: `${SNOO_CHEER_ENTRANCE_MS}ms`,
-                    }}
-                  />
-                ) : null}
-                {showOneCoinCheerSnoo && oneCoinCheerSnoo?.side === 'right' ? (
-                  <img
-                    src={oneCoinCheerSnoo.src}
-                    alt=""
-                    className={`absolute bottom-0 right-4 h-full w-auto max-w-[38%] object-contain object-right-bottom ${
-                      showOneCoinCheerSnoo
-                        ? 'animate-[snoo-cheer-slide-right_ease-out_forwards]'
-                        : 'opacity-0 translate-x-8 translate-y-4'
-                    }`}
-                    style={{ animationDuration: `${SNOO_CHEER_ENTRANCE_MS}ms` }}
-                  />
-                ) : null}
-                {coinsEarned >= 2 ? (
+                {coinsEarned === 3 ? (
                   <img
                     src="/snoo-cheer-two.png"
                     alt=""
                     className={`absolute bottom-0 right-4 h-full w-auto max-w-[38%] object-contain object-right-bottom ${
-                      showCheerRightSnoo
+                      showPerfectCheerRightSnoo
                         ? 'animate-[snoo-cheer-slide-right_ease-out_forwards]'
                         : 'opacity-0 translate-x-8 translate-y-4'
                     }`}
                     style={
-                      showCheerRightSnoo
+                      showPerfectCheerRightSnoo
                         ? { animationDuration: `${SNOO_CHEER_ENTRANCE_MS}ms` }
                         : undefined
                     }
