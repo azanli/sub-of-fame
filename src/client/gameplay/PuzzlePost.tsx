@@ -46,7 +46,7 @@ const PostImage = ({ url, alt, linkUrl, linkDomain }: PostImageProps) => {
   }
 
   return (
-    <div className="min-h-[100px] relative overflow-hidden rounded-lg">
+    <div className="min-h-[75px] relative overflow-hidden rounded-lg">
       {/* TODO: Fix the link url thumbnail issue before uncommenting this and removing min-h-[100px] above */}
       {/* {image} */}
       <div className="absolute bottom-0 flex w-full items-center justify-between gap-3 bg-black/70 p-3 backdrop-blur-sm">
