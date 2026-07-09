@@ -17,7 +17,11 @@ import {
   prefersReducedMotion,
   type ZigZagPathPoint,
 } from './forfeitAnimation';
-import { pickRevealRemark, pickSkipRevealRemark, resolveCasualSlotHighlight } from './helpers';
+import {
+  pickRevealRemark,
+  pickSkipRevealRemark,
+  resolveCasualSlotHighlight,
+} from './helpers';
 import {
   getForfeitRevealRemarkKey,
   getRevealRemarkKey,
@@ -145,10 +149,8 @@ export const RevealScreen = ({
 }: RevealScreenProps) => {
   const isSkipped = result.status === 'skipped';
   const isForfeited = result.status === 'forfeited';
-  const coinsEarned =
-    result.status === 'submitted' ? result.coinAward : 0;
-  const hintUsed =
-    result.status === 'submitted' ? result.hintUsed : false;
+  const coinsEarned = result.status === 'submitted' ? result.coinAward : 0;
+  const hintUsed = result.status === 'submitted' ? result.hintUsed : false;
   const isZeroCoinAward = coinsEarned === 0;
   const isCasualMode = gameMode === 'casual';
   const revealRemarkKey = isForfeited
@@ -231,14 +233,12 @@ export const RevealScreen = ({
   const maxSlotScore = Math.max(...result.slots.map((slot) => slot.score), 0);
   const showCheerSnoo =
     coinsEarned >= 1 && !isSkipped && revealedCoinCount >= 1;
-  const showCheerRightSnoo = showCheerSnoo && coinsEarned >= 2 && coinsEarned < 3;
+  const showCheerRightSnoo =
+    showCheerSnoo && coinsEarned >= 2 && coinsEarned < 3;
   const showCheerLeftSnoo =
     showCheerSnoo && coinsEarned >= 3 && revealedCoinCount >= 2;
   const showOneCoinCheerSnoo =
-    showVerdict &&
-    !isSkipped &&
-    !hintUsed &&
-    result.score === 1;
+    showVerdict && !isSkipped && !hintUsed && result.score === 1;
 
   const triggerZeroScoreCoinHeaderPulse = useCallback(() => {
     if (coinBalance === null) {
@@ -270,14 +270,12 @@ export const RevealScreen = ({
         window.setTimeout(() => {
           setRevealedSlotCount(slotIndex + 1);
           const slot = result.slots[slotIndex];
-          const isHintedSlot =
-            hintUsed && slotIndex === 2;
-          const shouldFlash =
-            isSkipped
+          const isHintedSlot = hintUsed && slotIndex === 2;
+          const shouldFlash = isSkipped
+            ? false
+            : isHintedSlot
               ? false
-              : isHintedSlot
-                ? false
-                : Boolean(slot?.correct);
+              : Boolean(slot?.correct);
           if (shouldFlash) {
             setFlashingSlotIndex(slotIndex);
             timers.push(
@@ -539,8 +537,8 @@ export const RevealScreen = ({
           </div>
 
           <div className="relative flex flex-col gap-3">
-            {((coinsEarned >= 1 && !isSkipped) ||
-              (showOneCoinCheerSnoo && result.score >= 1)) ? (
+            {(coinsEarned >= 1 && !isSkipped) ||
+            (showOneCoinCheerSnoo && result.score >= 1) ? (
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute -left-4 -right-4 bottom-full z-10 h-24 sm:h-28"
