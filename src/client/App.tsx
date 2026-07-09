@@ -21,12 +21,20 @@ import { PuzzleGateFromPromise } from './gameplay/PuzzleGateFromPromise';
 import { PuzzleLoadTransition } from './gameplay/PuzzleLoadTransition';
 import { RevealScreen } from './gameplay/RevealScreen';
 import { LeaderboardView } from './leaderboard/LeaderboardView';
+import { preloadPuzzlePostMedia } from './gameplay/puzzlePreload';
 import { resolveLoadingCard } from './gameplay/resolveLoadingCard';
 import { StartPuzzleGateSkeleton } from './gameplay/StartPuzzleGate';
 import type { GameplaySubmitPayload, ReadyPuzzle } from './gameplay/types';
 import { trpcClient } from './trpc';
 
 const HINT_REQUEST_TIMEOUT_MS = 12_000;
+const UNPLAYABLE_RETRY_DELAY_MS = 500;
+const UNPLAYABLE_RETRY_JITTER_MS = 500;
+
+const waitMs = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
 
 type PuzzleLoadFailure =
   | { type: 'select_failed' }
@@ -147,6 +155,12 @@ export const App = ({ preloadedInit }: AppProps) => {
   const loadNextPuzzleRef = useRef<
     (unplayableCount: number, rankIndex: number | undefined) => void
   >(() => undefined);
+  const preloadedNextRef = useRef<{
+    sourceAttemptId: string;
+    promise: Promise<ReadyPuzzle>;
+    puzzle: ReadyPuzzle | null;
+    settled: boolean;
+  } | null>(null);
 
   useEffect(() => {
     sessionRef.current = session;
@@ -257,6 +271,94 @@ export const App = ({ preloadedInit }: AppProps) => {
       }
     },
     []
+  );
+
+  const fetchNextPuzzleWithRetry = useCallback(
+    async (
+      initialUnplayableCount: number,
+      initialRankIndex: number | undefined
+    ): Promise<ReadyPuzzle> => {
+      let unplayableCount = initialUnplayableCount;
+      let rankIndex = initialRankIndex;
+
+      while (true) {
+        try {
+          const puzzle = await fetchNextPuzzle(unplayableCount, rankIndex);
+          preloadPuzzlePostMedia(puzzle.post);
+          return puzzle;
+        } catch (error) {
+          if (
+            typeof error === 'object' &&
+            error !== null &&
+            'type' in error &&
+            error.type === 'unplayable' &&
+            'rankIndex' in error &&
+            'unplayableCount' in error &&
+            typeof error.rankIndex === 'number' &&
+            typeof error.unplayableCount === 'number'
+          ) {
+            if (error.unplayableCount >= 2) {
+              throw error;
+            }
+
+            unplayableCount = error.unplayableCount + 1;
+            rankIndex = error.rankIndex;
+            await waitMs(
+              UNPLAYABLE_RETRY_DELAY_MS +
+                Math.floor(Math.random() * UNPLAYABLE_RETRY_JITTER_MS)
+            );
+            continue;
+          }
+
+          throw error;
+        }
+      }
+    },
+    [fetchNextPuzzle]
+  );
+
+  const startNextPuzzlePreload = useCallback(
+    (sourceAttemptId: string) => {
+      const activeSession = sessionRef.current;
+      if (
+        activeSession === null ||
+        activeSession.campaignSubreddit === null ||
+        activeSession.campaignTimeframe === null
+      ) {
+        return;
+      }
+
+      const rankIndex = activeSession.isLoggedIn
+        ? undefined
+        : guestRankIndexRef.current;
+
+      const preloadEntry: {
+        sourceAttemptId: string;
+        promise: Promise<ReadyPuzzle>;
+        puzzle: ReadyPuzzle | null;
+        settled: boolean;
+      } = {
+        sourceAttemptId,
+        puzzle: null,
+        settled: false,
+        promise: undefined!,
+      };
+
+      preloadEntry.promise = fetchNextPuzzleWithRetry(0, rankIndex).then(
+        (puzzle) => {
+          preloadEntry.puzzle = puzzle;
+          preloadEntry.settled = true;
+          return puzzle;
+        },
+        (error: unknown) => {
+          preloadEntry.settled = true;
+          throw error;
+        }
+      );
+
+      preloadedNextRef.current = preloadEntry;
+    },
+    [fetchNextPuzzleWithRetry]
   );
 
   const handlePuzzleLoadFailure = useCallback(
@@ -391,6 +493,21 @@ export const App = ({ preloadedInit }: AppProps) => {
   useEffect(() => {
     loadNextPuzzleRef.current = loadNextPuzzle;
   }, [loadNextPuzzle]);
+
+  const revealedAttemptId =
+    state.phase === 'revealed' ? state.puzzle.attemptId : null;
+
+  useEffect(() => {
+    if (revealedAttemptId === null) {
+      return;
+    }
+
+    startNextPuzzlePreload(revealedAttemptId);
+
+    return () => {
+      preloadedNextRef.current = null;
+    };
+  }, [revealedAttemptId, startNextPuzzlePreload]);
 
   useEffect(() => {
     if (
@@ -794,17 +911,63 @@ export const App = ({ preloadedInit }: AppProps) => {
     }
   }, [session]);
 
-  const handleNextLevel = () => {
-    void loadNextPuzzle(
-      0,
-      session?.isLoggedIn ? undefined : guestRankIndexRef.current
-    );
-  };
+  const handleNextLevel = useCallback(() => {
+    const activeSession = sessionRef.current;
+    if (activeSession === null) {
+      return;
+    }
+
+    if (
+      activeSession.campaignSubreddit === null ||
+      activeSession.campaignTimeframe === null
+    ) {
+      setState({ phase: 'hub_dashboard' });
+      return;
+    }
+
+    const rankIndex = activeSession.isLoggedIn
+      ? undefined
+      : guestRankIndexRef.current;
+    const subredditDisplayName = activeSession.campaignSubreddit ?? '';
+
+    if (state.phase !== 'revealed') {
+      loadNextPuzzle(0, rankIndex);
+      return;
+    }
+
+    const preloaded = preloadedNextRef.current;
+
+    if (
+      preloaded !== null &&
+      preloaded.sourceAttemptId === state.puzzle.attemptId
+    ) {
+      preloadedNextRef.current = null;
+
+      if (preloaded.settled && preloaded.puzzle !== null) {
+        loadingFromHubRef.current = false;
+        setState({ phase: 'ready', puzzle: preloaded.puzzle });
+        return;
+      }
+
+      beginPuzzleLoad(
+        preloaded.promise,
+        0,
+        rankIndex,
+        subredditDisplayName,
+        false
+      );
+      return;
+    }
+
+    loadNextPuzzle(0, rankIndex);
+  }, [state, beginPuzzleLoad, loadNextPuzzle]);
 
   const handleDevResetRankIndex = useCallback(() => {
     if (state.phase !== 'revealed') {
       return;
     }
+
+    preloadedNextRef.current = null;
 
     const { puzzle } = state;
     const rankIndex = puzzle.rankIndex;
