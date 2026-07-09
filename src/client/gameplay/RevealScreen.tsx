@@ -17,7 +17,7 @@ import {
   prefersReducedMotion,
   type ZigZagPathPoint,
 } from './forfeitAnimation';
-import { pickRevealRemark, resolveCasualSlotHighlight } from './helpers';
+import { pickRevealRemark, pickSkipRevealRemark, resolveCasualSlotHighlight } from './helpers';
 import {
   getForfeitRevealRemarkKey,
   getRevealRemarkKey,
@@ -198,6 +198,10 @@ export const RevealScreen = ({
         })
   );
 
+  const [skipRemark] = useState(() =>
+    isSkipped ? pickSkipRevealRemark() : null
+  );
+
   useEffect(() => {
     if (revealRemark !== null) {
       onRevealRemarkUsed(revealRemark.key, revealRemark.index);
@@ -270,10 +274,10 @@ export const RevealScreen = ({
           const isHintedSlot =
             hintUsed && slotIndex === 2;
           const shouldFlash =
-            isHintedSlot
+            isSkipped
               ? false
-              : isCasualMode && isSkipped
-                ? slotIndex === 0
+              : isHintedSlot
+                ? false
                 : Boolean(slot?.correct);
           if (shouldFlash) {
             setFlashingSlotIndex(slotIndex);
@@ -452,21 +456,38 @@ export const RevealScreen = ({
 
           <div className="relative flex min-h-16 flex-col items-center justify-center py-2">
             {isSkipped ? (
-              <img
-                src="/snoo-skip.png"
-                alt=""
-                aria-hidden="true"
-                className={`h-24 w-auto max-w-full object-contain ${
-                  showVerdict
-                    ? 'animate-[skip-snoo-rise_ease-out_forwards]'
-                    : 'translate-y-6 opacity-0'
-                }`}
-                style={
-                  showVerdict
-                    ? { animationDuration: `${SKIP_SNOO_RISE_MS}ms` }
-                    : undefined
-                }
-              />
+              <div className="flex flex-col items-center gap-2">
+                <img
+                  src="/snoo-skip.png"
+                  alt=""
+                  aria-hidden="true"
+                  className={`h-24 w-auto max-w-full object-contain ${
+                    showVerdict
+                      ? 'animate-[skip-snoo-rise_ease-out_forwards]'
+                      : 'translate-y-6 opacity-0'
+                  }`}
+                  style={
+                    showVerdict
+                      ? { animationDuration: `${SKIP_SNOO_RISE_MS}ms` }
+                      : undefined
+                  }
+                />
+                {skipRemark !== null ? (
+                  <div
+                    className={`transition-all ease-out ${
+                      showVerdict
+                        ? 'translate-y-0 opacity-100'
+                        : 'translate-y-2.5 opacity-0'
+                    }`}
+                    style={{ transitionDuration: `${REMARK_ENTRANCE_MS}ms` }}
+                    aria-live="polite"
+                  >
+                    <p className="px-2 text-center text-lg font-semibold leading-snug text-[#E28743] dark:text-[#E28743]">
+                      {skipRemark}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
             ) : (
               <>
                 {activeFloatingCoinIndices.map((coinIndex) => (
@@ -595,19 +616,21 @@ export const RevealScreen = ({
               const upvoteBarWidthPercent =
                 maxSlotScore > 0 ? (slot.score / maxSlotScore) * 100 : 0;
 
-              const slotHighlight = isHintedSlot
+              const slotHighlight = isSkipped
                 ? 'neutral'
-                : isCasualMode
-                  ? resolveCasualSlotHighlight(
-                      index,
-                      slot,
-                      result.score,
-                      isForfeited,
-                      isSkipped
-                    )
-                  : slot.correct
-                    ? 'correct'
-                    : 'incorrect';
+                : isHintedSlot
+                  ? 'neutral'
+                  : isCasualMode
+                    ? resolveCasualSlotHighlight(
+                        index,
+                        slot,
+                        result.score,
+                        isForfeited,
+                        isSkipped
+                      )
+                    : slot.correct
+                      ? 'correct'
+                      : 'incorrect';
 
               const rankBadgeBgClass = !isRevealed
                 ? 'bg-gray-200 dark:bg-gray-700'
@@ -621,8 +644,11 @@ export const RevealScreen = ({
                   ? 'text-white'
                   : 'text-gray-500 dark:text-gray-300';
 
-              const revealedCardClass =
-                slotHighlight === 'correct'
+              const revealedCardClass = isSkipped
+                ? index === 0
+                  ? 'border-gray-400 bg-gray-50 dark:border-gray-500 dark:bg-gray-800/80'
+                  : 'border-gray-200 bg-gray-50 opacity-60 dark:border-gray-700 dark:bg-gray-800/60'
+                : slotHighlight === 'correct'
                   ? `border-green-400 bg-green-50 dark:bg-green-950 ${
                       isFlashing ? 'scale-[1.02] ring-2 ring-green-300' : ''
                     }`

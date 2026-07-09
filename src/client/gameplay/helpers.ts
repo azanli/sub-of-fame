@@ -4,6 +4,7 @@ import {
   CASUAL_REVEAL_REMARKS,
   EXPERT_REVEAL_REMARKS,
   FORFEIT_REVEAL_REMARKS,
+  SKIP_REVEAL_REMARKS,
   getForfeitRevealRemarkKey,
   getRevealRemarkKey,
 } from '../../shared/revealRemarks';
@@ -179,6 +180,11 @@ export const pickRevealRemark = ({
   };
 };
 
+export const pickSkipRevealRemark = (): string => {
+  const index = Math.floor(Math.random() * SKIP_REVEAL_REMARKS.length);
+  return SKIP_REVEAL_REMARKS[index] ?? SKIP_REVEAL_REMARKS[0]!;
+};
+
 export type CasualSlotHighlight = 'correct' | 'incorrect' | 'neutral';
 
 export const resolveCasualSlotHighlight = (
@@ -193,7 +199,7 @@ export const resolveCasualSlotHighlight = (
   }
 
   if (skipped) {
-    return slotIndex === 0 ? 'correct' : 'neutral';
+    return 'neutral';
   }
 
   if (slot.correct) {

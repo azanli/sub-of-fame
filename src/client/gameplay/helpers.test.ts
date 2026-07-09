@@ -3,6 +3,7 @@ import {
   CASUAL_REVEAL_REMARKS,
   EXPERT_REVEAL_REMARKS,
   FORFEIT_REVEAL_REMARKS,
+  SKIP_REVEAL_REMARKS,
 } from '../../shared/revealRemarks';
 import {
   applyTapRank,
@@ -12,6 +13,7 @@ import {
   isAllRanksAssigned,
   pickRevealRemark,
   pickRevealRemarkIndex,
+  pickSkipRevealRemark,
   resolveCasualSlotHighlight,
 } from './helpers';
 import type { RankAssignments } from './types';
@@ -267,6 +269,13 @@ describe('pickRevealRemark', () => {
   });
 });
 
+describe('pickSkipRevealRemark', () => {
+  it('returns one of the skip reveal remarks', () => {
+    const remark = pickSkipRevealRemark();
+    expect(SKIP_REVEAL_REMARKS).toContain(remark);
+  });
+});
+
 describe('resolveCasualSlotHighlight', () => {
   it('marks only the top slot correct on a perfect pick', () => {
     expect(resolveCasualSlotHighlight(0, { correct: true }, 3)).toBe('correct');
@@ -298,10 +307,10 @@ describe('resolveCasualSlotHighlight', () => {
     );
   });
 
-  it('marks only the top slot correct on skip reveal', () => {
+  it('marks all slots neutral on skip reveal', () => {
     expect(
       resolveCasualSlotHighlight(0, { correct: true }, 0, false, true)
-    ).toBe('correct');
+    ).toBe('neutral');
     expect(
       resolveCasualSlotHighlight(1, { correct: true }, 0, false, true)
     ).toBe('neutral');

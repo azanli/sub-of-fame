@@ -75,9 +75,19 @@ export const FORFEIT_REVEAL_REMARKS = [
   'Ask not what Snoo can do for you, ask what you can do for Snoo.',
 ] as const;
 
+export const SKIP_REVEAL_REMARKS = [
+  'On to the next one.',
+  "Here's how the hivemind actually voted:",
+  "Skipped! Here's what you missed:",
+  "Fair enough, some threads aren't worth the brain cells.",
+  'Left that one in the rearview mirror.',
+] as const;
+
 export const getRevealRemarkKey = (
   gameMode: 'casual' | 'expert',
   score: number
 ): string => `${gameMode}-${score}`;
 
 export const getForfeitRevealRemarkKey = (): string => 'casual-forfeit';
+
+export const getSkipRevealRemarkKey = (): string => 'skip';
