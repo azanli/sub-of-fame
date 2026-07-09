@@ -226,6 +226,8 @@ export type PuzzleNextResponse =
         imageUrl?: string;
         galleryUrls?: string[];
         isVideo?: boolean;
+        linkUrl?: string;
+        linkDomain?: string;
       };
       numberOfComments: number;
       comments: Array<{ id: string; body: string }>;

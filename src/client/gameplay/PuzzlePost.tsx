@@ -5,14 +5,67 @@ type PuzzlePostProps = {
   post: ReadyPuzzle['post'];
 };
 
-const PostImage = ({ url, alt }: { url: string; alt: string }) => (
-  <img
-    src={url}
-    alt={alt}
-    onContextMenu={(e) => e.preventDefault()}
-    className="block w-full h-auto rounded-lg"
-  />
+const ExternalLinkIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-4 w-4 shrink-0"
+    aria-hidden="true"
+  >
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    <polyline points="15 3 21 3 21 9" />
+    <line x1="10" y1="14" x2="21" y2="3" />
+  </svg>
 );
+
+type PostImageProps = {
+  url: string;
+  alt: string;
+  linkUrl?: string;
+  linkDomain?: string;
+};
+
+const PostImage = ({ url, alt, linkUrl, linkDomain }: PostImageProps) => {
+  const image = (
+    <img
+      src={url}
+      alt={alt}
+      onContextMenu={(e) => e.preventDefault()}
+      className={`block w-full h-auto ${linkUrl === undefined ? 'rounded-lg' : ''}`}
+    />
+  );
+
+  if (linkUrl === undefined) {
+    return image;
+  }
+
+  return (
+    <div className="relative overflow-hidden rounded-lg">
+      {image}
+      <div className="absolute bottom-0 flex w-full items-center justify-between gap-3 bg-black/70 p-3 backdrop-blur-sm">
+        <div className="flex min-w-0 items-center gap-2 text-sm text-white">
+          <ExternalLinkIcon />
+          {linkDomain !== undefined ? (
+            <span className="truncate">{linkDomain}</span>
+          ) : null}
+        </div>
+        <a
+          href={linkUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+        >
+          Open Link
+        </a>
+      </div>
+    </div>
+  );
+};
 
 const PostVideo = ({ url }: { url: string }) => (
   <video
@@ -91,7 +144,14 @@ export const PuzzlePost = ({ post }: PuzzlePostProps) => {
         (post.isVideo ? (
           <PostVideo url={singleImageUrl} />
         ) : (
-          <PostImage url={singleImageUrl} alt="Post context" />
+          <PostImage
+            url={singleImageUrl}
+            alt="Post context"
+            {...(post.linkUrl !== undefined ? { linkUrl: post.linkUrl } : {})}
+            {...(post.linkDomain !== undefined
+              ? { linkDomain: post.linkDomain }
+              : {})}
+          />
         ))
       )}
     </div>

@@ -26,6 +26,8 @@ export type LadderPostSummary = {
   isSpoiler: boolean;
   commentCount: number;
   imageUrl?: string;
+  linkUrl?: string;
+  linkDomain?: string;
   galleryUrls?: string[];
   /** True when `imageUrl` points at a playable video (reddit-hosted, mp4 fallback). */
   isVideo?: boolean;
@@ -66,15 +68,23 @@ export type PuzzleSnapshot = {
     imageUrl?: string;
     galleryUrls?: string[];
     isVideo?: boolean;
+    linkUrl?: string;
+    linkDomain?: string;
   };
   numberOfComments: number;
   // index 0 = #1 most upvotes (true rank); never scrambled
-  comments: [PuzzleCommentSnapshot, PuzzleCommentSnapshot, PuzzleCommentSnapshot];
+  comments: [
+    PuzzleCommentSnapshot,
+    PuzzleCommentSnapshot,
+    PuzzleCommentSnapshot,
+  ];
   createdAt: number;
   expiresAt: number;
 };
 
-export type PuzzleAttemptOwner = { kind: 'user'; userId: string } | { kind: 'guest' };
+export type PuzzleAttemptOwner =
+  | { kind: 'user'; userId: string }
+  | { kind: 'guest' };
 
 export type PuzzleAttempt = {
   attemptId: string;

@@ -385,6 +385,12 @@ const buildReadyResponse = (
   if (snapshot.post.isVideo !== undefined) {
     post.isVideo = snapshot.post.isVideo;
   }
+  if (snapshot.post.linkUrl !== undefined) {
+    post.linkUrl = snapshot.post.linkUrl;
+  }
+  if (snapshot.post.linkDomain !== undefined) {
+    post.linkDomain = snapshot.post.linkDomain;
+  }
 
   return {
     status: 'ready',
@@ -533,9 +539,18 @@ export const puzzleRouter = router({
           imageUrl?: string;
           galleryUrls?: string[];
           isVideo?: boolean;
+          linkUrl?: string;
+          linkDomain?: string;
         } = {
           title: post.title,
         };
+
+        if (post.linkUrl !== undefined) {
+          postPayload.linkUrl = post.linkUrl;
+        }
+        if (post.linkDomain !== undefined) {
+          postPayload.linkDomain = post.linkDomain;
+        }
 
         let resolvedPost;
         try {

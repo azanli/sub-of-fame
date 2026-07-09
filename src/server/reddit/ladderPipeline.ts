@@ -268,6 +268,23 @@ export const buildPostSummary = (post: Post): LadderPostSummary => {
     isSpoiler: post.spoiler,
     commentCount: post.numberOfComments ?? 0,
   };
+
+  // --- THE FIX: Detect External News/Article Links ---
+  // If it is not a text post and the URL isn't a direct media file, it is a link post.
+  if (!isSelfPost(post) && post.url) {
+    const isDirectImage = isDirectImageUrl(post.url);
+    if (!isDirectImage && getVideoFallbackUrl(post) === undefined) {
+      summary.linkUrl = post.url;
+      try {
+        // Extract a clean domain name (e.g., "telegraph.co.uk")
+        summary.linkDomain = new URL(post.url).hostname.replace(/^www\./, '');
+      } catch {
+        summary.linkDomain = post.url;
+      }
+    }
+  }
+  // ---------------------------------------------------
+
   const videoUrl = getVideoFallbackUrl(post);
   if (videoUrl !== undefined) {
     summary.imageUrl = videoUrl;
@@ -285,6 +302,7 @@ export const buildPostSummary = (post: Post): LadderPostSummary => {
       summary.imageUrl = imageUrl;
     }
   }
+
   return summary;
 };
 
@@ -319,7 +337,10 @@ const normalizeChain = (
   if (chain === null) {
     return emptyChain(ctx);
   }
-  if (chain.subreddit !== ctx.subredditName || chain.timeframe !== ctx.timeframe) {
+  if (
+    chain.subreddit !== ctx.subredditName ||
+    chain.timeframe !== ctx.timeframe
+  ) {
     return emptyChain(ctx);
   }
   return chain;

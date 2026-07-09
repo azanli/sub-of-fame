@@ -450,6 +450,45 @@ describe('puzzle.next', () => {
     expect(result.comments.map((comment) => comment.id)).toEqual(attempt?.commentOrder);
   });
 
+  it('returns ready with linkUrl and linkDomain for external article posts', async () => {
+    mockResolveLadderPage.mockResolvedValue(
+      makeLadderHit({
+        ...makePostSummary(),
+        imageUrl: 'https://external-preview.redd.it/thumb.jpg',
+        linkUrl: 'https://www.telegraph.co.uk/article',
+        linkDomain: 'telegraph.co.uk',
+      })
+    );
+    mockValidateComments.mockResolvedValue({
+      kind: 'valid',
+      snapshot: {
+        ...makeSnapshot(),
+        post: {
+          ...makeSnapshot().post,
+          imageUrl: 'https://external-preview.redd.it/thumb.jpg',
+          linkUrl: 'https://www.telegraph.co.uk/article',
+          linkDomain: 'telegraph.co.uk',
+        },
+      },
+    });
+
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+    const result = await caller.puzzle.next({ subreddit: 'askreddit' });
+
+    expect(result.status).toBe('ready');
+    if (result.status !== 'ready') {
+      return;
+    }
+
+    expect(result.post).toEqual(
+      expect.objectContaining({
+        linkUrl: 'https://www.telegraph.co.uk/article',
+        linkDomain: 'telegraph.co.uk',
+      })
+    );
+    expect(result.post.imageUrl).toBeDefined();
+  });
+
   it('returns ready with isVideo passthrough for reddit-hosted video posts', async () => {
     mockResolveLadderPage.mockResolvedValue(
       makeLadderHit({
