@@ -38,7 +38,7 @@ export const CommentRankCard = ({
       type="button"
       onClick={() => onTap(commentId)}
       disabled={isDisabled}
-      className={`relative w-full overflow-hidden rounded-xl border px-4 py-3 text-left backdrop-blur-[2px] transition-colors transition-opacity duration-300 ease-out ${
+      className={`relative w-full shrink-0 rounded-xl border px-4 py-3 text-left backdrop-blur-[2px] transition-colors transition-opacity duration-300 ease-out ${
         isDisabled
           ? 'cursor-not-allowed opacity-60'
           : 'cursor-pointer'
