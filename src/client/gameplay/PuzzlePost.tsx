@@ -1,3 +1,4 @@
+import { navigateTo } from '@devvit/web/client';
 import { PostGallery } from './PostGallery';
 import type { ReadyPuzzle } from './types';
 
@@ -45,8 +46,9 @@ const PostImage = ({ url, alt, linkUrl, linkDomain }: PostImageProps) => {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-lg">
-      {image}
+    <div className="min-h-[100px] relative overflow-hidden rounded-lg">
+      {/* TODO: Fix the link url thumbnail issue before uncommenting this and removing min-h-[100px] above */}
+      {/* {image} */}
       <div className="absolute bottom-0 flex w-full items-center justify-between gap-3 bg-black/70 p-3 backdrop-blur-sm">
         <div className="flex min-w-0 items-center gap-2 text-sm text-white">
           <ExternalLinkIcon />
@@ -54,14 +56,13 @@ const PostImage = ({ url, alt, linkUrl, linkDomain }: PostImageProps) => {
             <span className="truncate">{linkDomain}</span>
           ) : null}
         </div>
-        <a
-          href={linkUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shrink-0 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+        <button
+          type="button"
+          onClick={() => navigateTo(linkUrl)}
+          className="shrink-0 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-white/20 cursor-pointer"
         >
           Open Link
-        </a>
+        </button>
       </div>
     </div>
   );
