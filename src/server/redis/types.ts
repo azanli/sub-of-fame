@@ -80,6 +80,14 @@ export type PuzzleSnapshot = {
   ];
   createdAt: number;
   expiresAt: number;
+  /** Score of the raw Reddit #1 root at snapshot time (pre-filter). */
+  rawTopScore?: number;
+  /** Median normalized length of top-8 root comments at snapshot time. */
+  threadDensityBaseline?: number;
+  /** Dynamic max body length derived from thread density (500–1200). */
+  maxCommentLength?: number;
+  /** Validation rule version; stale snapshots are re-fetched. */
+  validationVersion?: number;
 };
 
 export type PuzzleAttemptOwner =

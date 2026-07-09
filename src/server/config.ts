@@ -30,5 +30,17 @@ export const DEV_PLAYTEST_HOST_SUBREDDIT = 'suboffame';
 export const isDevPlaytestHost = (subredditName: string): boolean =>
   subredditName.toLowerCase() === DEV_PLAYTEST_HOST_SUBREDDIT;
 
-/** Maximum normalized comment body length for puzzle eligibility (all three comments). */
-export const MAX_COMMENT_LENGTH = 180;
+/** Adaptive max comment length floor for low-density threads. */
+export const ADAPTIVE_MAX_COMMENT_FLOOR = 500;
+
+/** Adaptive max comment length ceiling for high-density threads (UI-safe bound). */
+export const ADAPTIVE_MAX_COMMENT_CEILING = 1200;
+
+/** Thread density baseline at or below which the floor max applies. */
+export const DENSITY_BASELINE_FOR_FLOOR = 100;
+
+/** Thread density baseline at or above which the ceiling max applies. */
+export const DENSITY_BASELINE_FOR_CEILING = 400;
+
+/** Minimum upvote score for the raw Reddit #1 root comment before content filters. */
+export const MIN_TOP_COMMENT_SCORE = 50;

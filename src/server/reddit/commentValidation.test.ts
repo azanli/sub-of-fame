@@ -24,11 +24,19 @@ const {
   isScoreValid,
   isTopLevel,
   normalizeBody,
+  passesPlayabilityGates,
+  passesRawTopScoreFloor,
+  selectTopLevelRoots,
+  takeEvaluationPool,
   validateComments,
 } = await import('./commentValidation.js');
 
 const SOURCE_POST_ID = 't3_abc123';
 const POST_BODY = 'This is a long enough post body for the puzzle snapshot.';
+const VALID_COMMENT_BODY = 'This is a valid comment body with enough visible characters.';
+const LOW_DENSITY_BODY = 'a'.repeat(60);
+const HIGH_DENSITY_BODY = 'a'.repeat(450);
+const SNAPSHOT_VALIDATION_VERSION = 3;
 
 const baseCommentData = {
   author: 'testuser',
@@ -89,6 +97,26 @@ const validateParams = (
     ...overrides,
   },
   numberOfComments: overrides.numberOfComments ?? 42,
+});
+
+const makeValidCachedSnapshot = (
+  overrides: Partial<PuzzleSnapshot> = {}
+): PuzzleSnapshot => ({
+  sourcePostId: SOURCE_POST_ID,
+  post: { title: 'Cached post' },
+  numberOfComments: 30,
+  comments: [
+    { id: 't1_1', body: 'First cached comment body text.', score: 100, createdAt: 1 },
+    { id: 't1_2', body: 'Second cached comment body text.', score: 50, createdAt: 2 },
+    { id: 't1_3', body: 'Third cached comment body text.', score: 25, createdAt: 3 },
+  ],
+  createdAt: 1000,
+  expiresAt: 2000,
+  rawTopScore: 100,
+  threadDensityBaseline: 60,
+  maxCommentLength: 500,
+  validationVersion: SNAPSHOT_VALIDATION_VERSION,
+  ...overrides,
 });
 
 const toClientComments = (snapshot: PuzzleSnapshot) =>
@@ -154,28 +182,39 @@ describe('containsUrl', () => {
 });
 
 describe('isBodyValid', () => {
+  const maxLength = 500;
+
   it('rejects empty and short bodies', () => {
-    expect(isBodyValid('')).toBe(false);
-    expect(isBodyValid('too short')).toBe(false);
+    expect(isBodyValid('', maxLength)).toBe(false);
+    expect(isBodyValid('too short', maxLength)).toBe(false);
   });
 
   it('rejects deleted and removed sentinels case-insensitively', () => {
-    expect(isBodyValid('[deleted]')).toBe(false);
-    expect(isBodyValid('[DELETED]')).toBe(false);
-    expect(isBodyValid('[removed]')).toBe(false);
-    expect(isBodyValid('[Removed]')).toBe(false);
+    expect(isBodyValid('[deleted]', maxLength)).toBe(false);
+    expect(isBodyValid('[DELETED]', maxLength)).toBe(false);
+    expect(isBodyValid('[removed]', maxLength)).toBe(false);
+    expect(isBodyValid('[Removed]', maxLength)).toBe(false);
   });
 
-  it('accepts bodies with at least 20 visible characters', () => {
-    expect(isBodyValid('abcdefghijklmnopqrst')).toBe(true);
+  it('accepts bodies with at least 16 visible characters', () => {
+    expect(isBodyValid('abcdefghijklmnop', maxLength)).toBe(true);
   });
 
-  it('rejects bodies longer than the configured maximum', () => {
-    expect(isBodyValid('a'.repeat(181))).toBe(false);
+  it('rejects bodies with exactly 15 visible characters', () => {
+    expect(isBodyValid('abcdefghijklmno', maxLength)).toBe(false);
   });
 
-  it('accepts bodies at exactly the configured maximum length', () => {
-    expect(isBodyValid('a'.repeat(180))).toBe(true);
+  it('rejects bodies longer than the provided maximum', () => {
+    expect(isBodyValid('a'.repeat(501), maxLength)).toBe(false);
+  });
+
+  it('accepts bodies at exactly the provided maximum length', () => {
+    expect(isBodyValid('a'.repeat(500), maxLength)).toBe(true);
+  });
+
+  it('accepts longer bodies when the dynamic maximum is higher', () => {
+    expect(isBodyValid('a'.repeat(900), 1200)).toBe(true);
+    expect(isBodyValid('a'.repeat(1201), 1200)).toBe(false);
   });
 });
 
@@ -251,20 +290,90 @@ describe('deduplicateById', () => {
   });
 });
 
+describe('selectTopLevelRoots and takeEvaluationPool', () => {
+  it('caps the evaluation pool at eight highest-scoring roots', () => {
+    const roots = Array.from({ length: 12 }, (_, index) =>
+      makeComment({
+        id: `c${index}`,
+        score: 120 - index,
+        body: VALID_COMMENT_BODY,
+      })
+    );
+
+    const topLevel = selectTopLevelRoots(roots, SOURCE_POST_ID);
+    const pool = takeEvaluationPool(topLevel);
+
+    expect(pool).toHaveLength(8);
+    expect(pool.map((comment) => comment.score)).toEqual([120, 119, 118, 117, 116, 115, 114, 113]);
+  });
+
+  it('returns fewer than eight roots when the post has fewer top-level comments', () => {
+    const roots = Array.from({ length: 5 }, (_, index) =>
+      makeComment({
+        id: `c${index}`,
+        score: 50 - index,
+        body: VALID_COMMENT_BODY,
+      })
+    );
+
+    const pool = takeEvaluationPool(selectTopLevelRoots(roots, SOURCE_POST_ID));
+    expect(pool).toHaveLength(5);
+  });
+
+  it('excludes replies before building the evaluation pool', () => {
+    const roots = Array.from({ length: 10 }, (_, index) =>
+      makeComment({
+        id: `root${index}`,
+        score: 100 - index,
+        body: VALID_COMMENT_BODY,
+      })
+    );
+    const replies = Array.from({ length: 3 }, (_, index) =>
+      makeComment({
+        id: `reply${index}`,
+        score: 500 - index,
+        parentId: 't1_parent',
+        body: VALID_COMMENT_BODY,
+      })
+    );
+
+    const pool = takeEvaluationPool(
+      selectTopLevelRoots([...replies, ...roots], SOURCE_POST_ID)
+    );
+
+    expect(pool).toHaveLength(8);
+    expect(pool.every((comment) => comment.parentId === SOURCE_POST_ID)).toBe(true);
+  });
+});
+
+describe('passesRawTopScoreFloor and passesPlayabilityGates', () => {
+  it('requires the raw top root to meet the minimum score floor', () => {
+    expect(passesRawTopScoreFloor(makeComment({ score: 50 }))).toBe(true);
+    expect(passesRawTopScoreFloor(makeComment({ score: 49 }))).toBe(false);
+    expect(passesRawTopScoreFloor(makeComment({ score: Number.NaN }))).toBe(false);
+  });
+
+  it('requires three distinct scores for playability', () => {
+    expect(
+      passesPlayabilityGates([
+        { id: 'a', body: 'a', score: 100, createdAt: 1 },
+        { id: 'b', body: 'b', score: 50, createdAt: 2 },
+        { id: 'c', body: 'c', score: 25, createdAt: 3 },
+      ])
+    ).toBe(true);
+    expect(
+      passesPlayabilityGates([
+        { id: 'a', body: 'a', score: 100, createdAt: 1 },
+        { id: 'b', body: 'b', score: 50, createdAt: 2 },
+        { id: 'c', body: 'c', score: 50, createdAt: 3 },
+      ])
+    ).toBe(false);
+  });
+});
+
 describe('validateComments – cached snapshot', () => {
   it('returns valid without calling reddit when snapshot exists', async () => {
-    const cached: PuzzleSnapshot = {
-      sourcePostId: SOURCE_POST_ID,
-      post: { title: 'Cached post' },
-      numberOfComments: 30,
-      comments: [
-        { id: 't1_1', body: 'First cached comment body text.', score: 100, createdAt: 1 },
-        { id: 't1_2', body: 'Second cached comment body text.', score: 50, createdAt: 2 },
-        { id: 't1_3', body: 'Third cached comment body text.', score: 25, createdAt: 3 },
-      ],
-      createdAt: 1000,
-      expiresAt: 2000,
-    };
+    const cached = makeValidCachedSnapshot();
     mockGetSnapshot.mockResolvedValue(cached);
 
     const reddit = { getComments: mockGetComments };
@@ -287,21 +396,12 @@ describe('validateComments – cached snapshot', () => {
   });
 
   it('merges galleryUrls from fresh post data into a cached snapshot', async () => {
-    const cached: PuzzleSnapshot = {
-      sourcePostId: SOURCE_POST_ID,
+    const cached = makeValidCachedSnapshot({
       post: {
         title: 'Cached post',
         imageUrl: 'https://example.com/first.jpg',
       },
-      numberOfComments: 30,
-      comments: [
-        { id: 't1_1', body: 'First cached comment body text.', score: 100, createdAt: 1 },
-        { id: 't1_2', body: 'Second cached comment body text.', score: 50, createdAt: 2 },
-        { id: 't1_3', body: 'Third cached comment body text.', score: 25, createdAt: 3 },
-      ],
-      createdAt: 1000,
-      expiresAt: 2000,
-    };
+    });
     mockGetSnapshot.mockResolvedValue(cached);
 
     const galleryUrls = [
@@ -335,21 +435,12 @@ describe('validateComments – cached snapshot', () => {
   });
 
   it('merges isVideo from fresh post data into a cached snapshot', async () => {
-    const cached: PuzzleSnapshot = {
-      sourcePostId: SOURCE_POST_ID,
+    const cached = makeValidCachedSnapshot({
       post: {
         title: 'Cached post',
         imageUrl: 'https://example.com/thumb.jpg',
       },
-      numberOfComments: 30,
-      comments: [
-        { id: 't1_1', body: 'First cached comment body text.', score: 100, createdAt: 1 },
-        { id: 't1_2', body: 'Second cached comment body text.', score: 50, createdAt: 2 },
-        { id: 't1_3', body: 'Third cached comment body text.', score: 25, createdAt: 3 },
-      ],
-      createdAt: 1000,
-      expiresAt: 2000,
-    };
+    });
     mockGetSnapshot.mockResolvedValue(cached);
 
     const reddit = { getComments: mockGetComments };
@@ -431,6 +522,10 @@ describe('validateComments – valid snapshot', () => {
 
     expect(result.snapshot.comments.map((comment) => comment.id)).toEqual(['t1_c1', 't1_c2', 't1_c3']);
     expect(result.snapshot.comments.map((comment) => comment.score)).toEqual([100, 50, 25]);
+    expect(result.snapshot.rawTopScore).toBe(100);
+    expect(result.snapshot.threadDensityBaseline).toBe(60);
+    expect(result.snapshot.maxCommentLength).toBe(500);
+    expect(result.snapshot.validationVersion).toBe(SNAPSHOT_VALIDATION_VERSION);
     expect(result.snapshot.post).toEqual({
       title: 'Test post title',
       body: POST_BODY,
@@ -622,6 +717,7 @@ describe('validateComments – zero and negative scores', () => {
   it('accepts zero and negative scores when they are distinct', async () => {
     mockGetComments.mockReturnValue(
       makeListing([
+        makeComment({ id: 'anchor', score: 60, author: 'automoderator' }),
         makeComment({ id: 'c1', score: 0 }),
         makeComment({ id: 'c2', score: -1 }),
         makeComment({ id: 'c3', score: -5 }),
@@ -736,15 +832,14 @@ describe('validateComments – error path', () => {
   });
 });
 
-describe('validateComments – maximum comment length', () => {
-  it('skips overlong comments and selects the next eligible roots', async () => {
-    const shortBody = 'This is a valid comment body with enough visible characters.';
+describe('validateComments – adaptive maximum comment length', () => {
+  it('skips overlong comments in low-density threads and selects shorter survivors', async () => {
     mockGetComments.mockReturnValue(
       makeListing([
-        makeComment({ id: 'c1', score: 100, body: 'a'.repeat(181) }),
-        makeComment({ id: 'c2', score: 50, body: shortBody }),
-        makeComment({ id: 'c3', score: 25, body: shortBody }),
-        makeComment({ id: 'c4', score: 10, body: shortBody }),
+        makeComment({ id: 'c1', score: 100, body: 'a'.repeat(600) }),
+        makeComment({ id: 'c2', score: 50, body: LOW_DENSITY_BODY }),
+        makeComment({ id: 'c3', score: 25, body: LOW_DENSITY_BODY }),
+        makeComment({ id: 'c4', score: 10, body: LOW_DENSITY_BODY }),
       ])
     );
 
@@ -756,16 +851,47 @@ describe('validateComments – maximum comment length', () => {
       return;
     }
 
+    expect(result.snapshot.maxCommentLength).toBe(500);
     expect(result.snapshot.comments.map((comment) => comment.id)).toEqual(['t1_c2', 't1_c3', 't1_c4']);
   });
 
-  it('returns invalid when fewer than three comments fit within the maximum length', async () => {
-    const shortBody = 'This is a valid comment body with enough visible characters.';
+  it('accepts long comments in high-density threads up to the 1200-character ceiling', async () => {
+    const longBody = 'a'.repeat(900);
     mockGetComments.mockReturnValue(
       makeListing([
-        makeComment({ id: 'c1', score: 100, body: 'a'.repeat(181) }),
-        makeComment({ id: 'c2', score: 50, body: shortBody }),
-        makeComment({ id: 'c3', score: 25, body: 'b'.repeat(181) }),
+        makeComment({ id: 'c1', score: 100, body: longBody }),
+        makeComment({ id: 'c2', score: 50, body: HIGH_DENSITY_BODY }),
+        makeComment({ id: 'c3', score: 25, body: HIGH_DENSITY_BODY }),
+      ])
+    );
+
+    const reddit = { getComments: mockGetComments };
+    const result = await validateComments(validateParams(), reddit, makeBudget());
+
+    expect(result.kind).toBe('valid');
+    if (result.kind !== 'valid') {
+      return;
+    }
+
+    expect(result.snapshot.maxCommentLength).toBe(1200);
+    expect(result.snapshot.comments[0]?.body).toBe(longBody);
+  });
+
+  it('returns invalid when fewer than three comments fit within the dynamic maximum', async () => {
+    mockGetComments.mockReturnValue(
+      makeListing([
+        makeComment({ id: 'c1', score: 100, body: 'a'.repeat(600) }),
+        makeComment({ id: 'c2', score: 90, body: LOW_DENSITY_BODY }),
+        makeComment({ id: 'c3', score: 80, body: LOW_DENSITY_BODY }),
+        makeComment({ id: 'c4', score: 70, author: 'automoderator', body: LOW_DENSITY_BODY }),
+        makeComment({ id: 'c5', score: 60, stickied: true, body: LOW_DENSITY_BODY }),
+        makeComment({ id: 'c6', score: 50, body: 'too short' }),
+        makeComment({
+          id: 'c7',
+          score: 40,
+          body: 'Another short comment with a link https://example.com/path here.',
+        }),
+        makeComment({ id: 'c8', score: 30, body: '[deleted]' }),
       ])
     );
 
@@ -773,6 +899,11 @@ describe('validateComments – maximum comment length', () => {
     const result = await validateComments(validateParams(), reddit, makeBudget());
 
     expect(result.kind).toBe('invalid');
+    if (result.kind !== 'invalid') {
+      return;
+    }
+
+    expect(result).toEqual({ kind: 'invalid' });
   });
 });
 
@@ -922,5 +1053,248 @@ describe('validateComments – removed flag', () => {
     }
 
     expect(result.snapshot.comments.map((comment) => comment.id)).toEqual(['t1_c1', 't1_c3', 't1_c4']);
+  });
+});
+
+describe('validateComments – evaluation pool semantics', () => {
+  const shortNoise = 'too short';
+
+  it('returns invalid when only two valid comments survive within the top eight', async () => {
+    mockGetComments.mockReturnValue(
+      makeListing([
+        ...Array.from({ length: 6 }, (_, index) =>
+          makeComment({
+            id: `noise${index}`,
+            score: 90 - index,
+            body: shortNoise,
+          })
+        ),
+        makeComment({ id: 'long7', score: 20, body: VALID_COMMENT_BODY }),
+        makeComment({ id: 'long8', score: 15, body: VALID_COMMENT_BODY }),
+        makeComment({ id: 'long9', score: 10, body: VALID_COMMENT_BODY }),
+        makeComment({ id: 'long10', score: 5, body: VALID_COMMENT_BODY }),
+      ])
+    );
+
+    const result = await validateComments(
+      validateParams(),
+      { getComments: mockGetComments },
+      makeBudget()
+    );
+
+    expect(result).toEqual({ kind: 'invalid' });
+  });
+
+  it('selects valid comments buried at ranks six through eight in the pool', async () => {
+    mockGetComments.mockReturnValue(
+      makeListing([
+        makeComment({ id: 'c1', score: 100, author: 'automoderator' }),
+        makeComment({ id: 'c2', score: 90, body: shortNoise }),
+        makeComment({ id: 'c3', score: 80, body: 'link https://example.com/path here.' }),
+        makeComment({ id: 'c4', score: 70, stickied: true }),
+        makeComment({ id: 'c5', score: 60, body: shortNoise }),
+        makeComment({ id: 'c6', score: 50, body: VALID_COMMENT_BODY }),
+        makeComment({ id: 'c7', score: 40, body: VALID_COMMENT_BODY }),
+        makeComment({ id: 'c8', score: 30, body: VALID_COMMENT_BODY }),
+      ])
+    );
+
+    const result = await validateComments(
+      validateParams(),
+      { getComments: mockGetComments },
+      makeBudget()
+    );
+
+    expect(result.kind).toBe('valid');
+    if (result.kind !== 'valid') {
+      return;
+    }
+
+    expect(result.snapshot.comments.map((comment) => comment.id)).toEqual([
+      't1_c6',
+      't1_c7',
+      't1_c8',
+    ]);
+  });
+
+  it('returns invalid when three valid comments exist only outside the top eight pool', async () => {
+    mockGetComments.mockReturnValue(
+      makeListing([
+        ...Array.from({ length: 8 }, (_, index) =>
+          makeComment({
+            id: `blocked${index}`,
+            score: 100 - index,
+            body: shortNoise,
+          })
+        ),
+        makeComment({ id: 'valid9', score: 10, body: VALID_COMMENT_BODY }),
+        makeComment({ id: 'valid10', score: 9, body: VALID_COMMENT_BODY }),
+        makeComment({ id: 'valid11', score: 8, body: VALID_COMMENT_BODY }),
+      ])
+    );
+
+    const result = await validateComments(
+      validateParams(),
+      { getComments: mockGetComments },
+      makeBudget()
+    );
+
+    expect(result).toEqual({ kind: 'invalid' });
+  });
+});
+
+describe('validateComments – raw top score floor', () => {
+  it('returns invalid when raw number one is below the upvote floor', async () => {
+    mockGetComments.mockReturnValue(
+      makeListing([
+        makeComment({ id: 'c1', score: 30, body: VALID_COMMENT_BODY }),
+        makeComment({ id: 'c2', score: 29, body: VALID_COMMENT_BODY }),
+        makeComment({ id: 'c3', score: 28, body: VALID_COMMENT_BODY }),
+        makeComment({ id: 'c4', score: 27, body: VALID_COMMENT_BODY }),
+      ])
+    );
+
+    const result = await validateComments(
+      validateParams(),
+      { getComments: mockGetComments },
+      makeBudget()
+    );
+
+    expect(result).toEqual({ kind: 'invalid' });
+    expect(mockSetSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('returns valid when raw number one passes the floor but is filtered from the game', async () => {
+    mockGetComments.mockReturnValue(
+      makeListing([
+        makeComment({ id: 'c1', score: 1000, author: 'automoderator' }),
+        makeComment({ id: 'c2', score: 200, body: VALID_COMMENT_BODY }),
+        makeComment({ id: 'c3', score: 150, body: VALID_COMMENT_BODY }),
+        makeComment({ id: 'c4', score: 100, body: VALID_COMMENT_BODY }),
+      ])
+    );
+
+    const result = await validateComments(
+      validateParams(),
+      { getComments: mockGetComments },
+      makeBudget()
+    );
+
+    expect(result.kind).toBe('valid');
+    if (result.kind !== 'valid') {
+      return;
+    }
+
+    expect(result.snapshot.rawTopScore).toBe(1000);
+    expect(result.snapshot.comments.map((comment) => comment.id)).toEqual([
+      't1_c2',
+      't1_c3',
+      't1_c4',
+    ]);
+  });
+});
+
+describe('validateComments – length boundaries in pool', () => {
+  it('accepts a sixteen-character comment in the pool', async () => {
+    mockGetComments.mockReturnValue(
+      makeListing([
+        makeComment({ id: 'c1', score: 100, body: 'abcdefghijklmnop' }),
+        makeComment({ id: 'c2', score: 50, body: VALID_COMMENT_BODY }),
+        makeComment({ id: 'c3', score: 25, body: VALID_COMMENT_BODY }),
+      ])
+    );
+
+    const result = await validateComments(
+      validateParams(),
+      { getComments: mockGetComments },
+      makeBudget()
+    );
+
+    expect(result.kind).toBe('valid');
+    if (result.kind !== 'valid') {
+      return;
+    }
+
+    expect(result.snapshot.comments[0]?.body).toBe('abcdefghijklmnop');
+  });
+
+  it('accepts a nine-hundred-character comment in a high-density thread', async () => {
+    const longBody = 'a'.repeat(900);
+    mockGetComments.mockReturnValue(
+      makeListing([
+        makeComment({ id: 'c1', score: 100, body: longBody }),
+        makeComment({ id: 'c2', score: 50, body: HIGH_DENSITY_BODY }),
+        makeComment({ id: 'c3', score: 25, body: HIGH_DENSITY_BODY }),
+      ])
+    );
+
+    const result = await validateComments(
+      validateParams(),
+      { getComments: mockGetComments },
+      makeBudget()
+    );
+
+    expect(result.kind).toBe('valid');
+    if (result.kind !== 'valid') {
+      return;
+    }
+
+    expect(result.snapshot.comments[0]?.body).toBe(longBody);
+  });
+});
+
+describe('validateComments – stale cached snapshots', () => {
+  it('re-fetches comments when cached validationVersion is stale', async () => {
+    const cached = makeValidCachedSnapshot({ validationVersion: 2 });
+    mockGetSnapshot.mockResolvedValue(cached);
+    mockGetComments.mockReturnValue(
+      makeListing([
+        makeComment({ id: 'c1', score: 100 }),
+        makeComment({ id: 'c2', score: 50 }),
+        makeComment({ id: 'c3', score: 25 }),
+      ])
+    );
+
+    const result = await validateComments(
+      validateParams(),
+      { getComments: mockGetComments },
+      makeBudget()
+    );
+
+    expect(mockGetComments).toHaveBeenCalledTimes(1);
+    expect(result.kind).toBe('valid');
+    if (result.kind !== 'valid') {
+      return;
+    }
+
+    expect(result.snapshot.validationVersion).toBe(SNAPSHOT_VALIDATION_VERSION);
+    expect(mockSetSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-fetches comments when cached rawTopScore is missing', async () => {
+    const cached = makeValidCachedSnapshot({ rawTopScore: undefined });
+    mockGetSnapshot.mockResolvedValue(cached);
+    mockGetComments.mockReturnValue(
+      makeListing([
+        makeComment({ id: 'c1', score: 100 }),
+        makeComment({ id: 'c2', score: 50 }),
+        makeComment({ id: 'c3', score: 25 }),
+      ])
+    );
+
+    const result = await validateComments(
+      validateParams(),
+      { getComments: mockGetComments },
+      makeBudget()
+    );
+
+    expect(mockGetComments).toHaveBeenCalledTimes(1);
+    expect(result.kind).toBe('valid');
+    if (result.kind !== 'valid') {
+      return;
+    }
+
+    expect(result.snapshot.rawTopScore).toBe(100);
+    expect(mockSetSnapshot).toHaveBeenCalledTimes(1);
   });
 });
