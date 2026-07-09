@@ -261,7 +261,7 @@ export const HubDashboard = ({
               customSubreddit.trim().length === 0 ||
               cannotAffordUnlock
             }
-            className="shrink-0 rounded-full bg-[#d93900] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#c23300] disabled:cursor-not-allowed disabled:opacity-60"
+            className="shrink-0 rounded-full bg-[#d93900] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#c23300] disabled:cursor-not-allowed disabled:opacity-60 enabled:cursor-pointer"
           >
             <span className="inline-flex items-center gap-1">
               Unlock
