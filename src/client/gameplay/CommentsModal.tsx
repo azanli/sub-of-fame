@@ -10,7 +10,6 @@ import { getRescueAnimationState } from './rescueAnimation';
 import type { RankAssignments, ReadyPuzzle } from './types';
 
 const SKIP_ANIMATION_MS = 700;
-const HINT_ANIMATION_MS = 700;
 
 type CommentsModalProps = {
   comments: ReadyPuzzle['comments'];
@@ -24,12 +23,11 @@ type CommentsModalProps = {
   onTap: (commentId: string) => void;
   onSkipAnimationStart: () => void;
   onSkip: () => void;
-  onHintAnimationStart: () => void;
   onHint: () => void;
   isSkipAnimating: boolean;
   isHintAnimating: boolean;
   isSkipping: boolean;
-  isHinting: boolean;
+  isHintProcessing: boolean;
   /** Logged-in wallet balance; null for guests (skip is free). */
   coinBalance: number | null;
   /** Casual mode only: return to the post view and pause the timer. */
@@ -52,23 +50,25 @@ export const CommentsModal = ({
   onTap,
   onSkipAnimationStart,
   onSkip,
-  onHintAnimationStart,
   onHint,
   isSkipAnimating,
   isHintAnimating,
   isSkipping,
-  isHinting,
+  isHintProcessing,
   coinBalance,
   onBackToPost,
 }: CommentsModalProps) => {
   const skipTimeoutRef = useRef<number | null>(null);
-  const hintTimeoutRef = useRef<number | null>(null);
   const cannotAffordSkip =
     coinBalance !== null && coinBalance < SKIP_COST;
   const cannotAffordHint = coinBalance !== null && coinBalance < HINT_COST;
   const skipDisabled = isSkipping || isSkipAnimating || cannotAffordSkip;
   const hintDisabled =
-    hintUsed || isHinting || isHintAnimating || isSkipping || cannotAffordHint;
+    hintUsed ||
+    isHintProcessing ||
+    isHintAnimating ||
+    isSkipping ||
+    cannotAffordHint;
   const isCasualMode = gameMode === 'casual';
   const rescueAnimationState = getRescueAnimationState(
     secondsRemaining,
@@ -79,9 +79,6 @@ export const CommentsModal = ({
     return () => {
       if (skipTimeoutRef.current !== null) {
         window.clearTimeout(skipTimeoutRef.current);
-      }
-      if (hintTimeoutRef.current !== null) {
-        window.clearTimeout(hintTimeoutRef.current);
       }
     };
   }, []);
@@ -103,11 +100,7 @@ export const CommentsModal = ({
       return;
     }
 
-    onHintAnimationStart();
-    hintTimeoutRef.current = window.setTimeout(() => {
-      hintTimeoutRef.current = null;
-      onHint();
-    }, HINT_ANIMATION_MS);
+    onHint();
   };
 
   return (
@@ -172,6 +165,7 @@ export const CommentsModal = ({
                   casualSelectedCommentId !== comment.id
                 }
                 isHintLocked={hintedCommentId === comment.id}
+                isHintProcessing={isHintProcessing}
                 onTap={onTap}
               />
             ))}
@@ -207,14 +201,14 @@ export const CommentsModal = ({
               onClick={handleHintClick}
               disabled={hintDisabled}
               aria-label={`Reveal third-most-upvoted comment for ${HINT_COST} Karma Coins`}
-              aria-busy={isHintAnimating}
+              aria-busy={isHintAnimating || isHintProcessing}
               className="flex h-10 flex-1 items-center justify-center gap-1 rounded-full border-2 border-orange-300 bg-orange-50 px-4 text-sm font-semibold text-orange-900 transition-colors hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-orange-700 dark:bg-orange-950/50 dark:text-orange-200 dark:hover:bg-orange-950/70 cursor-pointer"
             >
               <span>Hint</span>
               <span className="inline-flex min-w-[1.25rem] items-center justify-center">
                 {isHintAnimating ? (
                   <span
-                    className="inline-block animate-[skip-cost-pop_700ms_ease-out_forwards]"
+                    className="inline-block animate-[skip-cost-pop_150ms_ease-out_forwards]"
                     aria-hidden="true"
                   >
                     -{HINT_COST}

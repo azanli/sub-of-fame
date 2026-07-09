@@ -25,6 +25,6 @@ export const CoinBalanceBadge = ({
     aria-label={ariaLabel}
   >
     <img src="/coin.svg" alt="" aria-hidden="true" className="h-5 w-5" />
-    <span className="tabular-nums">{coins}</span>
+    <span className="tabular-nums transition-all duration-200">{coins}</span>
   </span>
 );

@@ -1,3 +1,4 @@
+import { showToast } from '@devvit/web/client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GameMode } from '../../shared/api';
 import {
@@ -17,6 +18,8 @@ type GameplayRoundProps = {
   onSubmit: (payload: GameplaySubmitPayload) => void;
   onSkip: () => void;
   onHint: (attemptId: string) => Promise<string | null>;
+  onHintTap: () => void;
+  onHintRollback: () => void;
   onForfeit: () => void;
   isSubmitting: boolean;
   isSkipping: boolean;
@@ -28,6 +31,7 @@ type GameplayRoundProps = {
 type GameplayRoundInnerProps = GameplayRoundProps;
 
 const FORFEIT_TRANSITION_MS = 700;
+const HINT_BUTTON_ANIMATION_MS = 150;
 
 const GameplayRoundInner = ({
   puzzle,
@@ -35,6 +39,8 @@ const GameplayRoundInner = ({
   onSubmit,
   onSkip,
   onHint,
+  onHintTap,
+  onHintRollback,
   onForfeit,
   isSubmitting,
   isSkipping,
@@ -50,10 +56,11 @@ const GameplayRoundInner = ({
 
   const hasSubmittedRef = useRef(false);
   const forfeitTimeoutRef = useRef<number | null>(null);
+  const hintAnimTimeoutRef = useRef<number | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [isSkipAnimating, setIsSkipAnimating] = useState(false);
   const [isHintAnimating, setIsHintAnimating] = useState(false);
-  const [isHinting, setIsHinting] = useState(false);
+  const [isHintProcessing, setIsHintProcessing] = useState(false);
   const [assignments, setAssignments] = useState<RankAssignments>(new Map());
   const [casualSelectedCommentId, setCasualSelectedCommentId] = useState<
     string | null
@@ -72,12 +79,19 @@ const GameplayRoundInner = ({
       window.clearTimeout(forfeitTimeoutRef.current);
       forfeitTimeoutRef.current = null;
     }
+    if (hintAnimTimeoutRef.current !== null) {
+      window.clearTimeout(hintAnimTimeoutRef.current);
+      hintAnimTimeoutRef.current = null;
+    }
   }, [puzzle.attemptId]);
 
   useEffect(() => {
     return () => {
       if (forfeitTimeoutRef.current !== null) {
         window.clearTimeout(forfeitTimeoutRef.current);
+      }
+      if (hintAnimTimeoutRef.current !== null) {
+        window.clearTimeout(hintAnimTimeoutRef.current);
       }
     };
   }, []);
@@ -89,9 +103,7 @@ const GameplayRoundInner = ({
       isSubmitting ||
       isSkipping ||
       isForfeiting ||
-      isSkipAnimating ||
-      isHintAnimating ||
-      isHinting
+      isSkipAnimating
     ) {
       return;
     }
@@ -108,8 +120,6 @@ const GameplayRoundInner = ({
     isSkipping,
     isForfeiting,
     isSkipAnimating,
-    isHintAnimating,
-    isHinting,
   ]);
 
   useEffect(() => {
@@ -123,7 +133,7 @@ const GameplayRoundInner = ({
       isForfeiting ||
       isSkipAnimating ||
       isHintAnimating ||
-      isHinting ||
+      isHintProcessing ||
       hasSubmittedRef.current
     ) {
       return;
@@ -147,7 +157,7 @@ const GameplayRoundInner = ({
     isForfeiting,
     isSkipAnimating,
     isHintAnimating,
-    isHinting,
+    isHintProcessing,
     onSubmit,
     puzzle.comments,
   ]);
@@ -163,7 +173,7 @@ const GameplayRoundInner = ({
       isForfeiting ||
       isSkipAnimating ||
       isHintAnimating ||
-      isHinting ||
+      isHintProcessing ||
       hasSubmittedRef.current
     ) {
       return;
@@ -188,7 +198,7 @@ const GameplayRoundInner = ({
     isForfeiting,
     isSkipAnimating,
     isHintAnimating,
-    isHinting,
+    isHintProcessing,
     hasStarted,
     onSubmit,
     puzzle.comments,
@@ -205,7 +215,7 @@ const GameplayRoundInner = ({
       isForfeiting ||
       isSkipAnimating ||
       isHintAnimating ||
-      isHinting ||
+      isHintProcessing ||
       hasSubmittedRef.current
     ) {
       return;
@@ -234,7 +244,7 @@ const GameplayRoundInner = ({
     isForfeiting,
     isSkipAnimating,
     isHintAnimating,
-    isHinting,
+    isHintProcessing,
     hasStarted,
     onForfeit,
   ]);
@@ -253,7 +263,7 @@ const GameplayRoundInner = ({
       isForfeiting ||
       isSkipAnimating ||
       isHintAnimating ||
-      isHinting ||
+      isHintProcessing ||
       hasSubmittedRef.current ||
       casualSelectedCommentId !== null ||
       hintedCommentId === commentId
@@ -275,7 +285,7 @@ const GameplayRoundInner = ({
       isForfeiting ||
       isSkipAnimating ||
       isHintAnimating ||
-      isHinting ||
+      isHintProcessing ||
       hasSubmittedRef.current
     ) {
       return;
@@ -294,34 +304,39 @@ const GameplayRoundInner = ({
     onSkip();
   };
 
-  const handleHintAnimationStart = () => {
+  const handleHint = () => {
     if (
       isSubmitting ||
       isSkipping ||
       isForfeiting ||
       isSkipAnimating ||
       isHintAnimating ||
-      isHinting ||
+      isHintProcessing ||
       hintUsed ||
       hasSubmittedRef.current
     ) {
       return;
     }
 
-    setIsHintAnimating(true);
-  };
-
-  const handleHint = () => {
-    if (isSubmitting || isSkipping || isHinting || hintUsed) {
-      return;
+    const deductedCoins = coinBalance !== null;
+    if (deductedCoins) {
+      onHintTap();
     }
 
-    setIsHintAnimating(false);
-    setIsHinting(true);
+    setIsHintProcessing(true);
+    setIsHintAnimating(true);
+    hintAnimTimeoutRef.current = window.setTimeout(() => {
+      hintAnimTimeoutRef.current = null;
+      setIsHintAnimating(false);
+    }, HINT_BUTTON_ANIMATION_MS);
 
     void onHint(puzzle.attemptId).then((commentId) => {
-      setIsHinting(false);
+      setIsHintProcessing(false);
       if (commentId === null) {
+        if (deductedCoins) {
+          onHintRollback();
+        }
+        showToast('Connection error. Hint cancelled.');
         return;
       }
 
@@ -341,7 +356,7 @@ const GameplayRoundInner = ({
       isForfeiting ||
       isSkipAnimating ||
       isHintAnimating ||
-      isHinting ||
+      isHintProcessing ||
       hasSubmittedRef.current
     ) {
       return;
@@ -378,18 +393,17 @@ const GameplayRoundInner = ({
         isForfeiting ||
         isSkipAnimating ||
         isHintAnimating ||
-        isHinting
+        isHintProcessing
           ? () => undefined
           : handleTap
       }
       onSkipAnimationStart={handleSkipAnimationStart}
       onSkip={handleSkip}
-      onHintAnimationStart={handleHintAnimationStart}
       onHint={handleHint}
       isSkipAnimating={isSkipAnimating}
       isHintAnimating={isHintAnimating}
       isSkipping={isSubmitting || isSkipping || isForfeiting}
-      isHinting={isHinting}
+      isHintProcessing={isHintProcessing}
       coinBalance={coinBalance}
       {...(isExpertMode ? {} : { onBackToPost: handleBackToPost })}
     />
@@ -402,6 +416,8 @@ export const GameplayRound = ({
   onSubmit,
   onSkip,
   onHint,
+  onHintTap,
+  onHintRollback,
   onForfeit,
   isSubmitting,
   isSkipping,
@@ -416,6 +432,8 @@ export const GameplayRound = ({
     onSubmit={onSubmit}
     onSkip={onSkip}
     onHint={onHint}
+    onHintTap={onHintTap}
+    onHintRollback={onHintRollback}
     onForfeit={onForfeit}
     isSubmitting={isSubmitting}
     isSkipping={isSkipping}

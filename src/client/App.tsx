@@ -6,7 +6,7 @@ import {
   type PuzzleNextRequest,
   type PuzzleRevealResult,
 } from '../shared/api';
-import { SUBREDDIT_UNLOCK_COST } from '../shared/coins';
+import { HINT_COST, SUBREDDIT_UNLOCK_COST } from '../shared/coins';
 import type { CampaignTimeframe } from '../shared/campaignTimeframes';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { TRPCClientError } from '@trpc/client';
@@ -25,6 +25,8 @@ import { resolveLoadingCard } from './gameplay/resolveLoadingCard';
 import { StartPuzzleGateSkeleton } from './gameplay/StartPuzzleGate';
 import type { GameplaySubmitPayload, ReadyPuzzle } from './gameplay/types';
 import { trpcClient } from './trpc';
+
+const HINT_REQUEST_TIMEOUT_MS = 12_000;
 
 type PuzzleLoadFailure =
   | { type: 'select_failed' }
@@ -696,6 +698,26 @@ export const App = ({ preloadedInit }: AppProps) => {
     }
   }, [session]);
 
+  const handleHintTap = useCallback(() => {
+    setInitData((current) => {
+      if (current === null || current.coins === null) {
+        return current;
+      }
+
+      return { ...current, coins: current.coins - HINT_COST };
+    });
+  }, []);
+
+  const handleHintRollback = useCallback(() => {
+    setInitData((current) => {
+      if (current === null || current.coins === null) {
+        return current;
+      }
+
+      return { ...current, coins: current.coins + HINT_COST };
+    });
+  }, []);
+
   const handleHint = useCallback(async (attemptId: string): Promise<string | null> => {
     const puzzle = activePuzzleRef.current;
     if (puzzle === null || puzzle.attemptId !== attemptId) {
@@ -703,7 +725,14 @@ export const App = ({ preloadedInit }: AppProps) => {
     }
 
     try {
-      const result = await trpcClient.puzzle.hint.mutate({ attemptId });
+      const result = await Promise.race([
+        trpcClient.puzzle.hint.mutate({ attemptId }),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => {
+            reject(new Error('hint request timed out'));
+          }, HINT_REQUEST_TIMEOUT_MS);
+        }),
+      ]);
 
       if (result.status === 'hinted') {
         if (result.coins !== null) {
@@ -908,6 +937,8 @@ export const App = ({ preloadedInit }: AppProps) => {
               void handleSkip();
             }}
             onHint={(attemptId) => handleHint(attemptId)}
+            onHintTap={handleHintTap}
+            onHintRollback={handleHintRollback}
             onForfeit={() => {
               void handleForfeit();
             }}
@@ -1056,6 +1087,8 @@ export const App = ({ preloadedInit }: AppProps) => {
             void handleSkip();
           }}
           onHint={(attemptId) => handleHint(attemptId)}
+          onHintTap={handleHintTap}
+          onHintRollback={handleHintRollback}
           onForfeit={() => {
             void handleForfeit();
           }}

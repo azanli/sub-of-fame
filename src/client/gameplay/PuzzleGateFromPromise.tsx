@@ -9,6 +9,8 @@ type PuzzleGateFromPromiseProps = {
   onSubmit: (payload: GameplaySubmitPayload) => void;
   onSkip: () => void;
   onHint: (attemptId: string) => Promise<string | null>;
+  onHintTap: () => void;
+  onHintRollback: () => void;
   onForfeit: () => void;
   isSubmitting: boolean;
   isSkipping: boolean;
@@ -23,6 +25,8 @@ export const PuzzleGateFromPromise = ({
   onSubmit,
   onSkip,
   onHint,
+  onHintTap,
+  onHintRollback,
   onForfeit,
   isSubmitting,
   isSkipping,
@@ -39,6 +43,8 @@ export const PuzzleGateFromPromise = ({
       onSubmit={onSubmit}
       onSkip={onSkip}
       onHint={onHint}
+      onHintTap={onHintTap}
+      onHintRollback={onHintRollback}
       onForfeit={onForfeit}
       isSubmitting={isSubmitting}
       isSkipping={isSkipping}
