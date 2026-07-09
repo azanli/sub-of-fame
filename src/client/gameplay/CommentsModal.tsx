@@ -38,6 +38,24 @@ const CoinIcon = ({ className }: { className: string }) => (
   <img src="/coin.svg" alt="" aria-hidden="true" className={className} />
 );
 
+const StackedCoinIcon = ({
+  className,
+  isAnimating,
+}: {
+  className: string;
+  isAnimating: boolean;
+}) => (
+  <span
+    className={`relative inline-block h-4 w-6 shrink-0${
+      isAnimating ? ' animate-[skip-cost-pop_150ms_ease-out_forwards]' : ''
+    }`}
+    aria-hidden="true"
+  >
+    <CoinIcon className={`${className} absolute left-0 top-0`} />
+    <CoinIcon className={`${className} absolute left-[45%] top-0`} />
+  </span>
+);
+
 export const CommentsModal = ({
   comments,
   gameMode,
@@ -179,22 +197,16 @@ export const CommentsModal = ({
               disabled={skipDisabled}
               aria-label={`Skip puzzle for ${SKIP_COST} Karma Coin`}
               aria-busy={isSkipAnimating}
-              className="flex h-10 flex-1 items-center justify-center gap-1 rounded-full border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer"
+              className="flex h-10 flex-1 items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer"
             >
               <span>Skip</span>
-              <span className="inline-flex min-w-[1.25rem] items-center justify-center">
-                {isSkipAnimating ? (
-                  <span
-                    className="inline-block animate-[skip-cost-pop_700ms_ease-out_forwards]"
-                    aria-hidden="true"
-                  >
-                    -{SKIP_COST}
-                  </span>
-                ) : (
-                  `-${SKIP_COST}`
-                )}
-              </span>
-              <CoinIcon className="h-4 w-4 shrink-0" />
+              <CoinIcon
+                className={`h-4 w-4 shrink-0${
+                  isSkipAnimating
+                    ? ' animate-[skip-cost-pop_700ms_ease-out_forwards]'
+                    : ''
+                }`}
+              />
             </button>
             <button
               type="button"
@@ -202,22 +214,13 @@ export const CommentsModal = ({
               disabled={hintDisabled}
               aria-label={`Reveal third-most-upvoted comment for ${HINT_COST} Karma Coins`}
               aria-busy={isHintAnimating || isHintProcessing}
-              className="flex h-10 flex-1 items-center justify-center gap-1 rounded-full border-2 border-orange-300 bg-orange-50 px-4 text-sm font-semibold text-orange-900 transition-colors hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-orange-700 dark:bg-orange-950/50 dark:text-orange-200 dark:hover:bg-orange-950/70 cursor-pointer"
+              className="flex h-10 flex-1 items-center justify-center gap-2 rounded-full border-2 border-orange-300 bg-orange-50 px-4 text-sm font-semibold text-orange-900 transition-colors hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-orange-700 dark:bg-orange-950/50 dark:text-orange-200 dark:hover:bg-orange-950/70 cursor-pointer"
             >
               <span>Hint</span>
-              <span className="inline-flex min-w-[1.25rem] items-center justify-center">
-                {isHintAnimating ? (
-                  <span
-                    className="inline-block animate-[skip-cost-pop_150ms_ease-out_forwards]"
-                    aria-hidden="true"
-                  >
-                    -{HINT_COST}
-                  </span>
-                ) : (
-                  `-${HINT_COST}`
-                )}
-              </span>
-              <CoinIcon className="h-4 w-4 shrink-0" />
+              <StackedCoinIcon
+                className="h-4 w-4"
+                isAnimating={isHintAnimating}
+              />
             </button>
           </div>
         </div>
