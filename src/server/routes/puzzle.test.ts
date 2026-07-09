@@ -753,7 +753,7 @@ describe('puzzle.submit', () => {
     ]);
   });
 
-  it('returns score 1 with zero coins when the top two expert slots are swapped', async () => {
+  it('returns score 1 with one coin when the top two expert slots are swapped', async () => {
     const caller = createCaller(makeCtx({ userId: 'user-1' }));
 
     const result = await caller.puzzle.submit(
@@ -766,15 +766,15 @@ describe('puzzle.submit', () => {
     }
 
     expect(result.score).toBe(1);
-    expect(result.coinAward).toBe(0);
+    expect(result.coinAward).toBe(1);
     expect(mockIncrementStats).toHaveBeenCalledWith('user-1', askredditAllCtx, {
       correctSlots: 1,
-      coinAward: 0,
+      coinAward: 1,
     });
-    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 0);
+    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 1);
   });
 
-  it('returns score 1 with zero coins when only the top expert slot is correct', async () => {
+  it('returns score 1 with one coin when only the top expert slot is correct', async () => {
     const caller = createCaller(makeCtx({ userId: 'user-1' }));
 
     const result = await caller.puzzle.submit(
@@ -787,12 +787,12 @@ describe('puzzle.submit', () => {
     }
 
     expect(result.score).toBe(1);
-    expect(result.coinAward).toBe(0);
+    expect(result.coinAward).toBe(1);
     expect(mockIncrementStats).toHaveBeenCalledWith('user-1', askredditAllCtx, {
       correctSlots: 1,
-      coinAward: 0,
+      coinAward: 1,
     });
-    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 0);
+    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 1);
   });
 
   it('returns score 0 when all slots are wrong', async () => {
@@ -936,7 +936,7 @@ describe('puzzle.submit', () => {
     expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 3);
   });
 
-  it('returns reveal score 1 with zero coins for a casual #2 near-miss', async () => {
+  it('returns reveal score 1 with one coin for a casual #2 near-miss', async () => {
     mockGetAttempt.mockResolvedValue(makeAttempt({ gameMode: 'casual' }));
     const caller = createCaller(makeCtx({ userId: 'user-1' }));
 
@@ -948,14 +948,14 @@ describe('puzzle.submit', () => {
     }
 
     expect(result.score).toBe(1);
-    expect(result.coinAward).toBe(0);
+    expect(result.coinAward).toBe(1);
     expect(result.hintUsed).toBe(false);
     expect(result.slots.every((slot) => slot.correct === false)).toBe(true);
     expect(mockIncrementStats).toHaveBeenCalledWith('user-1', askredditAllCtx, {
       correctSlots: 0,
-      coinAward: 0,
+      coinAward: 1,
     });
-    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 0);
+    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 1);
   });
 
   it('returns score 0 for a casual #3 pick', async () => {
@@ -998,6 +998,37 @@ describe('puzzle.submit', () => {
     expect(result.hintUsed).toBe(true);
     expect(result.score).toBe(1);
     expect(result.coinAward).toBe(0);
+    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', askredditAllCtx, {
+      correctSlots: 0,
+      coinAward: 0,
+    });
+  });
+
+  it('returns zero coins for an expert score 1 when a hint was used', async () => {
+    mockGetAttempt.mockResolvedValue(
+      makeAttempt({
+        hintUsed: true,
+        hintCommentId: 't1_c3',
+      })
+    );
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(
+      makeSubmitInput(['t1_c1', 't1_c3', 't1_c2'])
+    );
+
+    expect(result.status).toBe('submitted');
+    if (result.status !== 'submitted') {
+      return;
+    }
+
+    expect(result.hintUsed).toBe(true);
+    expect(result.score).toBe(1);
+    expect(result.coinAward).toBe(0);
+    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', askredditAllCtx, {
+      correctSlots: 1,
+      coinAward: 0,
+    });
   });
 });
 

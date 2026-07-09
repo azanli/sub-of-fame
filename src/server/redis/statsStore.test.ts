@@ -134,12 +134,12 @@ describe('incrementStats', () => {
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'coins', 0);
   });
 
-  it('awards zero coins for casual near-miss picks while keeping Hive IQ at zero', async () => {
+  it('awards one coin for casual near-miss picks while keeping Hive IQ at zero', async () => {
     mockHIncrBy.mockResolvedValue(4);
-    await incrementStats('u1', gamingAllCtx, { correctSlots: 0, coinAward: 0 });
+    await incrementStats('u1', gamingAllCtx, { correctSlots: 0, coinAward: 1 });
 
     expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'global:correct', 0);
-    expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'coins', 0);
+    expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'coins', 1);
   });
 });
 

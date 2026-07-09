@@ -45,8 +45,11 @@ export type DeleteUserDataResponse = {
   deleted: true;
 };
 
+/** Karma Coins earned for a marginal win (near-miss) without using a hint. */
+export const MARGINAL_ROUND_COIN_AWARD = 1;
+
 /** Coin awards by true rank index (0 = #1, 1 = #2, 2 = #3) for casual mode. */
-export const CASUAL_COIN_AWARDS = [3, 0, 0] as const;
+export const CASUAL_COIN_AWARDS = [3, MARGINAL_ROUND_COIN_AWARD, 0] as const;
 
 /** Reveal-tier scores by true rank index for casual mode (near-miss #2 stays 1). */
 export const CASUAL_REVEAL_SCORES = [3, 1, 0] as const;
@@ -59,7 +62,7 @@ export type CasualRevealScore = 0 | 1 | 3;
 export type RoundStatsDelta = {
   /** Hive IQ correct-slot counter; expert 0–3, casual 1 on perfect #1 pick else 0. */
   correctSlots: number;
-  /** Karma Coins earned this round; expert is 0 or 3 (top-two correct), casual uses CASUAL_COIN_AWARDS. */
+  /** Karma Coins earned this round; expert is 0, 1 (one correct slot), or 3 (top-two correct); casual uses CASUAL_COIN_AWARDS. */
   coinAward: number;
 };
 

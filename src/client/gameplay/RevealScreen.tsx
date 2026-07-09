@@ -238,8 +238,7 @@ export const RevealScreen = ({
     showVerdict &&
     !isSkipped &&
     !hintUsed &&
-    result.score === 1 &&
-    coinsEarned === 0;
+    result.score === 1;
 
   const triggerZeroScoreCoinHeaderPulse = useCallback(() => {
     if (coinBalance === null) {

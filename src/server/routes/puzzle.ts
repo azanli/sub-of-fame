@@ -53,6 +53,7 @@ import {
   CASUAL_COIN_AWARDS,
   CASUAL_REVEAL_SCORES,
   DEFAULT_GAME_MODE,
+  MARGINAL_ROUND_COIN_AWARD,
   MAX_ITEMS_CHECKED,
   MAX_REDDIT_CALLS,
   PERFECT_ROUND_COIN_AWARD,
@@ -254,7 +255,11 @@ const scoreExpertSubmit = (
   const topTwoCorrect =
     slots[0] === snapshot.comments[0]?.id &&
     slots[1] === snapshot.comments[1]?.id;
-  const coinAward = topTwoCorrect ? PERFECT_ROUND_COIN_AWARD : 0;
+  const coinAward = topTwoCorrect
+    ? PERFECT_ROUND_COIN_AWARD
+    : score === 1
+      ? MARGINAL_ROUND_COIN_AWARD
+      : 0;
 
   return {
     score,
@@ -281,6 +286,16 @@ const scoreCasualSubmit = (
     },
     revealSlots: buildCasualRevealSlots(selectedCommentId, snapshot),
   };
+};
+
+const finalizeSubmitStatsDelta = (
+  statsDelta: RoundStatsDelta,
+  hintUsed: boolean
+): RoundStatsDelta => {
+  if (hintUsed && statsDelta.coinAward === MARGINAL_ROUND_COIN_AWARD) {
+    return { ...statsDelta, coinAward: 0 };
+  }
+  return statsDelta;
 };
 
 const puzzleSubmitInputSchema = z.discriminatedUnion('gameMode', [
@@ -755,6 +770,10 @@ export const puzzleRouter = router({
         input.gameMode === 'expert'
           ? scoreExpertSubmit(input.slots, snapshot)
           : scoreCasualSubmit(input.selectedCommentId, snapshot);
+      const statsDelta = finalizeSubmitStatsDelta(
+        scored.statsDelta,
+        attempt.hintUsed === true
+      );
 
       await markAttemptSubmitted(attempt);
 
@@ -768,11 +787,11 @@ export const puzzleRouter = router({
           incrementStats(
             attempt.owner.userId,
             attemptCtx,
-            scored.statsDelta
+            statsDelta
           ),
           updateStreakAfterRound(
             attempt.owner.userId,
-            scored.statsDelta.coinAward
+            statsDelta.coinAward
           ),
         ]);
         coins = updatedCoins;
@@ -801,7 +820,7 @@ export const puzzleRouter = router({
       return {
         status: 'submitted',
         score: scored.score,
-        coinAward: scored.statsDelta.coinAward,
+        coinAward: statsDelta.coinAward,
         hintUsed: attempt.hintUsed === true,
         slots: scored.revealSlots,
         userHiveIQ,
