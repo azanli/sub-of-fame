@@ -46,7 +46,10 @@ export type DeleteUserDataResponse = {
 };
 
 /** Coin awards by true rank index (0 = #1, 1 = #2, 2 = #3) for casual mode. */
-export const CASUAL_COIN_AWARDS = [3, 1, 0] as const;
+export const CASUAL_COIN_AWARDS = [3, 0, 0] as const;
+
+/** Reveal-tier scores by true rank index for casual mode (near-miss #2 stays 1). */
+export const CASUAL_REVEAL_SCORES = [3, 1, 0] as const;
 
 /** Coin award for a perfect round in either game mode. */
 export const PERFECT_ROUND_COIN_AWARD = 3;
@@ -56,7 +59,7 @@ export type CasualRevealScore = 0 | 1 | 3;
 export type RoundStatsDelta = {
   /** Hive IQ correct-slot counter; expert 0–3, casual 1 on perfect #1 pick else 0. */
   correctSlots: number;
-  /** Karma Coins earned this round; expert matches correctSlots, casual uses CASUAL_COIN_AWARDS. */
+  /** Karma Coins earned this round; expert is 0 or 3 (top-two correct), casual uses CASUAL_COIN_AWARDS. */
   coinAward: number;
 };
 
@@ -271,7 +274,12 @@ export type PuzzleRevealSlot = {
 
 export type PuzzleSubmitSuccess = {
   status: 'submitted';
+  /** Reveal-tier score for remarks and slot highlights; not always equal to coins earned. */
   score: number;
+  /** Karma Coins earned this round before wallet balance update. */
+  coinAward: number;
+  /** Whether the player purchased a hint during this attempt. */
+  hintUsed: boolean;
   slots: PuzzleRevealSlot[];
   userHiveIQ: UserActiveSubredditMetrics | null;
   nextRankIndex: number;
@@ -365,6 +373,35 @@ export type PuzzleSkipError = {
 };
 
 export type PuzzleSkipResponse = PuzzleSkipSuccess | PuzzleSkipError;
+
+export type PuzzleHintRequest = {
+  attemptId: string;
+};
+
+export type PuzzleHintSuccess = {
+  status: 'hinted';
+  /** The third-most-upvoted comment ID for this puzzle. */
+  commentId: string;
+  /** Updated wallet balance after the hint cost; null for guests. */
+  coins: number | null;
+};
+
+export type PuzzleHintErrorCode =
+  | Exclude<
+      PuzzleSubmitErrorCode,
+      'INVALID_SLOT_PERMUTATION' | 'INVALID_SELECTED_COMMENT'
+    >
+  | 'INSUFFICIENT_COINS';
+
+export type PuzzleHintError = {
+  status: 'error';
+  code: PuzzleHintErrorCode;
+  message: string;
+  nextAction: PuzzleSubmitError['nextAction'];
+  currentRankIndex?: number;
+};
+
+export type PuzzleHintResponse = PuzzleHintSuccess | PuzzleHintError;
 
 export const MAX_REDDIT_CALLS = 12;
 export const MAX_ITEMS_CHECKED = 20;

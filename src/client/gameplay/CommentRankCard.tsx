@@ -6,8 +6,10 @@ type CommentRankCardProps = {
   body: string;
   gameMode: GameMode;
   rank: RankValue | undefined;
+  hintRank: RankValue | undefined;
   isCasualSelected: boolean;
   isCasualSelectionLocked: boolean;
+  isHintLocked: boolean;
   onTap: (commentId: string) => void;
 };
 
@@ -16,31 +18,49 @@ export const CommentRankCard = ({
   body,
   gameMode,
   rank,
+  hintRank,
   isCasualSelected,
   isCasualSelectionLocked,
+  isHintLocked,
   onTap,
 }: CommentRankCardProps) => {
   const isExpertMode = gameMode === 'expert';
-  const isRanked = isExpertMode && rank !== undefined;
+  const isHintRevealed = hintRank !== undefined;
+  const isRanked = isExpertMode && rank !== undefined && !isHintRevealed;
   const isCasualSelectedStyle = !isExpertMode && isCasualSelected;
+  const isDisabled = isCasualSelectionLocked || isHintLocked;
 
   return (
     <button
       type="button"
       onClick={() => onTap(commentId)}
-      disabled={isCasualSelectionLocked}
+      disabled={isDisabled}
       className={`relative w-full overflow-hidden rounded-xl border px-4 py-3 text-left backdrop-blur-[2px] transition-colors ${
-        isCasualSelectionLocked
+        isDisabled
           ? 'cursor-not-allowed opacity-60'
           : 'cursor-pointer'
       } ${
-        isRanked || isCasualSelectedStyle
-          ? 'border-orange-500 bg-white/75 hover:bg-white/95 focus-visible:bg-white/95 dark:border-orange-500 dark:bg-gray-800/75 dark:hover:bg-orange-950/40 dark:focus-visible:bg-gray-800/95'
-          : isExpertMode
-            ? 'border-gray-200 bg-white/65 hover:bg-white/95 focus-visible:bg-white/95 dark:border-gray-700 dark:bg-gray-800/65 dark:hover:bg-gray-800/95 dark:focus-visible:bg-gray-800/95'
-            : 'border-gray-200 bg-white/65 hover:border-orange-400 hover:bg-white/95 focus-visible:bg-white/95 dark:border-gray-700 dark:bg-gray-800/65 dark:hover:border-orange-600 dark:hover:bg-gray-800/95 dark:focus-visible:bg-gray-800/95'
+        isHintRevealed
+          ? 'border-gray-300 bg-white/65 dark:border-gray-600 dark:bg-gray-800/65'
+          : isRanked || isCasualSelectedStyle
+            ? 'border-orange-500 bg-white/75 hover:bg-white/95 focus-visible:bg-white/95 dark:border-orange-500 dark:bg-gray-800/75 dark:hover:bg-orange-950/40 dark:focus-visible:bg-gray-800/95'
+            : isExpertMode
+              ? 'border-gray-200 bg-white/65 hover:bg-white/95 focus-visible:bg-white/95 dark:border-gray-700 dark:bg-gray-800/65 dark:hover:bg-gray-800/95 dark:focus-visible:bg-gray-800/95'
+              : 'border-gray-200 bg-white/65 hover:border-orange-400 hover:bg-white/95 focus-visible:bg-white/95 dark:border-gray-700 dark:bg-gray-800/65 dark:hover:border-orange-600 dark:hover:bg-gray-800/95 dark:focus-visible:bg-gray-800/95'
       }`}
     >
+      {isHintRevealed && (
+        <div className="pointer-events-none absolute left-0 top-0 size-10">
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-gray-400 dark:bg-gray-500"
+            style={{ clipPath: 'polygon(0 0, 85% 0, 0 85%)' }}
+          />
+          <span className="absolute left-1 top-1 text-sm font-bold leading-none text-white select-none">
+            {hintRank}
+          </span>
+        </div>
+      )}
       {isRanked && (
         <div className="pointer-events-none absolute left-0 top-0 size-10">
           <div

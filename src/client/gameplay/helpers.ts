@@ -57,6 +57,9 @@ export const applyTapRank = (
 export const isAllRanksAssigned = (assignments: RankAssignments): boolean =>
   assignments.size === 3;
 
+export const buildHintAssignments = (hintedCommentId: string): RankAssignments =>
+  new Map([[hintedCommentId, 3]]);
+
 export const buildSubmitSlots = (
   comments: ReadyPuzzle['comments'],
   assignments: RankAssignments

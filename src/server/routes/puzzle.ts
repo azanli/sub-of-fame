@@ -27,6 +27,7 @@ import {
 } from '../redis/rankProgress';
 import {
   getAttempt,
+  markAttemptHintUsed,
   markAttemptSubmitted,
   setAttempt,
 } from '../redis/attemptStore';
@@ -35,6 +36,7 @@ import { acquireSubmitLock } from '../redis/submitLockStore';
 import {
   computeHiveIQ,
   deductCoin,
+  deductCoins,
   getGameMode,
   getStats,
   getSubredditAggregate,
@@ -49,15 +51,19 @@ import type { CampaignContext } from '../../shared/campaignContext';
 import { CAMPAIGN_TIMEFRAME_IDS } from '../../shared/campaignContext';
 import {
   CASUAL_COIN_AWARDS,
+  CASUAL_REVEAL_SCORES,
   DEFAULT_GAME_MODE,
   MAX_ITEMS_CHECKED,
   MAX_REDDIT_CALLS,
+  PERFECT_ROUND_COIN_AWARD,
   SOFT_DEADLINE_MS,
   type NextWorkBudget,
   type PuzzleNextResponse,
   type PuzzleRevealSlot,
   type PuzzleForfeitError,
   type PuzzleForfeitResponse,
+  type PuzzleHintError,
+  type PuzzleHintResponse,
   type PuzzleSkipError,
   type PuzzleSkipResponse,
   type PuzzleSubmitError,
@@ -66,6 +72,7 @@ import {
   type RoundStatsDelta,
   type UserActiveSubredditMetrics,
 } from '../../shared/api';
+import { HINT_COST } from '../../shared/coins';
 import { isDailyChallengeSubreddit } from '../../shared/dailyChallenge';
 import { CURATED_SUBREDDITS } from '../../shared/subreddits';
 
@@ -138,6 +145,19 @@ const skipError = (
   nextAction: PuzzleSkipError['nextAction'],
   currentRankIndex?: number
 ): PuzzleSkipError => ({
+  status: 'error',
+  code,
+  message,
+  nextAction,
+  ...(currentRankIndex !== undefined ? { currentRankIndex } : {}),
+});
+
+const hintError = (
+  code: PuzzleHintError['code'],
+  message: string,
+  nextAction: PuzzleHintError['nextAction'],
+  currentRankIndex?: number
+): PuzzleHintError => ({
   status: 'error',
   code,
   message,
@@ -231,9 +251,14 @@ const scoreExpertSubmit = (
     return total + (commentId === truthComment.id ? 1 : 0);
   }, 0);
 
+  const topTwoCorrect =
+    slots[0] === snapshot.comments[0]?.id &&
+    slots[1] === snapshot.comments[1]?.id;
+  const coinAward = topTwoCorrect ? PERFECT_ROUND_COIN_AWARD : 0;
+
   return {
     score,
-    statsDelta: { correctSlots: score, coinAward: score },
+    statsDelta: { correctSlots: score, coinAward },
     revealSlots: buildRevealSlots(slots, snapshot),
   };
 };
@@ -245,10 +270,11 @@ const scoreCasualSubmit = (
   const trueRankIndex = snapshot.comments.findIndex(
     (comment) => comment.id === selectedCommentId
   );
+  const revealScore = CASUAL_REVEAL_SCORES[trueRankIndex] ?? 0;
   const coinAward = CASUAL_COIN_AWARDS[trueRankIndex] ?? 0;
 
   return {
-    score: coinAward,
+    score: revealScore,
     statsDelta: {
       correctSlots: trueRankIndex === 0 ? 1 : 0,
       coinAward,
@@ -775,6 +801,8 @@ export const puzzleRouter = router({
       return {
         status: 'submitted',
         score: scored.score,
+        coinAward: scored.statsDelta.coinAward,
+        hintUsed: attempt.hintUsed === true,
         slots: scored.revealSlots,
         userHiveIQ,
         nextRankIndex,
@@ -901,6 +929,127 @@ export const puzzleRouter = router({
         slots: buildTruthRevealSlots(snapshot),
         userHiveIQ: null,
         nextRankIndex,
+        coins,
+      };
+    }),
+
+  hint: publicProcedure
+    .input(
+      z.object({
+        attemptId: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input, ctx }): Promise<PuzzleHintResponse> => {
+      const attempt = await getAttempt(input.attemptId);
+      if (attempt === null) {
+        return hintError(
+          'ATTEMPT_EXPIRED',
+          'This puzzle attempt has expired.',
+          'request_next_puzzle'
+        );
+      }
+
+      if (attempt.submitted) {
+        return hintError(
+          'ATTEMPT_ALREADY_SUBMITTED',
+          'This puzzle round has already been submitted.',
+          'request_next_puzzle'
+        );
+      }
+
+      const launchContext = deriveLaunchContext(ctx.subredditName, ctx.surface);
+      if (
+        launchContext.surface === 'community' &&
+        attempt.subreddit !== launchContext.hostSubreddit
+      ) {
+        return hintError(
+          'HOST_SUBREDDIT_LOCKED',
+          'Hint rejected: attempt subreddit does not match host.',
+          'refresh_game'
+        );
+      }
+
+      if (attempt.owner.kind === 'user') {
+        if (ctx.userId === undefined || ctx.userId !== attempt.owner.userId) {
+          return hintError(
+            'WRONG_USER',
+            'Hint rejected: user does not match attempt owner.',
+            'refresh_game'
+          );
+        }
+
+        const currentRankIndex = await getRankIndex(
+          attempt.owner.userId,
+          attemptCampaignContext(attempt)
+        );
+        if (currentRankIndex !== attempt.rankIndex) {
+          return hintError(
+            'STALE_PROGRESS',
+            'Your progress has moved on; request a fresh puzzle.',
+            'request_next_puzzle',
+            currentRankIndex
+          );
+        }
+      }
+
+      if (attempt.hintUsed && attempt.hintCommentId !== undefined) {
+        const coins =
+          attempt.owner.kind === 'user'
+            ? (await getStats(attempt.owner.userId)).coins
+            : null;
+        return {
+          status: 'hinted',
+          commentId: attempt.hintCommentId,
+          coins,
+        };
+      }
+
+      const snapshot = await getSnapshot(attempt.sourcePostId);
+      if (snapshot === null) {
+        return hintError(
+          'SNAPSHOT_MISSING',
+          'Puzzle snapshot is unavailable; request a fresh puzzle.',
+          'request_next_puzzle'
+        );
+      }
+
+      const thirdComment = snapshot.comments[2];
+      if (thirdComment === undefined) {
+        return hintError(
+          'SNAPSHOT_MISSING',
+          'Puzzle snapshot is unavailable; request a fresh puzzle.',
+          'request_next_puzzle'
+        );
+      }
+
+      let coins: number | null = null;
+
+      if (attempt.owner.kind === 'user') {
+        const stats = await getStats(attempt.owner.userId);
+        if (stats.coins < HINT_COST) {
+          return hintError(
+            'INSUFFICIENT_COINS',
+            `You need at least ${HINT_COST} Karma Coins to use a hint.`,
+            'resubmit_valid_slots'
+          );
+        }
+
+        const deduction = await deductCoins(attempt.owner.userId, HINT_COST);
+        if (!deduction.ok) {
+          return hintError(
+            'INSUFFICIENT_COINS',
+            `You need at least ${HINT_COST} Karma Coins to use a hint.`,
+            'resubmit_valid_slots'
+          );
+        }
+        coins = deduction.coins;
+      }
+
+      await markAttemptHintUsed(attempt, thirdComment.id);
+
+      return {
+        status: 'hinted',
+        commentId: thirdComment.id,
         coins,
       };
     }),

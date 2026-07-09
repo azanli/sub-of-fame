@@ -144,7 +144,11 @@ export const RevealScreen = ({
 }: RevealScreenProps) => {
   const isSkipped = result.status === 'skipped';
   const isForfeited = result.status === 'forfeited';
-  const isZeroScore = result.score === 0;
+  const coinsEarned =
+    result.status === 'submitted' ? result.coinAward : 0;
+  const hintUsed =
+    result.status === 'submitted' ? result.hintUsed : false;
+  const isZeroCoinAward = coinsEarned === 0;
   const isCasualMode = gameMode === 'casual';
   const revealRemarkKey = isForfeited
     ? getForfeitRevealRemarkKey()
@@ -161,8 +165,8 @@ export const RevealScreen = ({
   const [displayedCoinBalance, setDisplayedCoinBalance] = useState<
     number | null
   >(
-    coinBalance !== null && !isZeroScore
-      ? coinBalance - result.score
+    coinBalance !== null && coinsEarned > 0
+      ? coinBalance - coinsEarned
       : coinBalance
   );
   const [flashingSlotIndex, setFlashingSlotIndex] = useState<number | null>(
@@ -221,11 +225,16 @@ export const RevealScreen = ({
 
   const maxSlotScore = Math.max(...result.slots.map((slot) => slot.score), 0);
   const showCheerSnoo =
-    !isZeroScore && !isSkipped && result.score >= 1 && revealedCoinCount >= 1;
-  const showCheerRightSnoo = showCheerSnoo && result.score !== 1;
+    coinsEarned >= 1 && !isSkipped && revealedCoinCount >= 1;
+  const showCheerRightSnoo = showCheerSnoo && coinsEarned >= 2 && coinsEarned < 3;
   const showCheerLeftSnoo =
-    showCheerSnoo && result.score >= 3 && revealedCoinCount >= 2;
-  const showOneCoinCheerSnoo = showCheerSnoo && result.score === 1;
+    showCheerSnoo && coinsEarned >= 3 && revealedCoinCount >= 2;
+  const showOneCoinCheerSnoo =
+    showVerdict &&
+    !isSkipped &&
+    !hintUsed &&
+    result.score === 1 &&
+    coinsEarned === 0;
 
   const triggerZeroScoreCoinHeaderPulse = useCallback(() => {
     if (coinBalance === null) {
@@ -244,7 +253,7 @@ export const RevealScreen = ({
       return;
     }
 
-    if (!isCasualMode && isZeroScore && !isSkipped) {
+    if (!isCasualMode && isZeroCoinAward && !isSkipped) {
       triggerZeroScoreCoinHeaderPulse();
     }
   };
@@ -257,10 +266,14 @@ export const RevealScreen = ({
         window.setTimeout(() => {
           setRevealedSlotCount(slotIndex + 1);
           const slot = result.slots[slotIndex];
+          const isHintedSlot =
+            hintUsed && slotIndex === 2;
           const shouldFlash =
-            isCasualMode && isSkipped
-              ? slotIndex === 0
-              : Boolean(slot?.correct);
+            isHintedSlot
+              ? false
+              : isCasualMode && isSkipped
+                ? slotIndex === 0
+                : Boolean(slot?.correct);
           if (shouldFlash) {
             setFlashingSlotIndex(slotIndex);
             timers.push(
@@ -286,16 +299,16 @@ export const RevealScreen = ({
         setShowVerdict(true);
 
         if (isCasualMode) {
-          if (result.score === 0 && coinBalance !== null) {
+          if (coinsEarned === 0 && result.score === 0 && coinBalance !== null) {
             triggerZeroScoreCoinHeaderPulse();
             return;
           }
 
-          if (result.score > 0) {
+          if (coinsEarned > 0) {
             const startBalance =
-              coinBalance !== null ? coinBalance - result.score : null;
+              coinBalance !== null ? coinBalance - coinsEarned : null;
 
-            for (let coinIndex = 0; coinIndex < result.score; coinIndex += 1) {
+            for (let coinIndex = 0; coinIndex < coinsEarned; coinIndex += 1) {
               timers.push(
                 window.setTimeout(() => {
                   setRevealedCoinCount(coinIndex + 1);
@@ -322,16 +335,16 @@ export const RevealScreen = ({
           return;
         }
 
-        if (isZeroScore && !isSkipped && coinBalance !== null) {
+        if (isZeroCoinAward && !isSkipped && coinBalance !== null) {
           triggerZeroScoreCoinHeaderPulse();
           return;
         }
 
-        if (!isZeroScore && !isSkipped) {
+        if (coinsEarned > 0 && !isSkipped) {
           const startBalance =
-            coinBalance !== null ? coinBalance - result.score : null;
+            coinBalance !== null ? coinBalance - coinsEarned : null;
 
-          for (let coinIndex = 0; coinIndex < result.score; coinIndex += 1) {
+          for (let coinIndex = 0; coinIndex < coinsEarned; coinIndex += 1) {
             timers.push(
               window.setTimeout(() => {
                 setRevealedCoinCount(coinIndex + 1);
@@ -363,7 +376,8 @@ export const RevealScreen = ({
     };
   }, [
     result.slots,
-    isZeroScore,
+    coinsEarned,
+    hintUsed,
     isSkipped,
     isForfeited,
     isCasualMode,
@@ -463,7 +477,7 @@ export const RevealScreen = ({
                     key={`float-${coinIndex}`}
                     className="pointer-events-none absolute top-6 z-10 h-8 w-8 -translate-x-1/2 animate-[float-up_800ms_ease-out_forwards]"
                     style={{
-                      left: `calc(50% + ${(coinIndex - (result.score - 1) / 2) * 28}px)`,
+                      left: `calc(50% + ${(coinIndex - (coinsEarned - 1) / 2) * 28}px)`,
                     }}
                   />
                 ))}
@@ -481,7 +495,7 @@ export const RevealScreen = ({
                       {revealRemark.text}
                     </p>
                   ) : null}
-                  {!isZeroScore ? (
+                  {coinsEarned > 0 ? (
                     <div className="relative px-4 py-3">
                       <div aria-hidden="true" className="coin-reward-glow" />
                       <div className="relative flex min-h-10 items-center justify-center gap-2">
@@ -493,7 +507,7 @@ export const RevealScreen = ({
                               className="h-10 w-10 animate-[skip-cost-pop_350ms_ease-out_forwards]"
                               {...(coinIndex === 0
                                 ? {
-                                    alt: `${result.score} Karma Coin${result.score === 1 ? '' : 's'} earned`,
+                                    alt: `${coinsEarned} Karma Coin${coinsEarned === 1 ? '' : 's'} earned`,
                                   }
                                 : {})}
                             />
@@ -508,12 +522,13 @@ export const RevealScreen = ({
           </div>
 
           <div className="relative flex flex-col gap-3">
-            {!isZeroScore && !isSkipped && result.score >= 1 ? (
+            {((coinsEarned >= 1 && !isSkipped) ||
+              (showOneCoinCheerSnoo && result.score >= 1)) ? (
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute -left-4 -right-4 bottom-full z-10 h-24 sm:h-28"
               >
-                {result.score >= 3 ? (
+                {coinsEarned >= 3 ? (
                   <img
                     src="/snoo-cheer-one.png"
                     alt=""
@@ -557,7 +572,7 @@ export const RevealScreen = ({
                     style={{ animationDuration: `${SNOO_CHEER_ENTRANCE_MS}ms` }}
                   />
                 ) : null}
-                {result.score >= 2 ? (
+                {coinsEarned >= 2 ? (
                   <img
                     src="/snoo-cheer-two.png"
                     alt=""
@@ -578,21 +593,24 @@ export const RevealScreen = ({
             {result.slots.map((slot, index) => {
               const isRevealed = index < revealedSlotCount;
               const isFlashing = flashingSlotIndex === index;
+              const isHintedSlot = hintUsed && index === 2;
 
               const upvoteBarWidthPercent =
                 maxSlotScore > 0 ? (slot.score / maxSlotScore) * 100 : 0;
 
-              const slotHighlight = isCasualMode
-                ? resolveCasualSlotHighlight(
-                    index,
-                    slot,
-                    result.score,
-                    isForfeited,
-                    isSkipped
-                  )
-                : slot.correct
-                  ? 'correct'
-                  : 'incorrect';
+              const slotHighlight = isHintedSlot
+                ? 'neutral'
+                : isCasualMode
+                  ? resolveCasualSlotHighlight(
+                      index,
+                      slot,
+                      result.score,
+                      isForfeited,
+                      isSkipped
+                    )
+                  : slot.correct
+                    ? 'correct'
+                    : 'incorrect';
 
               const rankBadgeBgClass = !isRevealed
                 ? 'bg-gray-200 dark:bg-gray-700'

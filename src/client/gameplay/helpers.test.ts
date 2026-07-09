@@ -6,6 +6,7 @@ import {
 } from '../../shared/revealRemarks';
 import {
   applyTapRank,
+  buildHintAssignments,
   buildSubmitSlots,
   formatRevealRemark,
   isAllRanksAssigned,
@@ -67,6 +68,40 @@ describe('isAllRanksAssigned', () => {
         ])
       )
     ).toBe(true);
+  });
+});
+
+describe('buildHintAssignments', () => {
+  it('assigns rank 3 to the hinted comment', () => {
+    const assignments = buildHintAssignments('c');
+    expect(assignments.get('c')).toBe(3);
+    expect(assignments.size).toBe(1);
+  });
+
+  it('supports completing expert rankings after a hint', () => {
+    let assignments = buildHintAssignments('c');
+
+    assignments = applyTapRank(assignments, 'a');
+    expect(assignments.get('a')).toBe(1);
+    expect(assignments.get('c')).toBe(3);
+
+    assignments = applyTapRank(assignments, 'b');
+    expect(assignments.get('b')).toBe(2);
+    expect(isAllRanksAssigned(assignments)).toBe(true);
+  });
+
+  it('clears partial rankings when hint is reapplied', () => {
+    const partialAssignments: RankAssignments = new Map([
+      ['a', 1],
+      ['b', 2],
+    ]);
+    expect(partialAssignments.size).toBe(2);
+
+    const assignments = buildHintAssignments('c');
+    expect(assignments.size).toBe(1);
+    expect(assignments.get('c')).toBe(3);
+    expect(assignments.has('a')).toBe(false);
+    expect(assignments.has('b')).toBe(false);
   });
 });
 

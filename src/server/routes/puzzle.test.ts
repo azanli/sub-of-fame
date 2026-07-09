@@ -12,6 +12,7 @@ const {
   mockSetAttempt,
   mockGetAttempt,
   mockMarkAttemptSubmitted,
+  mockMarkAttemptHintUsed,
   mockGetSnapshot,
   mockAcquireSubmitLock,
   mockIncrementStats,
@@ -19,6 +20,7 @@ const {
   mockGetGameMode,
   mockUpdateLeaderboard,
   mockDeductCoin,
+  mockDeductCoins,
   mockUpdateStreakAfterRound,
 } = vi.hoisted(() => ({
   mockResolveSubredditMetadata: vi.fn(),
@@ -30,6 +32,7 @@ const {
   mockSetAttempt: vi.fn(),
   mockGetAttempt: vi.fn(),
   mockMarkAttemptSubmitted: vi.fn(),
+  mockMarkAttemptHintUsed: vi.fn(),
   mockGetSnapshot: vi.fn(),
   mockAcquireSubmitLock: vi.fn(),
   mockIncrementStats: vi.fn(),
@@ -37,6 +40,7 @@ const {
   mockGetGameMode: vi.fn(),
   mockUpdateLeaderboard: vi.fn(),
   mockDeductCoin: vi.fn(),
+  mockDeductCoins: vi.fn(),
   mockUpdateStreakAfterRound: vi.fn(),
 }));
 
@@ -70,6 +74,7 @@ vi.mock('../redis/attemptStore.js', () => ({
   setAttempt: mockSetAttempt,
   getAttempt: mockGetAttempt,
   markAttemptSubmitted: mockMarkAttemptSubmitted,
+  markAttemptHintUsed: mockMarkAttemptHintUsed,
 }));
 
 vi.mock('../redis/snapshotStore.js', () => ({
@@ -88,6 +93,7 @@ vi.mock('../redis/statsStore.js', async (importOriginal) => {
     getStats: mockGetStats,
     getGameMode: mockGetGameMode,
     deductCoin: mockDeductCoin,
+    deductCoins: mockDeductCoins,
     updateStreakAfterRound: mockUpdateStreakAfterRound,
   };
 });
@@ -209,8 +215,13 @@ const makeSkipInput = () => ({
   attemptId: 'attempt-1',
 });
 
+const makeHintInput = () => ({
+  attemptId: 'attempt-1',
+});
+
 const expectNoSubmitMutations = () => {
   expect(mockMarkAttemptSubmitted).not.toHaveBeenCalled();
+  expect(mockMarkAttemptHintUsed).not.toHaveBeenCalled();
   expect(mockIncrementStats).not.toHaveBeenCalled();
   expect(mockUpdateStreakAfterRound).not.toHaveBeenCalled();
   expect(mockIncrementProgress).not.toHaveBeenCalled();
@@ -719,6 +730,7 @@ describe('puzzle.submit', () => {
     }
 
     expect(result.score).toBe(3);
+    expect(result.coinAward).toBe(3);
     expect(result.slots).toEqual([
       {
         commentId: 't1_c1',
@@ -741,6 +753,48 @@ describe('puzzle.submit', () => {
     ]);
   });
 
+  it('returns score 1 with zero coins when the top two expert slots are swapped', async () => {
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(
+      makeSubmitInput(['t1_c2', 't1_c1', 't1_c3'])
+    );
+
+    expect(result.status).toBe('submitted');
+    if (result.status !== 'submitted') {
+      return;
+    }
+
+    expect(result.score).toBe(1);
+    expect(result.coinAward).toBe(0);
+    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', askredditAllCtx, {
+      correctSlots: 1,
+      coinAward: 0,
+    });
+    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 0);
+  });
+
+  it('returns score 1 with zero coins when only the top expert slot is correct', async () => {
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(
+      makeSubmitInput(['t1_c1', 't1_c3', 't1_c2'])
+    );
+
+    expect(result.status).toBe('submitted');
+    if (result.status !== 'submitted') {
+      return;
+    }
+
+    expect(result.score).toBe(1);
+    expect(result.coinAward).toBe(0);
+    expect(mockIncrementStats).toHaveBeenCalledWith('user-1', askredditAllCtx, {
+      correctSlots: 1,
+      coinAward: 0,
+    });
+    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 0);
+  });
+
   it('returns score 0 when all slots are wrong', async () => {
     const caller = createCaller(makeCtx({ userId: 'user-1' }));
 
@@ -752,6 +806,7 @@ describe('puzzle.submit', () => {
     }
 
     expect(result.score).toBe(0);
+    expect(result.coinAward).toBe(0);
     expect(result.slots.every((slot) => slot.correct === false)).toBe(true);
   });
 
@@ -853,6 +908,7 @@ describe('puzzle.submit', () => {
     }
 
     expect(result.score).toBe(3);
+    expect(result.coinAward).toBe(3);
     expect(result.slots).toEqual([
       {
         commentId: 't1_c1',
@@ -880,7 +936,7 @@ describe('puzzle.submit', () => {
     expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 3);
   });
 
-  it('returns score 1 for a casual #2 pick with no Hive IQ credit', async () => {
+  it('returns reveal score 1 with zero coins for a casual #2 near-miss', async () => {
     mockGetAttempt.mockResolvedValue(makeAttempt({ gameMode: 'casual' }));
     const caller = createCaller(makeCtx({ userId: 'user-1' }));
 
@@ -892,12 +948,14 @@ describe('puzzle.submit', () => {
     }
 
     expect(result.score).toBe(1);
+    expect(result.coinAward).toBe(0);
+    expect(result.hintUsed).toBe(false);
     expect(result.slots.every((slot) => slot.correct === false)).toBe(true);
     expect(mockIncrementStats).toHaveBeenCalledWith('user-1', askredditAllCtx, {
       correctSlots: 0,
-      coinAward: 1,
+      coinAward: 0,
     });
-    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 1);
+    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 0);
   });
 
   it('returns score 0 for a casual #3 pick', async () => {
@@ -912,11 +970,34 @@ describe('puzzle.submit', () => {
     }
 
     expect(result.score).toBe(0);
+    expect(result.coinAward).toBe(0);
     expect(mockIncrementStats).toHaveBeenCalledWith('user-1', askredditAllCtx, {
       correctSlots: 0,
       coinAward: 0,
     });
     expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 0);
+  });
+
+  it('returns hintUsed true on submit when the attempt used a hint', async () => {
+    mockGetAttempt.mockResolvedValue(
+      makeAttempt({
+        gameMode: 'casual',
+        hintUsed: true,
+        hintCommentId: 't1_c3',
+      })
+    );
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.submit(makeCasualSubmitInput('t1_c2'));
+
+    expect(result.status).toBe('submitted');
+    if (result.status !== 'submitted') {
+      return;
+    }
+
+    expect(result.hintUsed).toBe(true);
+    expect(result.score).toBe(1);
+    expect(result.coinAward).toBe(0);
   });
 });
 
@@ -1058,6 +1139,115 @@ describe('puzzle.skip', () => {
     expect(mockDeductCoin).not.toHaveBeenCalled();
     expect(mockIncrementProgress).not.toHaveBeenCalled();
     expect(mockMarkAttemptSubmitted).not.toHaveBeenCalled();
+  });
+});
+
+describe('puzzle.hint', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAttempt.mockResolvedValue(makeAttempt());
+    mockGetSnapshot.mockResolvedValue(makeSnapshot());
+    mockGetProgress.mockResolvedValue(3);
+    mockMarkAttemptHintUsed.mockResolvedValue(undefined);
+    mockGetStats.mockResolvedValue({
+      global: { correctSlots: 0, totalSlots: 0 },
+      bySubreddit: {},
+      coins: 5,
+    });
+    mockDeductCoins.mockResolvedValue({ ok: true, coins: 3 });
+  });
+
+  it('returns ATTEMPT_EXPIRED when attempt is missing', async () => {
+    mockGetAttempt.mockResolvedValue(null);
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.hint(makeHintInput());
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'ATTEMPT_EXPIRED',
+        nextAction: 'request_next_puzzle',
+      })
+    );
+    expectNoSubmitMutations();
+  });
+
+  it('deducts 2 coins and returns the third-most-upvoted comment', async () => {
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.hint(makeHintInput());
+
+    expect(result).toEqual({
+      status: 'hinted',
+      commentId: 't1_c3',
+      coins: 3,
+    });
+    expect(mockGetSnapshot).toHaveBeenCalledWith('t3_abc123');
+    expect(mockDeductCoins).toHaveBeenCalledWith('user-1', 2);
+    expect(mockMarkAttemptHintUsed).toHaveBeenCalledWith(
+      makeAttempt(),
+      't1_c3'
+    );
+    expect(mockMarkAttemptSubmitted).not.toHaveBeenCalled();
+    expect(mockIncrementProgress).not.toHaveBeenCalled();
+  });
+
+  it('returns hinted comment for guests without charging coins', async () => {
+    mockGetAttempt.mockResolvedValue(
+      makeAttempt({ owner: { kind: 'guest' }, rankIndex: 2 })
+    );
+    const caller = createCaller(makeCtx({ userId: undefined }));
+
+    const result = await caller.puzzle.hint(makeHintInput());
+
+    expect(result).toEqual({
+      status: 'hinted',
+      commentId: 't1_c3',
+      coins: null,
+    });
+    expect(mockDeductCoins).not.toHaveBeenCalled();
+    expect(mockMarkAttemptHintUsed).toHaveBeenCalledOnce();
+    expect(mockMarkAttemptSubmitted).not.toHaveBeenCalled();
+  });
+
+  it('returns INSUFFICIENT_COINS when the wallet is too low', async () => {
+    mockGetStats.mockResolvedValue({
+      global: { correctSlots: 0, totalSlots: 0 },
+      bySubreddit: {},
+      coins: 1,
+    });
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.hint(makeHintInput());
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        code: 'INSUFFICIENT_COINS',
+        nextAction: 'resubmit_valid_slots',
+      })
+    );
+    expect(mockDeductCoins).not.toHaveBeenCalled();
+    expect(mockMarkAttemptHintUsed).not.toHaveBeenCalled();
+  });
+
+  it('is idempotent when hint was already used on the attempt', async () => {
+    mockGetAttempt.mockResolvedValue(
+      makeAttempt({ hintUsed: true, hintCommentId: 't1_c3' })
+    );
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.puzzle.hint(makeHintInput());
+
+    expect(result).toEqual({
+      status: 'hinted',
+      commentId: 't1_c3',
+      coins: 5,
+    });
+    expect(mockDeductCoins).not.toHaveBeenCalled();
+    expect(mockMarkAttemptHintUsed).not.toHaveBeenCalled();
+    expect(mockGetSnapshot).not.toHaveBeenCalled();
   });
 });
 

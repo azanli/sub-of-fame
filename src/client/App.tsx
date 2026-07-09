@@ -696,6 +696,30 @@ export const App = ({ preloadedInit }: AppProps) => {
     }
   }, [session]);
 
+  const handleHint = useCallback(async (attemptId: string): Promise<string | null> => {
+    const puzzle = activePuzzleRef.current;
+    if (puzzle === null || puzzle.attemptId !== attemptId) {
+      return null;
+    }
+
+    try {
+      const result = await trpcClient.puzzle.hint.mutate({ attemptId });
+
+      if (result.status === 'hinted') {
+        if (result.coins !== null) {
+          setInitData((current) =>
+            current === null ? current : { ...current, coins: result.coins }
+          );
+        }
+        return result.commentId;
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const handleForfeit = useCallback(async () => {
     const puzzle = activePuzzleRef.current;
     if (puzzle === null) {
@@ -883,6 +907,7 @@ export const App = ({ preloadedInit }: AppProps) => {
             onSkip={() => {
               void handleSkip();
             }}
+            onHint={(attemptId) => handleHint(attemptId)}
             onForfeit={() => {
               void handleForfeit();
             }}
@@ -1030,6 +1055,7 @@ export const App = ({ preloadedInit }: AppProps) => {
           onSkip={() => {
             void handleSkip();
           }}
+          onHint={(attemptId) => handleHint(attemptId)}
           onForfeit={() => {
             void handleForfeit();
           }}

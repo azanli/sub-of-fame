@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { GameMode } from '../../shared/api';
+import { HINT_COST } from '../../shared/coins';
 import { CommentRankCard } from './CommentRankCard';
 import { CountdownTimer } from './CountdownTimer';
 import { RescueBeamScene } from './RescueBeamScene';
@@ -8,6 +9,7 @@ import { getRescueAnimationState } from './rescueAnimation';
 import type { RankAssignments, ReadyPuzzle } from './types';
 
 const SKIP_ANIMATION_MS = 700;
+const HINT_ANIMATION_MS = 700;
 
 type CommentsModalProps = {
   comments: ReadyPuzzle['comments'];
@@ -16,11 +18,17 @@ type CommentsModalProps = {
   totalSeconds: number;
   assignments: RankAssignments;
   casualSelectedCommentId: string | null;
+  hintedCommentId: string | null;
+  hintUsed: boolean;
   onTap: (commentId: string) => void;
   onSkipAnimationStart: () => void;
   onSkip: () => void;
+  onHintAnimationStart: () => void;
+  onHint: () => void;
   isSkipAnimating: boolean;
+  isHintAnimating: boolean;
   isSkipping: boolean;
+  isHinting: boolean;
   /** Logged-in wallet balance; null for guests (skip is free). */
   coinBalance: number | null;
   /** Casual mode only: return to the post view and pause the timer. */
@@ -38,17 +46,27 @@ export const CommentsModal = ({
   totalSeconds,
   assignments,
   casualSelectedCommentId,
+  hintedCommentId,
+  hintUsed,
   onTap,
   onSkipAnimationStart,
   onSkip,
+  onHintAnimationStart,
+  onHint,
   isSkipAnimating,
+  isHintAnimating,
   isSkipping,
+  isHinting,
   coinBalance,
   onBackToPost,
 }: CommentsModalProps) => {
   const skipTimeoutRef = useRef<number | null>(null);
+  const hintTimeoutRef = useRef<number | null>(null);
   const cannotAffordSkip = (coinBalance ?? 0) < 1;
+  const cannotAffordHint = coinBalance !== null && coinBalance < HINT_COST;
   const skipDisabled = isSkipping || isSkipAnimating || cannotAffordSkip;
+  const hintDisabled =
+    hintUsed || isHinting || isHintAnimating || isSkipping || cannotAffordHint;
   const isCasualMode = gameMode === 'casual';
   const rescueAnimationState = getRescueAnimationState(
     secondsRemaining,
@@ -59,6 +77,9 @@ export const CommentsModal = ({
     return () => {
       if (skipTimeoutRef.current !== null) {
         window.clearTimeout(skipTimeoutRef.current);
+      }
+      if (hintTimeoutRef.current !== null) {
+        window.clearTimeout(hintTimeoutRef.current);
       }
     };
   }, []);
@@ -73,6 +94,18 @@ export const CommentsModal = ({
       skipTimeoutRef.current = null;
       onSkip();
     }, SKIP_ANIMATION_MS);
+  };
+
+  const handleHintClick = () => {
+    if (hintDisabled) {
+      return;
+    }
+
+    onHintAnimationStart();
+    hintTimeoutRef.current = window.setTimeout(() => {
+      hintTimeoutRef.current = null;
+      onHint();
+    }, HINT_ANIMATION_MS);
   };
 
   return (
@@ -152,15 +185,47 @@ export const CommentsModal = ({
                 body={comment.body}
                 gameMode={gameMode}
                 rank={isCasualMode ? undefined : assignments.get(comment.id)}
+                hintRank={hintedCommentId === comment.id ? 3 : undefined}
                 isCasualSelected={casualSelectedCommentId === comment.id}
                 isCasualSelectionLocked={
                   isCasualMode &&
                   casualSelectedCommentId !== null &&
                   casualSelectedCommentId !== comment.id
                 }
+                isHintLocked={hintedCommentId === comment.id}
                 onTap={onTap}
               />
             ))}
+          </div>
+        </div>
+        <div className="relative z-[5] shrink-0 border-t border-gray-200 p-4 dark:border-gray-700">
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={handleHintClick}
+              disabled={hintDisabled}
+              aria-label={`Reveal third-most-upvoted comment for ${HINT_COST} Karma Coins`}
+              aria-busy={isHintAnimating}
+              className={`flex h-10 shrink-0 items-center justify-center gap-1 rounded-full border px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer ${
+                cannotAffordHint
+                  ? 'border-red-300 text-red-500 dark:border-red-800 dark:text-red-400'
+                  : 'border-gray-300 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200'
+              }`}
+            >
+              <span className="inline-flex min-w-[2.25rem] items-center justify-center">
+                {isHintAnimating ? (
+                  <span
+                    className="inline-block animate-[skip-cost-pop_700ms_ease-out_forwards]"
+                    aria-hidden="true"
+                  >
+                    -{HINT_COST}
+                  </span>
+                ) : (
+                  'Hint'
+                )}
+              </span>
+              <CoinIcon className="h-4 w-4 shrink-0" />
+            </button>
           </div>
         </div>
       </div>

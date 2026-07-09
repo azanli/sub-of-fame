@@ -86,6 +86,8 @@ export type PuzzleAttempt = {
   commentOrder: [string, string, string];
   gameMode: GameMode;
   submitted: boolean;
+  hintUsed?: boolean;
+  hintCommentId?: string;
   createdAt: number;
   expiresAt: number;
 };

@@ -22,11 +22,11 @@ export const SCORE_ZERO_REVEAL_REMARKS = [
 ] as const;
 
 export const SCORE_ONE_REVEAL_REMARKS = [
-  'So Close! Consolation Prize.',
+  'So Close!',
   'You found a silver-tier masterpiece. The hivemind demands gold.',
   'A highly respectable take. You almost spoke fluent r/{subredditName}.',
   'You predicted a runner-up. In any other room, you’d be a genius.',
-  'Right neighborhood, wrong house. Still worth a coin!',
+  'Right neighborhood, wrong house.',
   "The hivemind nodded in approval, but it didn't completely lose its mind.",
   'You captured a massive chunk of the room, just not the absolute spotlight.',
   'A solid fallback option. r/{subredditName} has a slightly weirder favorite.',

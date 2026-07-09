@@ -40,3 +40,20 @@ export const markAttemptSubmitted = async (attempt: PuzzleAttempt): Promise<void
   await redis.set(key, stringifyJson(updated));
   await redis.expire(key, ATTEMPT_TTL_S);
 };
+
+/**
+ * Record that a hint was purchased for this attempt without closing the round.
+ */
+export const markAttemptHintUsed = async (
+  attempt: PuzzleAttempt,
+  commentId: string
+): Promise<void> => {
+  const updated: PuzzleAttempt = {
+    ...attempt,
+    hintUsed: true,
+    hintCommentId: commentId,
+  };
+  const key = attemptKey(attempt.attemptId);
+  await redis.set(key, stringifyJson(updated));
+  await redis.expire(key, ATTEMPT_TTL_S);
+};
