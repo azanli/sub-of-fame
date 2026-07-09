@@ -22,6 +22,7 @@ import {
   getForfeitRevealRemarkKey,
   getRevealRemarkKey,
 } from '../../shared/revealRemarks';
+import { CoinBalanceBadge } from '../components/CoinBalanceBadge';
 import type { ReadyPuzzle } from './types';
 
 type RevealScreenProps = {
@@ -422,17 +423,13 @@ export const RevealScreen = ({
               </p>
             </div>
             {coinBalance !== null ? (
-              <div
-                className={`flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-sm font-semibold text-gray-900 transition-transform duration-200 ease-out dark:border-gray-700 dark:bg-gray-800 dark:text-white ${
+              <CoinBalanceBadge
+                coins={displayedCoinBalance ?? coinBalance}
+                variant="neutral"
+                className={`shrink-0 transition-transform duration-200 ease-out ${
                   coinHeaderPulse ? 'scale-105' : 'scale-100'
                 }`}
-                aria-label="Karma Coin balance"
-              >
-                <CoinIcon className="h-5 w-5" />
-                <span className="tabular-nums">
-                  {displayedCoinBalance ?? coinBalance}
-                </span>
-              </div>
+              />
             ) : null}
             <span
               aria-label="Post comment count"

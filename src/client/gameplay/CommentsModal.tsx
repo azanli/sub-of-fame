@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { GameMode } from '../../shared/api';
-import { HINT_COST } from '../../shared/coins';
+import { HINT_COST, SKIP_COST } from '../../shared/coins';
+import { CoinBalanceBadge } from '../components/CoinBalanceBadge';
 import { CommentRankCard } from './CommentRankCard';
 import { CountdownTimer } from './CountdownTimer';
 import { RescueBeamScene } from './RescueBeamScene';
@@ -62,7 +63,8 @@ export const CommentsModal = ({
 }: CommentsModalProps) => {
   const skipTimeoutRef = useRef<number | null>(null);
   const hintTimeoutRef = useRef<number | null>(null);
-  const cannotAffordSkip = (coinBalance ?? 0) < 1;
+  const cannotAffordSkip =
+    coinBalance !== null && coinBalance < SKIP_COST;
   const cannotAffordHint = coinBalance !== null && coinBalance < HINT_COST;
   const skipDisabled = isSkipping || isSkipAnimating || cannotAffordSkip;
   const hintDisabled =
@@ -141,32 +143,9 @@ export const CommentsModal = ({
             )}
           </div>
           <div className="flex shrink-0 items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={handleSkipClick}
-              disabled={skipDisabled}
-              aria-label="Skip puzzle for 1 Karma Coin"
-              aria-busy={isSkipAnimating}
-              className={`flex h-8 shrink-0 items-center justify-center gap-1 rounded-full border px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer ${
-                cannotAffordSkip
-                  ? 'border-red-300 text-red-500 dark:border-red-800 dark:text-red-400'
-                  : 'border-gray-300 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200'
-              }`}
-            >
-              <span className="inline-flex min-w-[2.25rem] items-center justify-center">
-                {isSkipAnimating ? (
-                  <span
-                    className="inline-block animate-[skip-cost-pop_700ms_ease-out_forwards]"
-                    aria-hidden="true"
-                  >
-                    -1
-                  </span>
-                ) : (
-                  'Skip'
-                )}
-              </span>
-              <CoinIcon className="h-4 w-4 shrink-0" />
-            </button>
+            {coinBalance !== null ? (
+              <CoinBalanceBadge coins={coinBalance} variant="neutral" />
+            ) : null}
           </div>
           <div
             aria-hidden="true"
@@ -199,20 +178,40 @@ export const CommentsModal = ({
           </div>
         </div>
         <div className="relative z-[5] shrink-0 border-t border-gray-200 p-4 dark:border-gray-700">
-          <div className="flex justify-center">
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={handleSkipClick}
+              disabled={skipDisabled}
+              aria-label={`Skip puzzle for ${SKIP_COST} Karma Coin`}
+              aria-busy={isSkipAnimating}
+              className="flex h-10 flex-1 items-center justify-center gap-1 rounded-full border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer"
+            >
+              <span>Skip</span>
+              <span className="inline-flex min-w-[1.25rem] items-center justify-center">
+                {isSkipAnimating ? (
+                  <span
+                    className="inline-block animate-[skip-cost-pop_700ms_ease-out_forwards]"
+                    aria-hidden="true"
+                  >
+                    -{SKIP_COST}
+                  </span>
+                ) : (
+                  `-${SKIP_COST}`
+                )}
+              </span>
+              <CoinIcon className="h-4 w-4 shrink-0" />
+            </button>
             <button
               type="button"
               onClick={handleHintClick}
               disabled={hintDisabled}
               aria-label={`Reveal third-most-upvoted comment for ${HINT_COST} Karma Coins`}
               aria-busy={isHintAnimating}
-              className={`flex h-10 shrink-0 items-center justify-center gap-1 rounded-full border px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer ${
-                cannotAffordHint
-                  ? 'border-red-300 text-red-500 dark:border-red-800 dark:text-red-400'
-                  : 'border-gray-300 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200'
-              }`}
+              className="flex h-10 flex-1 items-center justify-center gap-1 rounded-full border-2 border-orange-300 bg-orange-50 px-4 text-sm font-semibold text-orange-900 transition-colors hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-orange-700 dark:bg-orange-950/50 dark:text-orange-200 dark:hover:bg-orange-950/70 cursor-pointer"
             >
-              <span className="inline-flex min-w-[2.25rem] items-center justify-center">
+              <span>Hint</span>
+              <span className="inline-flex min-w-[1.25rem] items-center justify-center">
                 {isHintAnimating ? (
                   <span
                     className="inline-block animate-[skip-cost-pop_700ms_ease-out_forwards]"
@@ -221,7 +220,7 @@ export const CommentsModal = ({
                     -{HINT_COST}
                   </span>
                 ) : (
-                  'Hint'
+                  `-${HINT_COST}`
                 )}
               </span>
               <CoinIcon className="h-4 w-4 shrink-0" />

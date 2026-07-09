@@ -72,7 +72,7 @@ import {
   type RoundStatsDelta,
   type UserActiveSubredditMetrics,
 } from '../../shared/api';
-import { HINT_COST } from '../../shared/coins';
+import { HINT_COST, SKIP_COST } from '../../shared/coins';
 import { isDailyChallengeSubreddit } from '../../shared/dailyChallenge';
 import { CURATED_SUBREDDITS } from '../../shared/subreddits';
 
@@ -871,10 +871,10 @@ export const puzzleRouter = router({
 
       if (attempt.owner.kind === 'user') {
         const stats = await getStats(attempt.owner.userId);
-        if (stats.coins < 1) {
+        if (stats.coins < SKIP_COST) {
           return skipError(
             'INSUFFICIENT_COINS',
-            'You need at least 1 Karma Coin to skip this puzzle.',
+            `You need at least ${SKIP_COST} Karma Coin${SKIP_COST === 1 ? '' : 's'} to skip this puzzle.`,
             'resubmit_valid_slots'
           );
         }
@@ -905,7 +905,7 @@ export const puzzleRouter = router({
         if (!deduction.ok) {
           return skipError(
             'INSUFFICIENT_COINS',
-            'You need at least 1 Karma Coin to skip this puzzle.',
+            `You need at least ${SKIP_COST} Karma Coin${SKIP_COST === 1 ? '' : 's'} to skip this puzzle.`,
             'resubmit_valid_slots'
           );
         }
