@@ -61,10 +61,13 @@ const REDDIT_IMAGE_HOST_PATTERN =
   /^https:\/\/(i|preview|external-preview)\.redd\.it\//i;
 const LOW_RES_THUMB_HOST_PATTERN = /thumbs\.redditmedia\.com/i;
 
+// --- THE FIX: Remove external-preview from the rewrite set ---
 const REDDIT_PREVIEW_HOSTS = new Set([
   'preview.redd.it',
-  'external-preview.redd.it',
+  // 'external-preview.redd.it' is intentionally excluded.
+  // We cannot map external caches to i.redd.it.
 ]);
+// -------------------------------------------------------------
 
 /** Converts signed preview URLs into direct i.redd.it links the webview can load. */
 export const toLoadableRedditImageUrl = (url: string): string => {
@@ -72,9 +75,11 @@ export const toLoadableRedditImageUrl = (url: string): string => {
 
   try {
     const parsed = new URL(normalized);
+    // This will now ONLY trigger for native 'preview.redd.it' files
     if (REDDIT_PREVIEW_HOSTS.has(parsed.hostname)) {
       return `https://i.redd.it${parsed.pathname}`;
     }
+    // For external-preview and thumbs.redditmedia, return the fully intact URL
     return parsed.toString();
   } catch {
     return normalized;
