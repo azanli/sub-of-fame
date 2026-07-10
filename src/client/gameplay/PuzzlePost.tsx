@@ -47,8 +47,7 @@ const PostImage = ({ url, alt, linkUrl, linkDomain }: PostImageProps) => {
 
   return (
     <div className="min-h-[75px] relative overflow-hidden rounded-lg">
-      {/* TODO: Fix the link url thumbnail issue before uncommenting this and removing min-h-[100px] above */}
-      {/* {image} */}
+      {image}
       <div className="absolute bottom-0 flex w-full items-center justify-between gap-3 bg-black/70 p-3 backdrop-blur-sm">
         <div className="flex min-w-0 items-center gap-2 text-sm text-white">
           <ExternalLinkIcon />

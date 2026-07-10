@@ -176,8 +176,26 @@ export const normalizeImageUrl = (post: Post): string | undefined => {
     return resolveLoadableImageUrl(post.url);
   }
 
+  // --- THE FIX: Deep Preview Extraction ---
+  // Safely cast to 'any' to bypass Devvit's Post type obscuring the preview object
+  const anyPost = post as any;
+  const deepPreviewUrl = anyPost.preview?.images?.[0]?.source?.url;
+
+  if (typeof deepPreviewUrl === 'string' && deepPreviewUrl.length > 0) {
+    return resolveLoadableImageUrl(deepPreviewUrl);
+  }
+  // ----------------------------------------
+
   const thumbnail = getThumbnailUrl(post);
-  if (thumbnail && thumbnail !== 'default' && thumbnail !== 'self') {
+
+  // Expanded filtering to catch 'nsfw' and 'spoiler' literal strings
+  if (
+    thumbnail &&
+    thumbnail !== 'default' &&
+    thumbnail !== 'self' &&
+    thumbnail !== 'nsfw' &&
+    thumbnail !== 'spoiler'
+  ) {
     return resolveLoadableImageUrl(thumbnail);
   }
 
