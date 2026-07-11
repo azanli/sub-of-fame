@@ -9,6 +9,7 @@ import {
   isAllRanksAssigned,
 } from './helpers';
 import { CommentsModal } from './CommentsModal';
+import { RESCUE_SCENE } from './rescueAnimation';
 import { StartPuzzleGate } from './StartPuzzleGate';
 import type { GameplaySubmitPayload, RankAssignments, ReadyPuzzle } from './types';
 
@@ -30,7 +31,8 @@ type GameplayRoundProps = {
 
 type GameplayRoundInnerProps = GameplayRoundProps;
 
-const FORFEIT_TRANSITION_MS = 700;
+/** Keep the rescue scene mounted through the Snoo drop-out animation. */
+const TIMER_EXPIRY_TRANSITION_MS = RESCUE_SCENE.snooDropOutDurationMs + 50;
 const HINT_BUTTON_ANIMATION_MS = 150;
 const SELECTION_ACKNOWLEDGE_MS = 200;
 
@@ -197,7 +199,17 @@ const GameplayRoundInner = ({
     }
 
     hasSubmittedRef.current = true;
-    onSubmit({ gameMode: 'expert', slots });
+    forfeitTimeoutRef.current = window.setTimeout(() => {
+      forfeitTimeoutRef.current = null;
+      onSubmit({ gameMode: 'expert', slots });
+    }, TIMER_EXPIRY_TRANSITION_MS);
+
+    return () => {
+      if (forfeitTimeoutRef.current !== null) {
+        window.clearTimeout(forfeitTimeoutRef.current);
+        forfeitTimeoutRef.current = null;
+      }
+    };
   }, [
     assignments,
     isExpertMode,
@@ -237,7 +249,7 @@ const GameplayRoundInner = ({
     forfeitTimeoutRef.current = window.setTimeout(() => {
       forfeitTimeoutRef.current = null;
       onForfeit();
-    }, FORFEIT_TRANSITION_MS);
+    }, TIMER_EXPIRY_TRANSITION_MS);
 
     return () => {
       if (forfeitTimeoutRef.current !== null) {

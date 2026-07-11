@@ -7,6 +7,8 @@ export const RESCUE_SCENE = {
   snooPanicLowPercent: 38,
   /** bottom % far enough below the scene to hide the full Snoo sprite */
   snooDropOutPercent: -50,
+  /** Matches `.rescue-snoo-drop-out` in index.css */
+  snooDropOutDurationMs: 650,
   snooMaxScale: 1,
   snooMinScale: 0.6,
   risePhaseEndRatio: 0.75,
