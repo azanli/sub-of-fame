@@ -31,7 +31,7 @@ export const DashboardTopBar = ({
         className={`${secondaryPillClasses} rounded-full px-4`}
       >
         <span className="inline-flex items-center gap-1">
-          <span className="text-xs" aria-hidden="true">
+          <span className="text-xs mr-1" aria-hidden="true">
             🏆
           </span>
           Leaderboard
