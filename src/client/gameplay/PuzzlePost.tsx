@@ -1,4 +1,6 @@
 import { navigateTo } from '@devvit/web/client';
+import { useEffect, useRef, useState } from 'react';
+import { getRedditVideoAudioUrl } from '../../shared/redditVideo';
 import { PostGallery } from './PostGallery';
 import type { ReadyPuzzle } from './types';
 
@@ -67,18 +69,119 @@ const PostImage = ({ url, alt, linkUrl, linkDomain }: PostImageProps) => {
   );
 };
 
-const PostVideo = ({ url }: { url: string }) => (
-  <video
-    src={url}
-    controls
-    autoPlay
-    muted
-    loop
-    playsInline
-    onContextMenu={(e) => e.preventDefault()}
-    className="block w-full h-auto max-w-full max-h-full rounded-lg"
-  />
-);
+const PostVideo = ({ url }: { url: string }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioUrl = getRedditVideoAudioUrl(url);
+  const [audioEnabled, setAudioEnabled] = useState(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video === null) {
+      return;
+    }
+
+    video.muted = true;
+  }, [url]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video === null || audioUrl === undefined) {
+      return;
+    }
+
+    const syncAudioToVideo = () => {
+      const audio = audioRef.current;
+      if (audio === null) {
+        return;
+      }
+
+      audio.volume = video.volume;
+      audio.currentTime = video.currentTime;
+      if (!video.paused) {
+        void audio.play();
+      }
+    };
+
+    const stopAudio = () => {
+      const audio = audioRef.current;
+      if (audio !== null) {
+        audio.pause();
+      }
+    };
+
+    const onVolumeChange = () => {
+      if (video.muted) {
+        stopAudio();
+        return;
+      }
+
+      setAudioEnabled(true);
+    };
+
+    const onPlay = () => {
+      if (!video.muted && audioRef.current !== null) {
+        syncAudioToVideo();
+      }
+    };
+
+    const onPause = stopAudio;
+
+    const onSeeked = () => {
+      if (!video.muted && !video.paused) {
+        syncAudioToVideo();
+      }
+    };
+
+    video.addEventListener('volumechange', onVolumeChange);
+    video.addEventListener('play', onPlay);
+    video.addEventListener('pause', onPause);
+    video.addEventListener('seeked', onSeeked);
+
+    return () => {
+      video.removeEventListener('volumechange', onVolumeChange);
+      video.removeEventListener('play', onPlay);
+      video.removeEventListener('pause', onPause);
+      video.removeEventListener('seeked', onSeeked);
+    };
+  }, [audioUrl]);
+
+  useEffect(() => {
+    if (!audioEnabled) {
+      return;
+    }
+
+    const video = videoRef.current;
+    const audio = audioRef.current;
+    if (video === null || audio === null || video.muted) {
+      return;
+    }
+
+    audio.volume = video.volume;
+    audio.currentTime = video.currentTime;
+    if (!video.paused) {
+      void audio.play();
+    }
+  }, [audioEnabled]);
+
+  return (
+    <>
+      <video
+        ref={videoRef}
+        src={url}
+        controls
+        autoPlay
+        loop
+        playsInline
+        onContextMenu={(e) => e.preventDefault()}
+        className="block w-full h-auto max-w-full max-h-full rounded-lg"
+      />
+      {audioEnabled && audioUrl !== undefined ? (
+        <audio ref={audioRef} src={audioUrl} preload="auto" />
+      ) : null}
+    </>
+  );
+};
 
 export const PuzzlePost = ({ post }: PuzzlePostProps) => {
   const contentBlocks =
@@ -142,7 +245,7 @@ export const PuzzlePost = ({ post }: PuzzlePostProps) => {
       ) : (
         showTrailingSingleImage &&
         (post.isVideo ? (
-          <PostVideo url={singleImageUrl} />
+          <PostVideo key={singleImageUrl} url={singleImageUrl} />
         ) : (
           <PostImage
             url={singleImageUrl}
