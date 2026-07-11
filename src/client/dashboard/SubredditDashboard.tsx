@@ -95,6 +95,7 @@ export const SubredditDashboard = ({
 
       <HubSettingsPanel
         id={SETTINGS_PANEL_ID}
+        faqVariant="subreddit"
         isOpen={isSettingsOpen}
         gameMode={gameMode}
         onGameModeChange={onGameModeChange}

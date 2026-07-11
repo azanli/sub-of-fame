@@ -1,11 +1,12 @@
 import type { GameMode } from '../../shared/api';
 import { DeleteUserDataSection } from './DeleteUserDataSection';
-import { FaqSection } from './FaqSection';
+import { FaqSection, type FaqVariant } from './FaqSection';
 import { GameModeSelector } from './GameModeSelector';
 import { HowToPlaySection } from './HowToPlaySection';
 
 type HubSettingsPanelProps = {
   id: string;
+  faqVariant: FaqVariant;
   isOpen: boolean;
   gameMode: GameMode;
   onGameModeChange: (mode: GameMode) => void;
@@ -19,6 +20,7 @@ type HubSettingsPanelProps = {
 
 export const HubSettingsPanel = ({
   id,
+  faqVariant,
   isOpen,
   gameMode,
   onGameModeChange,
@@ -49,7 +51,7 @@ export const HubSettingsPanel = ({
           </p>
         ) : null}
         <HowToPlaySection />
-        <FaqSection />
+        <FaqSection variant={faqVariant} />
         {isLoggedIn ? (
           <DeleteUserDataSection
             onDelete={onDeleteUserData}

@@ -1,8 +1,20 @@
 import { useId, useState } from 'react';
 
+export type FaqVariant = 'hub' | 'subreddit';
+
 type FaqEntry = {
   question: string;
-  answer: string;
+  answer?: string;
+  hub?: string;
+  subreddit?: string;
+};
+
+const getFaqAnswer = (entry: FaqEntry, variant: FaqVariant): string => {
+  if (entry.answer !== undefined) {
+    return entry.answer;
+  }
+
+  return entry[variant] ?? '';
 };
 
 const FAQ_ENTRIES: FaqEntry[] = [
@@ -17,18 +29,20 @@ const FAQ_ENTRIES: FaqEntry[] = [
   },
   {
     question: 'How do coins work?',
-    answer:
-      'Coins are earned by playing and can be spent to unlock custom subreddit campaigns or to skip the puzzle.',
+    hub: 'Coins are earned by correctly ranking comments and can be spent to unlock custom subreddit campaigns, reveal helpful hints, or skip a difficult puzzle.',
+    subreddit:
+      "Coins are earned by correctly ranking comments and can be spent to reveal helpful hints or to skip a difficult puzzle within this community's campaign.",
   },
 ];
 
 type FaqItemProps = {
   entry: FaqEntry;
+  variant: FaqVariant;
   isOpen: boolean;
   onToggle: () => void;
 };
 
-const FaqItem = ({ entry, isOpen, onToggle }: FaqItemProps) => {
+const FaqItem = ({ entry, variant, isOpen, onToggle }: FaqItemProps) => {
   const answerId = useId();
 
   return (
@@ -65,7 +79,7 @@ const FaqItem = ({ entry, isOpen, onToggle }: FaqItemProps) => {
       >
         <div className="overflow-hidden">
           <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
-            {entry.answer}
+            {getFaqAnswer(entry, variant)}
           </p>
         </div>
       </div>
@@ -73,7 +87,11 @@ const FaqItem = ({ entry, isOpen, onToggle }: FaqItemProps) => {
   );
 };
 
-export const FaqSection = () => {
+type FaqSectionProps = {
+  variant: FaqVariant;
+};
+
+export const FaqSection = ({ variant }: FaqSectionProps) => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
@@ -87,6 +105,7 @@ export const FaqSection = () => {
           <FaqItem
             key={entry.question}
             entry={entry}
+            variant={variant}
             isOpen={openIndex === index}
             onToggle={() => {
               setOpenIndex((current) => (current === index ? null : index));

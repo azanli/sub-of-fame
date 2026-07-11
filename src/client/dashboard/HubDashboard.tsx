@@ -135,6 +135,7 @@ export const HubDashboard = ({
 
       <HubSettingsPanel
         id={SETTINGS_PANEL_ID}
+        faqVariant="hub"
         isOpen={isSettingsOpen}
         gameMode={gameMode}
         onGameModeChange={onGameModeChange}
