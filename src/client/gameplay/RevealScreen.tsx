@@ -374,7 +374,7 @@ export const RevealScreen = ({
           onComplete={handleForfeitAngelComplete}
         />
       ) : null}
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
         <div className="flex flex-col gap-6 p-4 pb-6">
           <div
             className={
