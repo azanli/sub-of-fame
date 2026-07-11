@@ -86,7 +86,7 @@ export const RescuedSnoo = ({
   return (
     <div
       aria-hidden="true"
-      className={`rescue-snoo absolute left-1/2 z-[2] origin-bottom ${
+      className={`rescue-snoo absolute left-0 right-0 mx-auto w-fit z-[2] origin-bottom ${
         isExpired ? 'rescue-snoo-drop-out' : 'rescue-snoo-lift'
       }`}
       style={{
@@ -96,7 +96,7 @@ export const RescuedSnoo = ({
               '--snoo-fall-to': `${RESCUE_SCENE.snooDropOutPercent}%`,
             }
           : { bottom: `${bottomPercent}%` }),
-        transform: `translateX(-50%) scale(${
+        transform: `scale(${
           isExpired ? dropFromScale : snooScale
         })`,
       }}
