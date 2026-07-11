@@ -39,6 +39,7 @@ type RevealScreenProps = {
   lastRevealRemarkIndexByKey: Record<string, number | null>;
   onRevealRemarkUsed: (key: string, index: number) => void;
   onDevResetRankIndex?: () => void | Promise<void>;
+  resultPending?: boolean;
 };
 
 const SLOT_REVEAL_STAGGER_MS = 500;
@@ -130,6 +131,7 @@ export const RevealScreen = ({
   lastRevealRemarkIndexByKey,
   onRevealRemarkUsed,
   onDevResetRankIndex,
+  resultPending = false,
 }: RevealScreenProps) => {
   const isSkipped = result.status === 'skipped';
   const isForfeited = result.status === 'forfeited';
@@ -185,10 +187,12 @@ export const RevealScreen = ({
   );
 
   useEffect(() => {
-    if (revealRemark !== null) {
-      onRevealRemarkUsed(revealRemark.key, revealRemark.index);
+    if (resultPending || revealRemark === null) {
+      return;
     }
-  }, [revealRemark, onRevealRemarkUsed]);
+
+    onRevealRemarkUsed(revealRemark.key, revealRemark.index);
+  }, [revealRemark, onRevealRemarkUsed, resultPending]);
 
   const lastDevResetTapRef = useRef<number | null>(null);
 
@@ -241,6 +245,10 @@ export const RevealScreen = ({
   };
 
   useEffect(() => {
+    if (resultPending) {
+      return;
+    }
+
     const timers: number[] = [];
 
     for (let slotIndex = 0; slotIndex < result.slots.length; slotIndex += 1) {
@@ -363,6 +371,7 @@ export const RevealScreen = ({
     isCasualMode,
     coinBalance,
     result.score,
+    resultPending,
     triggerZeroScoreCoinHeaderPulse,
   ]);
 
@@ -555,7 +564,30 @@ export const RevealScreen = ({
                 ) : null}
               </div>
             ) : null}
-            {result.slots.map((slot, index) => {
+            {resultPending
+              ? Array.from({ length: result.slots.length }, (_, index) => (
+                  <div
+                    key={`pending-slot-${index}`}
+                    aria-hidden="true"
+                    className="relative overflow-hidden rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/60"
+                  >
+                    <div className="pointer-events-none absolute left-0 top-0 size-10">
+                      <div
+                        aria-hidden="true"
+                        className="absolute inset-0 bg-gray-200 dark:bg-gray-700"
+                        style={{ clipPath: 'polygon(0 0, 85% 0, 0 85%)' }}
+                      />
+                      <span className="absolute left-1 top-1 text-sm font-bold leading-none text-gray-500 select-none dark:text-gray-300">
+                        {index + 1}
+                      </span>
+                    </div>
+                    <div className="ml-4 flex flex-col gap-2">
+                      <div className="h-4 w-full animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+                      <div className="h-4 w-[80%] animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+                    </div>
+                  </div>
+                ))
+              : result.slots.map((slot, index) => {
               const isRevealed = index < revealedSlotCount;
               const isFlashing = flashingSlotIndex === index;
               const isHintedSlot = hintUsed && index === 2;
@@ -661,7 +693,8 @@ export const RevealScreen = ({
           <button
             type="button"
             onClick={() => navigateTo(puzzle.postUrl)}
-            className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm sm:text-base font-semibold rounded-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+            disabled={resultPending}
+            className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm sm:text-base font-semibold rounded-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
           >
             <div className="flex items-center justify-center gap-2">
               Open Post
@@ -672,7 +705,9 @@ export const RevealScreen = ({
         <button
           type="button"
           onClick={onNextLevel}
-          className="bg-[#d93900] hover:bg-[#c23300] text-white text-sm sm:text-base font-semibold rounded-full px-6 py-2 transition-colors cursor-pointer"
+          disabled={resultPending}
+          aria-busy={resultPending}
+          className="bg-[#d93900] hover:bg-[#c23300] text-white text-sm sm:text-base font-semibold rounded-full px-6 py-2 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
         >
           <div className="flex items-center justify-center gap-1.5">
             Next Challenge

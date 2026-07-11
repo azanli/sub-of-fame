@@ -21,6 +21,7 @@ import { PuzzleGateFromPromise } from './gameplay/PuzzleGateFromPromise';
 import { PuzzleLoadTransition } from './gameplay/PuzzleLoadTransition';
 import { RevealScreen } from './gameplay/RevealScreen';
 import { LeaderboardView } from './leaderboard/LeaderboardView';
+import { buildPendingSubmitResult } from './gameplay/helpers';
 import { preloadPuzzlePostMedia } from './gameplay/puzzlePreload';
 import { resolveLoadingCard } from './gameplay/resolveLoadingCard';
 import { StartPuzzleGateSkeleton } from './gameplay/StartPuzzleGate';
@@ -64,7 +65,12 @@ type AppState =
   | { phase: 'submitting'; puzzle: ReadyPuzzle }
   | { phase: 'skipping'; puzzle: ReadyPuzzle }
   | { phase: 'forfeiting'; puzzle: ReadyPuzzle }
-  | { phase: 'revealed'; result: PuzzleRevealResult; puzzle: ReadyPuzzle }
+  | {
+      phase: 'revealed';
+      result: PuzzleRevealResult;
+      puzzle: ReadyPuzzle;
+      resultPending?: boolean;
+    }
   | { phase: 'exhausted'; message: string }
   | { phase: 'problem'; message: string };
 
@@ -513,7 +519,8 @@ export const App = ({ preloadedInit }: AppProps) => {
     if (
       state.phase === 'ready' ||
       state.phase === 'submitting' ||
-      state.phase === 'skipping'
+      state.phase === 'skipping' ||
+      (state.phase === 'revealed' && state.resultPending === true)
     ) {
       activePuzzleRef.current = state.puzzle;
     }
@@ -717,7 +724,12 @@ export const App = ({ preloadedInit }: AppProps) => {
         return;
       }
 
-      setState({ phase: 'submitting', puzzle });
+      setState({
+        phase: 'revealed',
+        result: buildPendingSubmitResult(puzzle),
+        puzzle,
+        resultPending: true,
+      });
 
       try {
         const result = await trpcClient.puzzle.submit.mutate(
@@ -1210,9 +1222,16 @@ export const App = ({ preloadedInit }: AppProps) => {
   }
 
   if (state.phase === 'revealed') {
+    const resultPending = state.resultPending === true;
+
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <RevealScreen
+          key={
+            resultPending
+              ? `${state.puzzle.attemptId}-pending`
+              : state.puzzle.attemptId
+          }
           result={state.result}
           puzzle={state.puzzle}
           gameMode={initData?.gameMode ?? DEFAULT_GAME_MODE}
@@ -1227,6 +1246,7 @@ export const App = ({ preloadedInit }: AppProps) => {
             }));
           }}
           onDevResetRankIndex={handleDevResetRankIndex}
+          resultPending={resultPending}
         />
       </div>
     );

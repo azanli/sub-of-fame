@@ -32,6 +32,7 @@ type GameplayRoundInnerProps = GameplayRoundProps;
 
 const FORFEIT_TRANSITION_MS = 700;
 const HINT_BUTTON_ANIMATION_MS = 150;
+const SELECTION_ACKNOWLEDGE_MS = 200;
 
 const GameplayRoundInner = ({
   puzzle,
@@ -57,6 +58,7 @@ const GameplayRoundInner = ({
   const hasSubmittedRef = useRef(false);
   const forfeitTimeoutRef = useRef<number | null>(null);
   const hintAnimTimeoutRef = useRef<number | null>(null);
+  const selectionTimeoutRef = useRef<number | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [isSkipAnimating, setIsSkipAnimating] = useState(false);
   const [isHintAnimating, setIsHintAnimating] = useState(false);
@@ -83,6 +85,10 @@ const GameplayRoundInner = ({
       window.clearTimeout(hintAnimTimeoutRef.current);
       hintAnimTimeoutRef.current = null;
     }
+    if (selectionTimeoutRef.current !== null) {
+      window.clearTimeout(selectionTimeoutRef.current);
+      selectionTimeoutRef.current = null;
+    }
   }, [puzzle.attemptId]);
 
   useEffect(() => {
@@ -92,6 +98,9 @@ const GameplayRoundInner = ({
       }
       if (hintAnimTimeoutRef.current !== null) {
         window.clearTimeout(hintAnimTimeoutRef.current);
+      }
+      if (selectionTimeoutRef.current !== null) {
+        window.clearTimeout(selectionTimeoutRef.current);
       }
     };
   }, []);
@@ -273,7 +282,10 @@ const GameplayRoundInner = ({
 
     hasSubmittedRef.current = true;
     setCasualSelectedCommentId(commentId);
-    onSubmit({ gameMode: 'casual', selectedCommentId: commentId });
+    selectionTimeoutRef.current = window.setTimeout(() => {
+      selectionTimeoutRef.current = null;
+      onSubmit({ gameMode: 'casual', selectedCommentId: commentId });
+    }, SELECTION_ACKNOWLEDGE_MS);
   };
 
   const handleTap = isExpertMode ? handleExpertTap : handleCasualTap;

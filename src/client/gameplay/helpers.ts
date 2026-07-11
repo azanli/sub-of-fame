@@ -1,5 +1,9 @@
 import type { RankAssignments, RankValue, ReadyPuzzle } from './types';
-import type { CasualRevealScore, GameMode } from '../../shared/api';
+import type {
+  CasualRevealScore,
+  GameMode,
+  PuzzleSubmitSuccess,
+} from '../../shared/api';
 import {
   CASUAL_REVEAL_REMARKS,
   EXPERT_REVEAL_REMARKS,
@@ -8,6 +12,24 @@ import {
   getForfeitRevealRemarkKey,
   getRevealRemarkKey,
 } from '../../shared/revealRemarks';
+
+export const buildPendingSubmitResult = (
+  puzzle: ReadyPuzzle
+): PuzzleSubmitSuccess => ({
+  status: 'submitted',
+  score: 0,
+  coinAward: 0,
+  hintUsed: false,
+  slots: puzzle.comments.map((comment) => ({
+    commentId: comment.id,
+    body: '',
+    score: 0,
+    correct: false,
+  })),
+  userHiveIQ: null,
+  nextRankIndex: puzzle.rankIndex,
+  coins: null,
+});
 
 export const calculatePuzzleTimer = (comments: ReadyPuzzle['comments']): number => {
   const combinedText = comments.map((comment) => comment.body).join(' ');
