@@ -41,6 +41,8 @@ import {
   getStats,
   getSubredditAggregate,
   incrementStats,
+  incrementStreak,
+  resetStreak,
   updateStreakAfterRound,
 } from '../redis/statsStore';
 import { updateLeaderboard } from '../redis/leaderboardStore';
@@ -798,6 +800,10 @@ export const puzzleRouter = router({
 
       if (attempt.owner.kind === 'user') {
         const attemptCtx = attemptCampaignContext(attempt);
+        const subredditStreakUpdate =
+          statsDelta.coinAward === PERFECT_ROUND_COIN_AWARD
+            ? incrementStreak(attempt.owner.userId, attempt.subreddit)
+            : resetStreak(attempt.owner.userId, attempt.subreddit);
         const [updatedCoins] = await Promise.all([
           incrementStats(
             attempt.owner.userId,
@@ -808,6 +814,7 @@ export const puzzleRouter = router({
             attempt.owner.userId,
             statsDelta.coinAward
           ),
+          subredditStreakUpdate,
         ]);
         coins = updatedCoins;
         nextRankIndex = await advanceRankIndex(attempt.owner.userId, attemptCtx);
@@ -944,7 +951,6 @@ export const puzzleRouter = router({
           );
         }
         coins = deduction.coins;
-        await updateStreakAfterRound(attempt.owner.userId, 0);
       }
 
       await markAttemptSubmitted(attempt);
@@ -1190,6 +1196,7 @@ export const puzzleRouter = router({
             statsDelta
           ),
           updateStreakAfterRound(attempt.owner.userId, 0),
+          resetStreak(attempt.owner.userId, attempt.subreddit),
         ]);
         coins = updatedCoins;
         nextRankIndex = await advanceRankIndex(attempt.owner.userId, attemptCtx);

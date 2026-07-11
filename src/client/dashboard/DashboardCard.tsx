@@ -79,7 +79,24 @@ export const DashboardCard = (props: DashboardCardProps) => {
         {props.kind === 'hydrated' && (
           <>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {props.card.completedRoundCount} Completed
+              <span className="tabular-nums">
+                {props.card.completedRoundCount}
+              </span>{' '}
+              Completed
+              {!!props.card.currentStreak && (
+                <>
+                  <span
+                    className="mx-1 text-gray-300 dark:text-gray-600"
+                    aria-hidden="true"
+                  >
+                    ·
+                  </span>
+                  🔥{' '}
+                  <span className="tabular-nums">
+                    {props.card.currentStreak}
+                  </span>
+                </>
+              )}
             </p>
             {props.card.leaderboardRank !== null && (
               <p className="flex shrink-0 items-center justify-end gap-0.5 text-xs font-medium text-orange-600 dark:text-orange-400">

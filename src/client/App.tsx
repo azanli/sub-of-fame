@@ -161,6 +161,9 @@ export const App = ({ preloadedInit }: AppProps) => {
   const loadNextPuzzleRef = useRef<
     (unplayableCount: number, rankIndex: number | undefined) => void
   >(() => undefined);
+  const refreshHubDashboardRef = useRef<() => void>(() => {
+    setState({ phase: 'hub_dashboard' });
+  });
   const preloadedNextRef = useRef<{
     sourceAttemptId: string;
     promise: Promise<ReadyPuzzle>;
@@ -383,13 +386,13 @@ export const App = ({ preloadedInit }: AppProps) => {
       }
 
       if (error.type === 'select_failed') {
-        setState({ phase: 'hub_dashboard' });
+        refreshHubDashboardRef.current();
         setSelectionError('Could not load that subreddit. Please try another.');
         return;
       }
 
       if (error.type === 'insufficient_coins') {
-        setState({ phase: 'hub_dashboard' });
+        refreshHubDashboardRef.current();
         setSelectionError(
           `You need ${SUBREDDIT_UNLOCK_COST} coins to unlock a custom subreddit.`
         );
@@ -480,7 +483,7 @@ export const App = ({ preloadedInit }: AppProps) => {
       }
 
       if (activeSession.campaignSubreddit === null || activeSession.campaignTimeframe === null) {
-        setState({ phase: 'hub_dashboard' });
+        refreshHubDashboardRef.current();
         return;
       }
 
@@ -935,7 +938,7 @@ export const App = ({ preloadedInit }: AppProps) => {
       activeSession.campaignSubreddit === null ||
       activeSession.campaignTimeframe === null
     ) {
-      setState({ phase: 'hub_dashboard' });
+      refreshHubDashboardRef.current();
       return;
     }
 
@@ -1008,6 +1011,10 @@ export const App = ({ preloadedInit }: AppProps) => {
     setSelectionError(null);
     beginHubLoad(trpcClient.init.query());
   }, [beginHubLoad]);
+
+  useEffect(() => {
+    refreshHubDashboardRef.current = refreshHubDashboard;
+  }, [refreshHubDashboard]);
 
   const handleDeleteUserData = useCallback(async () => {
     const activeSession = sessionRef.current;

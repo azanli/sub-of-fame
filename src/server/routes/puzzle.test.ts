@@ -22,6 +22,8 @@ const {
   mockDeductCoin,
   mockDeductCoins,
   mockUpdateStreakAfterRound,
+  mockIncrementStreak,
+  mockResetStreak,
 } = vi.hoisted(() => ({
   mockResolveSubredditMetadata: vi.fn(),
   mockResolveLadderPage: vi.fn(),
@@ -42,6 +44,8 @@ const {
   mockDeductCoin: vi.fn(),
   mockDeductCoins: vi.fn(),
   mockUpdateStreakAfterRound: vi.fn(),
+  mockIncrementStreak: vi.fn(),
+  mockResetStreak: vi.fn(),
 }));
 
 vi.mock('../reddit/resolveSubredditMetadata.js', () => ({
@@ -95,6 +99,8 @@ vi.mock('../redis/statsStore.js', async (importOriginal) => {
     deductCoin: mockDeductCoin,
     deductCoins: mockDeductCoins,
     updateStreakAfterRound: mockUpdateStreakAfterRound,
+    incrementStreak: mockIncrementStreak,
+    resetStreak: mockResetStreak,
   };
 });
 
@@ -224,6 +230,8 @@ const expectNoSubmitMutations = () => {
   expect(mockMarkAttemptHintUsed).not.toHaveBeenCalled();
   expect(mockIncrementStats).not.toHaveBeenCalled();
   expect(mockUpdateStreakAfterRound).not.toHaveBeenCalled();
+  expect(mockIncrementStreak).not.toHaveBeenCalled();
+  expect(mockResetStreak).not.toHaveBeenCalled();
   expect(mockIncrementProgress).not.toHaveBeenCalled();
   expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
 };
@@ -613,6 +621,8 @@ describe('puzzle.submit', () => {
     mockIncrementProgress.mockResolvedValue(4);
     mockIncrementStats.mockResolvedValue(5);
     mockUpdateStreakAfterRound.mockResolvedValue(undefined);
+    mockIncrementStreak.mockResolvedValue({ currentStreak: 1, highestStreak: 1 });
+    mockResetStreak.mockResolvedValue(undefined);
     mockGetStats.mockResolvedValue({
       global: { correctSlots: 3, totalSlots: 6 },
       bySubreddit: {
@@ -813,6 +823,8 @@ describe('puzzle.submit', () => {
       coinAward: 1,
     });
     expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 1);
+    expect(mockResetStreak).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockIncrementStreak).not.toHaveBeenCalled();
   });
 
   it('returns score 1 with one coin when only the top expert slot is correct', async () => {
@@ -834,6 +846,8 @@ describe('puzzle.submit', () => {
       coinAward: 1,
     });
     expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 1);
+    expect(mockResetStreak).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockIncrementStreak).not.toHaveBeenCalled();
   });
 
   it('returns score 0 when all slots are wrong', async () => {
@@ -849,6 +863,8 @@ describe('puzzle.submit', () => {
     expect(result.score).toBe(0);
     expect(result.coinAward).toBe(0);
     expect(result.slots.every((slot) => slot.correct === false)).toBe(true);
+    expect(mockResetStreak).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockIncrementStreak).not.toHaveBeenCalled();
   });
 
   it('updates user-owned stats, progress, and leaderboard on success', async () => {
@@ -861,6 +877,8 @@ describe('puzzle.submit', () => {
       coinAward: 3,
     });
     expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 3);
+    expect(mockIncrementStreak).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockResetStreak).not.toHaveBeenCalled();
     expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', askredditAllCtx);
     expect(mockUpdateLeaderboard).toHaveBeenCalledWith(askredditAllCtx, 'user-1', 3);
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
@@ -889,6 +907,8 @@ describe('puzzle.submit', () => {
 
     expect(mockIncrementStats).not.toHaveBeenCalled();
     expect(mockUpdateStreakAfterRound).not.toHaveBeenCalled();
+    expect(mockIncrementStreak).not.toHaveBeenCalled();
+    expect(mockResetStreak).not.toHaveBeenCalled();
     expect(mockIncrementProgress).not.toHaveBeenCalled();
     expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
     expect(mockGetProgress).not.toHaveBeenCalled();
@@ -975,6 +995,8 @@ describe('puzzle.submit', () => {
       coinAward: 3,
     });
     expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 3);
+    expect(mockIncrementStreak).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockResetStreak).not.toHaveBeenCalled();
   });
 
   it('returns reveal score 1 with one coin for a casual #2 near-miss', async () => {
@@ -997,6 +1019,8 @@ describe('puzzle.submit', () => {
       coinAward: 1,
     });
     expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 1);
+    expect(mockResetStreak).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockIncrementStreak).not.toHaveBeenCalled();
   });
 
   it('returns score 0 for a casual #3 pick', async () => {
@@ -1017,6 +1041,8 @@ describe('puzzle.submit', () => {
       coinAward: 0,
     });
     expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 0);
+    expect(mockResetStreak).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockIncrementStreak).not.toHaveBeenCalled();
   });
 
   it('returns hintUsed true on submit when the attempt used a hint', async () => {
@@ -1043,6 +1069,9 @@ describe('puzzle.submit', () => {
       correctSlots: 0,
       coinAward: 0,
     });
+    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 0);
+    expect(mockResetStreak).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockIncrementStreak).not.toHaveBeenCalled();
   });
 
   it('returns zero coins for an expert score 1 when a hint was used', async () => {
@@ -1070,6 +1099,9 @@ describe('puzzle.submit', () => {
       correctSlots: 1,
       coinAward: 0,
     });
+    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 0);
+    expect(mockResetStreak).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockIncrementStreak).not.toHaveBeenCalled();
   });
 });
 
@@ -1144,7 +1176,9 @@ describe('puzzle.skip', () => {
     expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', askredditAllCtx);
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
     expect(mockIncrementStats).not.toHaveBeenCalled();
-    expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 0);
+    expect(mockUpdateStreakAfterRound).not.toHaveBeenCalled();
+    expect(mockIncrementStreak).not.toHaveBeenCalled();
+    expect(mockResetStreak).not.toHaveBeenCalled();
     expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
   });
 
@@ -1334,6 +1368,7 @@ describe('puzzle.forfeit', () => {
     mockMarkAttemptSubmitted.mockResolvedValue(undefined);
     mockIncrementStats.mockResolvedValue(5);
     mockUpdateStreakAfterRound.mockResolvedValue(undefined);
+    mockResetStreak.mockResolvedValue(undefined);
     mockGetStats.mockResolvedValue({
       global: { correctSlots: 0, totalSlots: 3 },
       bySubreddit: {
@@ -1422,6 +1457,8 @@ describe('puzzle.forfeit', () => {
       coinAward: 0,
     });
     expect(mockUpdateStreakAfterRound).toHaveBeenCalledWith('user-1', 0);
+    expect(mockResetStreak).toHaveBeenCalledWith('user-1', 'askreddit');
+    expect(mockIncrementStreak).not.toHaveBeenCalled();
     expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', askredditAllCtx);
     expect(mockUpdateLeaderboard).toHaveBeenCalledWith(askredditAllCtx, 'user-1', 3);
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
@@ -1481,6 +1518,8 @@ describe('puzzle.forfeit', () => {
     });
     expect(mockIncrementStats).not.toHaveBeenCalled();
     expect(mockUpdateStreakAfterRound).not.toHaveBeenCalled();
+    expect(mockIncrementStreak).not.toHaveBeenCalled();
+    expect(mockResetStreak).not.toHaveBeenCalled();
     expect(mockIncrementProgress).not.toHaveBeenCalled();
     expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
