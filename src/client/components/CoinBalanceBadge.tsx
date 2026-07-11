@@ -1,4 +1,4 @@
-type CoinBalanceBadgeVariant = 'neutral' | 'orange';
+type CoinBalanceBadgeVariant = 'neutral' | 'orange' | 'gold';
 
 type CoinBalanceBadgeProps = {
   coins: number;
@@ -12,6 +12,7 @@ const variantClassNames: Record<CoinBalanceBadgeVariant, string> = {
     'border-gray-200 bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white',
   orange:
     'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950/60 dark:text-orange-200',
+  gold: 'border-amber-500 bg-gradient-to-b from-amber-50 to-amber-100 text-amber-950 dark:border-amber-400 dark:from-amber-950/70 dark:to-amber-900/50 dark:text-amber-100',
 };
 
 export const CoinBalanceBadge = ({

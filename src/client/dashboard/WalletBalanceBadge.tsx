@@ -7,7 +7,7 @@ type WalletBalanceBadgeProps = {
 export const WalletBalanceBadge = ({ coins }: WalletBalanceBadgeProps) => (
   <CoinBalanceBadge
     coins={coins}
-    variant="orange"
-    className="px-4 py-1.5"
+    variant="gold"
+    className="h-9 px-4"
   />
 );
