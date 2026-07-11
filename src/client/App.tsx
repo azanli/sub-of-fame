@@ -500,20 +500,22 @@ export const App = ({ preloadedInit }: AppProps) => {
     loadNextPuzzleRef.current = loadNextPuzzle;
   }, [loadNextPuzzle]);
 
-  const revealedAttemptId =
-    state.phase === 'revealed' ? state.puzzle.attemptId : null;
+  const revealedPreloadAttemptId =
+    state.phase === 'revealed' && state.resultPending !== true
+      ? state.puzzle.attemptId
+      : null;
 
   useEffect(() => {
-    if (revealedAttemptId === null) {
+    if (revealedPreloadAttemptId === null) {
       return;
     }
 
-    startNextPuzzlePreload(revealedAttemptId);
+    startNextPuzzlePreload(revealedPreloadAttemptId);
 
     return () => {
       preloadedNextRef.current = null;
     };
-  }, [revealedAttemptId, startNextPuzzlePreload]);
+  }, [revealedPreloadAttemptId, startNextPuzzlePreload]);
 
   useEffect(() => {
     if (
