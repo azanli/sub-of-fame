@@ -165,9 +165,9 @@ export const CommentsModal = ({
             <RescueSpaceship phase={rescueAnimationState.phase} />
           </div>
         </div>
-        <div className="relative z-0 min-h-0 flex-1 overflow-visible">
+        <div className="relative z-0 min-h-0 flex-1 flex flex-col">
           <RescueBeamScene animationState={rescueAnimationState} />
-          <div className="relative z-[4] flex h-full flex-col gap-3 overflow-y-auto p-4 pt-0">
+          <div className="relative z-[4] flex flex-1 flex-col gap-3 overflow-y-auto p-4 pt-0">
             {comments.map((comment) => (
               <CommentRankCard
                 key={comment.id}
