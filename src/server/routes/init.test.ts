@@ -91,15 +91,28 @@ const emptyStats = (): UserStatsProfile => ({
 const makeStats = (
   overrides: {
     global?: { correctSlots: number; totalSlots: number };
-    bySubreddit?: Record<string, { correctSlots: number; totalSlots: number }>;
+    bySubreddit?: Record<
+      string,
+      {
+        correctSlots: number;
+        totalSlots: number;
+        currentStreak?: number;
+        highestStreak?: number;
+      }
+    >;
     coins?: number;
   } = {}
 ): UserStatsProfile => {
   const bySubreddit: UserStatsProfile['bySubreddit'] = {};
   for (const [subreddit, counters] of Object.entries(overrides.bySubreddit ?? {})) {
     bySubreddit[subreddit] = {
-      aggregate: counters,
+      aggregate: {
+        correctSlots: counters.correctSlots,
+        totalSlots: counters.totalSlots,
+      },
       byTimeframe: {},
+      currentStreak: counters.currentStreak ?? 0,
+      highestStreak: counters.highestStreak ?? 0,
     };
   }
 
@@ -175,6 +188,8 @@ describe('init — logged-out', () => {
           userSubredditHiveIQ: null,
           completedRoundCount: 0,
           leaderboardRank: null,
+          currentStreak: 0,
+          highestStreak: 0,
         },
       ],
       activeSubredditMetrics: null,
@@ -302,6 +317,28 @@ describe('init — logged-in Hub', () => {
 
     const askredditCard = result.dashboardSubreddits?.find((card) => card.subreddit === 'askreddit');
     expect(askredditCard?.userSubredditHiveIQ).toBe(150);
+  });
+
+  it('serializes per-subreddit current and highest streaks on dashboard cards', async () => {
+    mockGetStats.mockResolvedValue(
+      makeStats({
+        bySubreddit: {
+          askreddit: {
+            correctSlots: 6,
+            totalSlots: 9,
+            currentStreak: 3,
+            highestStreak: 8,
+          },
+        },
+      })
+    );
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    const result = await caller.init();
+
+    const askredditCard = result.dashboardSubreddits?.find((card) => card.subreddit === 'askreddit');
+    expect(askredditCard?.currentStreak).toBe(3);
+    expect(askredditCard?.highestStreak).toBe(8);
   });
 
   it('sorts dashboardSubreddits by completedRoundCount descending', async () => {
@@ -521,6 +558,8 @@ describe('init — logged-in Community', () => {
         userSubredditHiveIQ: 125,
         completedRoundCount: 2,
         leaderboardRank: 2,
+        currentStreak: 0,
+        highestStreak: 0,
       },
     ]);
     expect(result.campaignMetrics).toHaveLength(6);

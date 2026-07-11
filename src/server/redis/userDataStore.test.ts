@@ -35,6 +35,8 @@ beforeEach(() => {
       customsub: {
         aggregate: { correctSlots: 1, totalSlots: 3 },
         byTimeframe: {},
+        currentStreak: 0,
+        highestStreak: 0,
       },
     },
     coins: 2,

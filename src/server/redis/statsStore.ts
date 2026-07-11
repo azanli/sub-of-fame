@@ -14,6 +14,8 @@ import {
   statsCampaignCorrectField,
   statsCampaignTotalField,
   statsSubredditCorrectField,
+  statsSubredditCurrentStreakField,
+  statsSubredditHighestStreakField,
   statsSubredditTotalField,
 } from './campaignKeys';
 import {
@@ -30,6 +32,8 @@ import {
 export const WELCOME_COINS = 3;
 
 const EMPTY_COUNTERS: PerformanceCounters = { correctSlots: 0, totalSlots: 0 };
+
+const EMPTY_SUBREDDIT_STREAKS = { currentStreak: 0, highestStreak: 0 } as const;
 
 const parseStoredGameMode = (raw: string | undefined): GameMode => {
   if (raw === 'casual' || raw === 'expert') {
@@ -132,6 +136,43 @@ export const updateStreakAfterRound = async (
   await redis.hSet(key, { [currentField]: '0' });
 };
 
+/**
+ * Increments the per-subreddit current streak by 1 and raises highest when needed.
+ * Global `streak:*` fields are left untouched.
+ */
+export const incrementStreak = async (
+  userId: string,
+  subredditName: string
+): Promise<{ currentStreak: number; highestStreak: number }> => {
+  const key = statsKey(userId);
+  const currentField = statsSubredditCurrentStreakField(subredditName);
+  const highestField = statsSubredditHighestStreakField(subredditName);
+
+  const newCurrent = await redis.hIncrBy(key, currentField, 1);
+  const highestRaw = await redis.hGet(key, highestField);
+  const highest = parseStoredStreak(highestRaw);
+
+  if (newCurrent > highest) {
+    await redis.hSet(key, { [highestField]: String(newCurrent) });
+    return { currentStreak: newCurrent, highestStreak: newCurrent };
+  }
+
+  return { currentStreak: newCurrent, highestStreak: highest };
+};
+
+/**
+ * Resets the per-subreddit current streak to 0 without modifying highest.
+ * Global `streak:*` fields are left untouched.
+ */
+export const resetStreak = async (
+  userId: string,
+  subredditName: string
+): Promise<void> => {
+  await redis.hSet(statsKey(userId), {
+    [statsSubredditCurrentStreakField(subredditName)]: '0',
+  });
+};
+
 export const deductCoins = async (
   userId: string,
   amount: number
@@ -164,9 +205,32 @@ const VALID_TIMEFRAMES: CampaignTimeframe[] = [
   'now',
 ];
 
-const parseStatsField = (
-  field: string
-): { subreddit: string; kind: 'aggregate' | 'campaign'; timeframe?: CampaignTimeframe; counter: 'correct' | 'total' } | null => {
+type ParsedStatsField =
+  | {
+      subreddit: string;
+      kind: 'aggregate' | 'campaign';
+      timeframe?: CampaignTimeframe;
+      counter: 'correct' | 'total';
+    }
+  | {
+      subreddit: string;
+      kind: 'streak';
+      streak: 'current' | 'highest';
+    };
+
+const parseStatsField = (field: string): ParsedStatsField | null => {
+  const streakMatch = /^sub:(.+):streak:(current|highest)$/.exec(field);
+  if (streakMatch) {
+    const [, subreddit, streakKind] = streakMatch;
+    if (
+      subreddit !== undefined &&
+      (streakKind === 'current' || streakKind === 'highest')
+    ) {
+      return { subreddit, kind: 'streak', streak: streakKind };
+    }
+    return null;
+  }
+
   const aggregateMatch = /^sub:(.+):(correct|total)$/.exec(field);
   if (aggregateMatch) {
     const [, subreddit, counterKind] = aggregateMatch;
@@ -215,6 +279,8 @@ export const getStats = async (userId: string): Promise<UserStatsProfile> => {
       bySubreddit[subreddit] = {
         aggregate: { ...EMPTY_COUNTERS },
         byTimeframe: {},
+        currentStreak: 0,
+        highestStreak: 0,
       };
     }
     return bySubreddit[subreddit]!;
@@ -227,6 +293,15 @@ export const getStats = async (userId: string): Promise<UserStatsProfile> => {
     const amount = parseInt(value, 10);
     const normalized = Number.isFinite(amount) ? amount : 0;
     const profile = ensureSubreddit(parsed.subreddit);
+
+    if (parsed.kind === 'streak') {
+      if (parsed.streak === 'current') {
+        profile.currentStreak = parseStoredStreak(value);
+      } else {
+        profile.highestStreak = parseStoredStreak(value);
+      }
+      continue;
+    }
 
     if (parsed.kind === 'aggregate') {
       if (parsed.counter === 'correct') {
@@ -264,6 +339,20 @@ export const getSubredditAggregate = (
   subredditName: string
 ): PerformanceCounters =>
   stats.bySubreddit[subredditName]?.aggregate ?? EMPTY_COUNTERS;
+
+export const getSubredditStreaks = (
+  stats: UserStatsProfile,
+  subredditName: string
+): { currentStreak: number; highestStreak: number } => {
+  const profile = stats.bySubreddit[subredditName];
+  if (profile === undefined) {
+    return { ...EMPTY_SUBREDDIT_STREAKS };
+  }
+  return {
+    currentStreak: profile.currentStreak,
+    highestStreak: profile.highestStreak,
+  };
+};
 
 export const getCampaignStats = (
   stats: UserStatsProfile,

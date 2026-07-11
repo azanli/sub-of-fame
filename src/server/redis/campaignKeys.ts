@@ -101,6 +101,14 @@ export const statsSubredditCorrectField = (subredditName: string): string =>
 export const statsSubredditTotalField = (subredditName: string): string =>
   `sub:${subredditName}:total`;
 
+/** Subreddit streak: `sub:{subredditName}:streak:current` */
+export const statsSubredditCurrentStreakField = (subredditName: string): string =>
+  `sub:${subredditName}:streak:current`;
+
+/** Subreddit streak: `sub:{subredditName}:streak:highest` */
+export const statsSubredditHighestStreakField = (subredditName: string): string =>
+  `sub:${subredditName}:streak:highest`;
+
 // ─── Ladder pipeline policy resolvers ───────────────────────────────────────────
 
 /** Ladder page TTL by campaign timeframe; Daily Challenge subreddit keeps its own TTL. */

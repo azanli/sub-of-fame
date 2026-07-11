@@ -13,6 +13,8 @@ import {
   statsCampaignCorrectField,
   statsCampaignTotalField,
   statsSubredditCorrectField,
+  statsSubredditCurrentStreakField,
+  statsSubredditHighestStreakField,
   statsSubredditTotalField,
   DAY_LADDER_PAGE_TTL_S,
   NOW_LADDER_PAGE_TTL_S,
@@ -90,6 +92,14 @@ describe('stats field builders', () => {
 
   it('statsSubredditTotalField is rollup without timeframe', () => {
     expect(statsSubredditTotalField('funny')).toBe('sub:funny:total');
+  });
+
+  it('statsSubredditCurrentStreakField builds the subreddit streak current field', () => {
+    expect(statsSubredditCurrentStreakField('funny')).toBe('sub:funny:streak:current');
+  });
+
+  it('statsSubredditHighestStreakField builds the subreddit streak highest field', () => {
+    expect(statsSubredditHighestStreakField('funny')).toBe('sub:funny:streak:highest');
   });
 });
 

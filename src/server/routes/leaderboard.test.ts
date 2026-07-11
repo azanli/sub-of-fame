@@ -110,6 +110,8 @@ describe('leaderboard.getPage', () => {
         askreddit: {
           aggregate: { correctSlots: 6, totalSlots: 9 },
           byTimeframe: {},
+          currentStreak: 0,
+          highestStreak: 0,
         },
       },
       coins: 3,

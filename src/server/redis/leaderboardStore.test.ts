@@ -186,6 +186,56 @@ describe('getEcosystemLeaderboardPage', () => {
   });
 });
 
+describe('getLeaderboardPage streak hydration', () => {
+  it('uses per-subreddit highest streak for subreddit leaderboard rows', async () => {
+    mockHGetAll.mockImplementation(async (key: string) => {
+      if (key === 'user:u1:stats') {
+        return {
+          'sub:askreddit:correct': '9',
+          'sub:askreddit:total': '9',
+          'streak:highest': '99',
+          'sub:askreddit:streak:highest': '4',
+        };
+      }
+      if (key === 'user:u2:stats') {
+        return {
+          'sub:askreddit:correct': '6',
+          'sub:askreddit:total': '9',
+          'sub:askreddit:streak:highest': '2',
+        };
+      }
+      if (key === 'user:u3:stats') {
+        return {
+          'sub:askreddit:correct': '3',
+          'sub:askreddit:total': '9',
+        };
+      }
+      return {};
+    });
+    mockHGet.mockImplementation(async (key: string, field: string) => {
+      if (field !== 'username') {
+        return undefined;
+      }
+      if (key === 'user:u1:profile') {
+        return 'alpha';
+      }
+      if (key === 'user:u2:profile') {
+        return 'beta';
+      }
+      if (key === 'user:u3:profile') {
+        return 'gamma';
+      }
+      return undefined;
+    });
+
+    const entries = await getLeaderboardPage(askredditAllCtx, 0, 3, 'u2');
+
+    expect(entries[0]?.highestStreak).toBe(4);
+    expect(entries[1]?.highestStreak).toBe(2);
+    expect(entries[2]?.highestStreak).toBe(0);
+  });
+});
+
 describe('getLeaderboardDisplayPage', () => {
   it('returns top entries without appending when the viewer is already included', async () => {
     mockHGet.mockImplementation(async (key: string, field: string) => {

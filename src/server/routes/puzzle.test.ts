@@ -621,6 +621,8 @@ describe('puzzle.submit', () => {
           byTimeframe: {
             all: { correctSlots: 3, totalSlots: 6 },
           },
+          currentStreak: 0,
+          highestStreak: 0,
         },
       },
       coins: 5,
@@ -1338,6 +1340,8 @@ describe('puzzle.forfeit', () => {
         askreddit: {
           aggregate: { correctSlots: 0, totalSlots: 3 },
           byTimeframe: {},
+          currentStreak: 0,
+          highestStreak: 0,
         },
       },
       coins: 5,

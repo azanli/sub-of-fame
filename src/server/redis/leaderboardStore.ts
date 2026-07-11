@@ -6,6 +6,7 @@ import {
   ecosystemLeaderboardKey,
   legacyLeaderboardKey,
   statsSubredditCorrectField,
+  statsSubredditHighestStreakField,
   statsSubredditTotalField,
 } from './campaignKeys';
 import {
@@ -52,8 +53,11 @@ const copyLegacyLeaderboardIfEmpty = async (ctx: CampaignContext): Promise<void>
   );
 };
 
-const parseHighestStreak = (statsFields: Record<string, string>): number => {
-  const raw = statsFields[statsHighestStreakField()];
+const parseStreakField = (
+  statsFields: Record<string, string>,
+  field: string
+): number => {
+  const raw = statsFields[field];
   if (raw === undefined) {
     return 0;
   }
@@ -67,7 +71,13 @@ const hydrateMember = (
   statsFields: Record<string, string>,
   scope: StatsHydrationScope
 ): HydratedMember => {
-  const highestStreak = parseHighestStreak(statsFields);
+  const highestStreak =
+    scope.kind === 'global'
+      ? parseStreakField(statsFields, statsHighestStreakField())
+      : parseStreakField(
+          statsFields,
+          statsSubredditHighestStreakField(scope.subredditName)
+        );
 
   if (scope.kind === 'global') {
     const correct = parseInt(statsFields[statsGlobalCorrectField()] ?? '0', 10);

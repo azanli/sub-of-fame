@@ -7,6 +7,7 @@ import {
   ensureWelcomeCoins,
   getGameMode,
   getSubredditAggregate,
+  getSubredditStreaks,
   getCampaignStats,
   subredditHasAnyStats,
 } from '../redis/statsStore';
@@ -80,6 +81,7 @@ const buildDashboardSubreddits = async (
       }
 
       const aggregateStats = getSubredditAggregate(stats, subreddit);
+      const streaks = getSubredditStreaks(stats, subreddit);
       const allTimeCtx: CampaignContext = {
         subredditName: subreddit,
         timeframe: DEFAULT_CAMPAIGN_TIMEFRAME,
@@ -100,6 +102,8 @@ const buildDashboardSubreddits = async (
         ),
         completedRoundCount: Math.floor(aggregateStats.totalSlots / 3),
         leaderboardRank,
+        currentStreak: streaks.currentStreak,
+        highestStreak: streaks.highestStreak,
       };
     })
   );
@@ -137,6 +141,8 @@ const buildHostDashboardCard = async (
     userId?: string;
     currentRankIndex?: number;
     hostStats?: { correctSlots: number; totalSlots: number };
+    currentStreak?: number;
+    highestStreak?: number;
   } = {}
 ): Promise<SubredditDashboardCard | null> => {
   const metadata = await resolveSubredditMetadata(hostSubreddit, reddit);
@@ -160,6 +166,8 @@ const buildHostDashboardCard = async (
     userSubredditHiveIQ: computeHiveIQ(hostStats.correctSlots, hostStats.totalSlots),
     completedRoundCount: Math.floor(hostStats.totalSlots / 3),
     leaderboardRank,
+    currentStreak: options.currentStreak ?? 0,
+    highestStreak: options.highestStreak ?? 0,
   };
 };
 
@@ -170,6 +178,8 @@ const buildHostDashboardSubreddits = async (
     userId?: string;
     currentRankIndex?: number;
     hostStats?: { correctSlots: number; totalSlots: number };
+    currentStreak?: number;
+    highestStreak?: number;
   } = {}
 ): Promise<SubredditDashboardCard[] | null> => {
   const card = await buildHostDashboardCard(hostSubreddit, reddit, options);
@@ -280,12 +290,15 @@ export const initRouter = router({
     ]);
 
     const hostAggregateStats = getSubredditAggregate(stats, hostSubreddit);
+    const hostStreaks = getSubredditStreaks(stats, hostSubreddit);
 
     const [dashboardSubreddits, campaignMetrics] = await Promise.all([
       buildHostDashboardSubreddits(hostSubreddit, ctx.reddit, {
         userId,
         currentRankIndex,
         hostStats: hostAggregateStats,
+        currentStreak: hostStreaks.currentStreak,
+        highestStreak: hostStreaks.highestStreak,
       }),
       buildCampaignMetrics(hostSubreddit, userId, stats, progressEntries),
     ]);

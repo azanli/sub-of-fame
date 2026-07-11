@@ -29,7 +29,9 @@ const {
   ensureWelcomeCoins,
   getGameMode,
   incrementStats,
+  incrementStreak,
   getStats,
+  resetStreak,
   setGameMode,
   updateStreakAfterRound,
 } = await import('./statsStore');
@@ -199,6 +201,44 @@ describe('updateStreakAfterRound', () => {
   });
 });
 
+describe('incrementStreak', () => {
+  it('increments current streak and updates highest on a new record', async () => {
+    mockHIncrBy.mockResolvedValue(4);
+    mockHGet.mockResolvedValue('3');
+
+    const result = await incrementStreak('u1', 'gaming');
+
+    expect(result).toEqual({ currentStreak: 4, highestStreak: 4 });
+    expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'sub:gaming:streak:current', 1);
+    expect(mockHGet).toHaveBeenCalledWith('user:u1:stats', 'sub:gaming:streak:highest');
+    expect(mockHSet).toHaveBeenCalledWith('user:u1:stats', {
+      'sub:gaming:streak:highest': '4',
+    });
+  });
+
+  it('increments current without updating highest when not a new record', async () => {
+    mockHIncrBy.mockResolvedValue(2);
+    mockHGet.mockResolvedValue('5');
+
+    const result = await incrementStreak('u1', 'gaming');
+
+    expect(result).toEqual({ currentStreak: 2, highestStreak: 5 });
+    expect(mockHIncrBy).toHaveBeenCalledWith('user:u1:stats', 'sub:gaming:streak:current', 1);
+    expect(mockHSet).not.toHaveBeenCalled();
+  });
+});
+
+describe('resetStreak', () => {
+  it('sets current streak to 0 without touching highest', async () => {
+    await resetStreak('u1', 'gaming');
+
+    expect(mockHSet).toHaveBeenCalledWith('user:u1:stats', {
+      'sub:gaming:streak:current': '0',
+    });
+    expect(mockHSet).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('deductCoins', () => {
   it('returns the new balance when the wallet has enough coins', async () => {
     mockHIncrBy.mockResolvedValueOnce(75);
@@ -268,12 +308,50 @@ describe('getStats', () => {
       byTimeframe: {
         all: { correctSlots: 3, totalSlots: 6 },
       },
+      currentStreak: 0,
+      highestStreak: 0,
     });
     expect(stats.bySubreddit['askreddit']).toEqual({
       aggregate: { correctSlots: 2, totalSlots: 3 },
       byTimeframe: {},
+      currentStreak: 0,
+      highestStreak: 0,
     });
     expect(stats.coins).toBe(12);
+  });
+
+  it('parses per-subreddit streak fields', async () => {
+    mockHGetAll.mockResolvedValue({
+      'sub:gaming:correct': '3',
+      'sub:gaming:total': '6',
+      'sub:gaming:streak:current': '2',
+      'sub:gaming:streak:highest': '5',
+      'sub:askreddit:streak:current': '1',
+      'sub:askreddit:streak:highest': '1',
+    });
+    const stats = await getStats('u1');
+    expect(stats.bySubreddit['gaming']).toEqual({
+      aggregate: { correctSlots: 3, totalSlots: 6 },
+      byTimeframe: {},
+      currentStreak: 2,
+      highestStreak: 5,
+    });
+    expect(stats.bySubreddit['askreddit']).toEqual({
+      aggregate: { correctSlots: 0, totalSlots: 0 },
+      byTimeframe: {},
+      currentStreak: 1,
+      highestStreak: 1,
+    });
+  });
+
+  it('defaults malformed streak values to 0', async () => {
+    mockHGetAll.mockResolvedValue({
+      'sub:gaming:streak:current': 'NaN',
+      'sub:gaming:streak:highest': '-3',
+    });
+    const stats = await getStats('u1');
+    expect(stats.bySubreddit['gaming']?.currentStreak).toBe(0);
+    expect(stats.bySubreddit['gaming']?.highestStreak).toBe(0);
   });
 
   it('defaults malformed counter values to 0', async () => {

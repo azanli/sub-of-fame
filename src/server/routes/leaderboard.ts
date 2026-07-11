@@ -6,6 +6,7 @@ import {
   computeHiveIQ,
   getStats,
   getSubredditAggregate,
+  getSubredditStreaks,
 } from '../redis/statsStore';
 import {
   getEcosystemLeaderboardDisplayPage,
@@ -77,6 +78,7 @@ const buildActiveSubredditCards = async (
       }
 
       const aggregateStats = getSubredditAggregate(stats, subreddit);
+      const streaks = getSubredditStreaks(stats, subreddit);
       const allTimeCtx: CampaignContext = {
         subredditName: subreddit,
         timeframe: DEFAULT_CAMPAIGN_TIMEFRAME,
@@ -104,6 +106,8 @@ const buildActiveSubredditCards = async (
         ),
         completedRoundCount,
         leaderboardRank,
+        currentStreak: streaks.currentStreak,
+        highestStreak: streaks.highestStreak,
       };
     })
   );

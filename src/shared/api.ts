@@ -75,6 +75,10 @@ export type SubredditStatsProfile = {
   /** Rolled up across all timeframe campaigns in this subreddit. */
   aggregate: PerformanceCounters;
   byTimeframe: Partial<Record<CampaignTimeframe, PerformanceCounters>>;
+  /** Active consecutive wins for this subreddit; defaults to 0. */
+  currentStreak: number;
+  /** All-time best consecutive wins for this subreddit; defaults to 0. */
+  highestStreak: number;
 };
 
 export type UserStatsProfile = {
@@ -116,6 +120,10 @@ export type SubredditDashboardCard = SubredditDisplayMetadata & {
   userSubredditHiveIQ: number | null;
   completedRoundCount: number;
   leaderboardRank: number | null;
+  /** Active consecutive wins for this subreddit; defaults to 0. */
+  currentStreak: number;
+  /** All-time best consecutive wins for this subreddit; defaults to 0. */
+  highestStreak: number;
 };
 
 export type LeaderboardScope =
