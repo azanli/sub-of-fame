@@ -1,13 +1,29 @@
+import type { FaqVariant } from './FaqSection';
+
 type HowToPlayStep = {
   title: string;
-  description: string;
+  description?: string;
+  hub?: string;
+  subreddit?: string;
+};
+
+const getStepDescription = (
+  step: HowToPlayStep,
+  variant: FaqVariant
+): string => {
+  if (step.description !== undefined) {
+    return step.description;
+  }
+
+  return step[variant] ?? '';
 };
 
 const HOW_TO_PLAY_STEPS: HowToPlayStep[] = [
   {
     title: 'Pick a campaign',
-    description:
-      'Choose a subreddit campaign from the dashboard or enter a custom subreddit to unlock.',
+    hub: 'Choose a subreddit campaign from the dashboard or enter a custom subreddit to unlock.',
+    subreddit:
+      "Choose a timeframe in the community's campaign from the dashboard to start.",
   },
   {
     title: 'Read the post',
@@ -26,7 +42,11 @@ const HOW_TO_PLAY_STEPS: HowToPlayStep[] = [
   },
 ];
 
-export const HowToPlaySection = () => (
+type HowToPlaySectionProps = {
+  variant: FaqVariant;
+};
+
+export const HowToPlaySection = ({ variant }: HowToPlaySectionProps) => (
   <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
     <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
       How to Play
@@ -46,7 +66,7 @@ export const HowToPlaySection = () => (
               {step.title}
             </p>
             <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-              {step.description}
+              {getStepDescription(step, variant)}
             </p>
           </div>
         </li>

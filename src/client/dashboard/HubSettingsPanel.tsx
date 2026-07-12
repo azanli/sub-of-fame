@@ -50,7 +50,7 @@ export const HubSettingsPanel = ({
             {gameModeError}
           </p>
         ) : null}
-        <HowToPlaySection />
+        <HowToPlaySection variant={faqVariant} />
         <FaqSection variant={faqVariant} />
         {isLoggedIn ? (
           <DeleteUserDataSection
