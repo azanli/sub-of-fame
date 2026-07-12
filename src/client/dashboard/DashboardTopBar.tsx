@@ -26,8 +26,7 @@ export const DashboardTopBar = ({
     <div className="flex items-center gap-2">
       <button
         type="button"
-        // TODO: Remove for release
-        onDoubleClick={onLeaderboardClick}
+        onClick={onLeaderboardClick}
         className={`${secondaryPillClasses} rounded-full px-4`}
       >
         <span className="inline-flex items-center gap-1">
