@@ -224,7 +224,10 @@ export const App = ({ preloadedInit }: AppProps) => {
         activeSession.campaignSubreddit === null ||
         activeSession.campaignTimeframe === null
       ) {
-        throw { type: 'problem', message: 'No campaign selected.' } satisfies PuzzleLoadFailure;
+        throw {
+          type: 'problem',
+          message: 'No campaign selected.',
+        } satisfies PuzzleLoadFailure;
       }
 
       const effectiveRankIndex = activeSession.isLoggedIn
@@ -482,7 +485,10 @@ export const App = ({ preloadedInit }: AppProps) => {
         return;
       }
 
-      if (activeSession.campaignSubreddit === null || activeSession.campaignTimeframe === null) {
+      if (
+        activeSession.campaignSubreddit === null ||
+        activeSession.campaignTimeframe === null
+      ) {
         refreshHubDashboardRef.current();
         return;
       }
@@ -553,7 +559,9 @@ export const App = ({ preloadedInit }: AppProps) => {
     if (activeSession !== null) {
       const resetSession: SessionContext = {
         ...activeSession,
-        campaignSubreddit: activeSession.isHub ? null : activeSession.campaignSubreddit,
+        campaignSubreddit: activeSession.isHub
+          ? null
+          : activeSession.campaignSubreddit,
         campaignTimeframe: null,
       };
       sessionRef.current = resetSession;
@@ -598,36 +606,33 @@ export const App = ({ preloadedInit }: AppProps) => {
     beginHubLoad(trpcClient.init.query());
   }, [beginHubLoad, preloadedInit]);
 
-  const handleGameModeChange = useCallback(
-    async (mode: GameMode) => {
-      const previousMode = initDataRef.current?.gameMode;
-      setGameModeError(null);
-      setInitData((current) =>
-        current === null ? current : { ...current, gameMode: mode }
-      );
+  const handleGameModeChange = useCallback(async (mode: GameMode) => {
+    const previousMode = initDataRef.current?.gameMode;
+    setGameModeError(null);
+    setInitData((current) =>
+      current === null ? current : { ...current, gameMode: mode }
+    );
 
-      const activeSession = sessionRef.current;
-      if (activeSession?.isLoggedIn) {
-        setIsSavingGameMode(true);
-        try {
-          await trpcClient.session.setGameMode.mutate({ gameMode: mode });
-        } catch {
-          setInitData((current) =>
-            current === null || previousMode === undefined
-              ? current
-              : { ...current, gameMode: previousMode }
-          );
-          setGameModeError('Could not save gameplay mode. Please try again.');
-        } finally {
-          setIsSavingGameMode(false);
-        }
-        return;
+    const activeSession = sessionRef.current;
+    if (activeSession?.isLoggedIn) {
+      setIsSavingGameMode(true);
+      try {
+        await trpcClient.session.setGameMode.mutate({ gameMode: mode });
+      } catch {
+        setInitData((current) =>
+          current === null || previousMode === undefined
+            ? current
+            : { ...current, gameMode: previousMode }
+        );
+        setGameModeError('Could not save gameplay mode. Please try again.');
+      } finally {
+        setIsSavingGameMode(false);
       }
+      return;
+    }
 
-      writeLocalGameMode(mode);
-    },
-    []
-  );
+    writeLocalGameMode(mode);
+  }, []);
 
   const handleSelectCampaign = useCallback(
     (timeframe: CampaignTimeframe) => {
@@ -637,7 +642,8 @@ export const App = ({ preloadedInit }: AppProps) => {
         return;
       }
 
-      const hostSubreddit = currentInit.activeSubreddit ?? currentInit.hostSubreddit;
+      const hostSubreddit =
+        currentInit.activeSubreddit ?? currentInit.hostSubreddit;
       const updatedSession: SessionContext = {
         ...activeSession,
         campaignSubreddit: hostSubreddit,
@@ -660,13 +666,7 @@ export const App = ({ preloadedInit }: AppProps) => {
         setLoadingCampaignTimeframe(null);
       });
 
-      beginPuzzleLoad(
-        puzzlePromise,
-        0,
-        undefined,
-        hostSubreddit,
-        false
-      );
+      beginPuzzleLoad(puzzlePromise, 0, undefined, hostSubreddit, false);
     },
     [beginPuzzleLoad, fetchNextPuzzle]
   );
@@ -852,36 +852,39 @@ export const App = ({ preloadedInit }: AppProps) => {
     });
   }, []);
 
-  const handleHint = useCallback(async (attemptId: string): Promise<string | null> => {
-    const puzzle = activePuzzleRef.current;
-    if (puzzle === null || puzzle.attemptId !== attemptId) {
-      return null;
-    }
-
-    try {
-      const result = await Promise.race([
-        trpcClient.puzzle.hint.mutate({ attemptId }),
-        new Promise<never>((_, reject) => {
-          window.setTimeout(() => {
-            reject(new Error('hint request timed out'));
-          }, HINT_REQUEST_TIMEOUT_MS);
-        }),
-      ]);
-
-      if (result.status === 'hinted') {
-        if (result.coins !== null) {
-          setInitData((current) =>
-            current === null ? current : { ...current, coins: result.coins }
-          );
-        }
-        return result.commentId;
+  const handleHint = useCallback(
+    async (attemptId: string): Promise<string | null> => {
+      const puzzle = activePuzzleRef.current;
+      if (puzzle === null || puzzle.attemptId !== attemptId) {
+        return null;
       }
 
-      return null;
-    } catch {
-      return null;
-    }
-  }, []);
+      try {
+        const result = await Promise.race([
+          trpcClient.puzzle.hint.mutate({ attemptId }),
+          new Promise<never>((_, reject) => {
+            window.setTimeout(() => {
+              reject(new Error('hint request timed out'));
+            }, HINT_REQUEST_TIMEOUT_MS);
+          }),
+        ]);
+
+        if (result.status === 'hinted') {
+          if (result.coins !== null) {
+            setInitData((current) =>
+              current === null ? current : { ...current, coins: result.coins }
+            );
+          }
+          return result.commentId;
+        }
+
+        return null;
+      } catch {
+        return null;
+      }
+    },
+    []
+  );
 
   const handleForfeit = useCallback(async () => {
     const puzzle = activePuzzleRef.current;
@@ -1025,7 +1028,9 @@ export const App = ({ preloadedInit }: AppProps) => {
     setDeleteUserDataError(null);
     setIsDeletingUserData(true);
     try {
-      await trpcClient.session.deleteUserData.mutate({ confirmation: 'Delete' });
+      await trpcClient.session.deleteUserData.mutate({
+        confirmation: 'Delete',
+      });
       refreshHubDashboard();
     } catch {
       setDeleteUserDataError('Could not delete your data. Please try again.');
