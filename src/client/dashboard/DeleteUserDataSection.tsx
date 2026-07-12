@@ -34,8 +34,7 @@ export const DeleteUserDataSection = ({
         <span className="font-semibold">
           This action is permanent and cannot be undone.
         </span>{' '}
-        All of your progress, stats, Karma Coins, Hive IQ scores, and leaderboard
-        rankings will be permanently deleted from our servers.
+        All of your data will be permanently deleted.
       </p>
 
       <label className="mt-3 block">
