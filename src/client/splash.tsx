@@ -37,12 +37,6 @@ const PlayIcon = () => (
   </svg>
 );
 
-const SplashFooter = () => (
-  <footer className="absolute bottom-3 left-0 right-0 px-4 text-center text-[0.65rem] leading-relaxed text-gray-600">
-    α Build v0.1.0-alpha • Environment: Sandbox • Report bugs to r/SubOfFame
-  </footer>
-);
-
 const OnboardingStepRow = ({ icon, copy }: { icon: string; copy: string }) => (
   <div className="flex w-full max-w-md items-center justify-center gap-3 rounded-xl bg-gray-800/70 px-6 py-3.5">
     <div
@@ -132,7 +126,7 @@ const SplashScreen = ({
           <button
             type="button"
             onClick={handleLaunch}
-            className="cursor-pointer rounded-full bg-[#d93900] px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#c23300]"
+            className="cursor-pointer rounded-full bg-[#d93900] px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#c23300] animate-bounce"
           >
             <div className="flex items-center justify-center gap-2">
               Play
@@ -141,8 +135,6 @@ const SplashScreen = ({
           </button>
         )}
       </div>
-
-      <SplashFooter />
     </div>
   );
 };
@@ -168,7 +160,6 @@ const SplashErrorScreen = ({ onRetry }: { onRetry: () => void }) => (
     >
       Retry Connection
     </button>
-    <SplashFooter />
   </div>
 );
 
