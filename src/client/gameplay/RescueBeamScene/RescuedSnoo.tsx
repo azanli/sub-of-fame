@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { RescueAnimationPhase } from '../rescueAnimation';
-import { RESCUE_SCENE, RESCUE_SCENE_IMAGES } from '../rescueAnimation';
+import {
+  pickRescueSnooPose,
+  RESCUE_SCENE,
+  RESCUE_SCENE_IMAGES,
+} from '../rescueAnimation';
 
 const prefersReducedMotion = (): boolean =>
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -33,9 +37,13 @@ const FallingSnooSprite = () => (
   </div>
 );
 
-const CheerSnoo = () => (
+type CheerSnooProps = {
+  src: string;
+};
+
+const CheerSnoo = ({ src }: CheerSnooProps) => (
   <img
-    src={RESCUE_SCENE_IMAGES.snooPensive}
+    src={src}
     alt=""
     aria-hidden="true"
     className="h-[clamp(4rem,14vw,6rem)] w-auto object-contain"
@@ -50,6 +58,7 @@ export const RescuedSnoo = ({
   phase,
 }: RescuedSnooProps) => {
   const isExpired = phase === 'expired';
+  const [snooPoseSrc] = useState(pickRescueSnooPose);
   const [panicSpriteReady, setPanicSpriteReady] = useState(
     () => phase === 'expired' || (phase === 'panic' && prefersReducedMotion())
   );
@@ -101,7 +110,11 @@ export const RescuedSnoo = ({
         })`,
       }}
     >
-      {showFallingSprite ? <FallingSnooSprite /> : <CheerSnoo />}
+      {showFallingSprite ? (
+        <FallingSnooSprite />
+      ) : (
+        <CheerSnoo src={snooPoseSrc} />
+      )}
     </div>
   );
 };

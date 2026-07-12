@@ -26,10 +26,27 @@ export const RESCUE_SCENE_IMAGES = {
   spaceshipPanic: '/spaceship-panic.png',
   spaceshipSad: '/spaceship-sad.png',
   snooPensive: '/snoo-pensive.png',
+  snooDeadpan: '/snoo-deadpan.png',
+  snooLying: '/snoo-lying.png',
+  snooMeditation: '/snoo-meditation.png',
+  snooWave: '/snoo-wave.png',
   snooFalling1: '/snoo-falling-1.png',
   snooFalling2: '/snoo-falling-2.png',
   snooAngel: '/snoo-angel.png',
 } as const;
+
+/** Calm/cheer poses shown while Snoo is being lifted in the rescue beam */
+export const RESCUE_SNOO_POSES = [
+  RESCUE_SCENE_IMAGES.snooPensive,
+  RESCUE_SCENE_IMAGES.snooDeadpan,
+  RESCUE_SCENE_IMAGES.snooLying,
+  RESCUE_SCENE_IMAGES.snooMeditation,
+  RESCUE_SCENE_IMAGES.snooWave,
+] as const;
+
+export const pickRescueSnooPose = (): (typeof RESCUE_SNOO_POSES)[number] =>
+  RESCUE_SNOO_POSES[Math.floor(Math.random() * RESCUE_SNOO_POSES.length)] ??
+  RESCUE_SCENE_IMAGES.snooPensive;
 
 export const preloadRescueSceneImages = (): void => {
   for (const src of Object.values(RESCUE_SCENE_IMAGES)) {
