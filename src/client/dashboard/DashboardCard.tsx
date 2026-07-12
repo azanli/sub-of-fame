@@ -86,11 +86,10 @@ export const DashboardCard = (props: DashboardCardProps) => {
               {!!props.card.currentStreak && (
                 <>
                   <span
-                    className="mx-2 text-sm leading-none text-gray-300 dark:text-gray-600"
+                    // Turned into an inline-block circle with custom dimensions (w-1.5 h-1.5)
+                    className="mx-2 inline-block h-1 w-1 rounded-full bg-gray-300 dark:bg-gray-600"
                     aria-hidden="true"
-                  >
-                    ·
-                  </span>
+                  />
                   🔥{' '}
                   <span className="tabular-nums">
                     {props.card.currentStreak}
