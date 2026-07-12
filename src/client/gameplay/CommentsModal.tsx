@@ -154,9 +154,7 @@ export const CommentsModal = ({
             )}
           </div>
           <div className="flex shrink-0 items-center justify-end gap-2">
-            {coinBalance !== null ? (
-              <CoinBalanceBadge coins={coinBalance} variant="neutral" />
-            ) : null}
+            <CoinBalanceBadge coins={coinBalance ?? 0} variant="neutral" />
           </div>
           <div
             aria-hidden="true"

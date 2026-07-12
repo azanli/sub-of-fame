@@ -14,7 +14,6 @@ type LeaderboardViewProps = {
 export const LeaderboardView = ({ initData, onBack }: LeaderboardViewProps) => {
   const [data, setData] = useState<LeaderboardPageResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const isLoggedIn = initData.userGlobalHiveIQ !== null;
 
   useEffect(() => {
     let cancelled = false;
@@ -52,9 +51,7 @@ export const LeaderboardView = ({ initData, onBack }: LeaderboardViewProps) => {
           Leaderboard
         </h1>
         <div className="ml-auto">
-          {isLoggedIn && initData.coins !== null ? (
-            <WalletBalanceBadge coins={initData.coins} />
-          ) : null}
+          <WalletBalanceBadge coins={initData.coins ?? 0} />
         </div>
       </div>
 

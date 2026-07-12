@@ -385,13 +385,7 @@ export const RevealScreen = ({
       ) : null}
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
         <div className="flex flex-col gap-6 p-4 pb-6">
-          <div
-            className={
-              coinBalance !== null
-                ? 'grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3'
-                : 'flex items-center justify-between gap-3'
-            }
-          >
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3">
             <div className="flex min-w-0 items-center gap-1">
               <button
                 type="button"
@@ -410,20 +404,16 @@ export const RevealScreen = ({
                 {formatSubredditLabel(puzzle.subredditDisplayName)}
               </p>
             </div>
-            {coinBalance !== null ? (
-              <CoinBalanceBadge
-                coins={displayedCoinBalance ?? coinBalance}
-                variant="neutral"
-                className={`shrink-0 transition-transform duration-200 ease-out ${
-                  coinHeaderPulse ? 'scale-105' : 'scale-100'
-                }`}
-              />
-            ) : null}
+            <CoinBalanceBadge
+              coins={displayedCoinBalance ?? coinBalance ?? 0}
+              variant="neutral"
+              className={`shrink-0 transition-transform duration-200 ease-out ${
+                coinHeaderPulse ? 'scale-105' : 'scale-100'
+              }`}
+            />
             <span
               aria-label="Post comment count"
-              className={`relative flex shrink-0 items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400 ${
-                coinBalance !== null ? 'justify-self-end' : ''
-              }`}
+              className="relative flex shrink-0 items-center justify-self-end gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
             >
               <CommentIcon />
               {formatCompactNumber(puzzle.numberOfComments)} comments
