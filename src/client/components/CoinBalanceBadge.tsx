@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { ShopTeaserModal } from './ShopTeaserModal';
+
 type CoinBalanceBadgeVariant = 'neutral' | 'orange' | 'gold';
 
 type CoinBalanceBadgeProps = {
@@ -20,12 +23,29 @@ export const CoinBalanceBadge = ({
   variant,
   className = '',
   'aria-label': ariaLabel = 'Karma Coin balance',
-}: CoinBalanceBadgeProps) => (
-  <span
-    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold ${variantClassNames[variant]} ${className}`}
-    aria-label={ariaLabel}
-  >
-    <img src="/coin.svg" alt="" aria-hidden="true" className="h-5 w-5" />
-    <span className="tabular-nums transition-all duration-200">{coins}</span>
-  </span>
-);
+}: CoinBalanceBadgeProps) => {
+  const [isShopOpen, setIsShopOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setIsShopOpen(true);
+        }}
+        aria-label={`${ariaLabel}. Open The Snoo Exchange`}
+        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold transition-transform transition-opacity duration-100 cursor-pointer active:scale-95 active:opacity-70 ${variantClassNames[variant]} ${className}`}
+      >
+        <img src="/coin.svg" alt="" aria-hidden="true" className="h-5 w-5" />
+        <span className="tabular-nums transition-all duration-200">{coins}</span>
+      </button>
+
+      <ShopTeaserModal
+        open={isShopOpen}
+        onClose={() => {
+          setIsShopOpen(false);
+        }}
+      />
+    </>
+  );
+};
