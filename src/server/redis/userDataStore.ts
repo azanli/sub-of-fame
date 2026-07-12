@@ -6,7 +6,7 @@ import {
   legacyLeaderboardKey,
 } from './campaignKeys';
 import { currentUtcDateStamp } from './dailyChallengeStore';
-import { dailyProgressKey, progressKey, statsKey } from './keys';
+import { dailyProgressKey, progressKey, recentPlaysKey, statsKey } from './keys';
 import { listProgressEntries } from './progressStore';
 import { getStats } from './statsStore';
 
@@ -57,6 +57,7 @@ export const deleteAllUserData = async (userId: string): Promise<void> => {
     redis.del(progressKey(userId)),
     redis.del(statsKey(userId)),
     redis.del(profileKey(userId)),
+    redis.del(recentPlaysKey(userId)),
     ...recentDailyProgressDateStamps().map((dateStamp) =>
       redis.del(dailyProgressKey(userId, dateStamp))
     ),

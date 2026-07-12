@@ -47,10 +47,17 @@ import {
 } from '../redis/statsStore';
 import { updateLeaderboard } from '../redis/leaderboardStore';
 import { upsertUsername } from '../redis/profileStore';
+import {
+  hasRecentPlay,
+  recordRecentPlay,
+} from '../redis/recentPlaysStore';
 import { ATTEMPT_TTL_S } from '../redis/keys';
 import type { PuzzleAttempt, PuzzleAttemptOwner, PuzzleSnapshot } from '../redis/types';
 import type { CampaignContext } from '../../shared/campaignContext';
-import { CAMPAIGN_TIMEFRAME_IDS } from '../../shared/campaignContext';
+import {
+  CAMPAIGN_TIMEFRAME_IDS,
+  campaignUsesRecentPlayGuard,
+} from '../../shared/campaignContext';
 import {
   CASUAL_COIN_AWARDS,
   CASUAL_REVEAL_SCORES,
@@ -531,6 +538,16 @@ export const puzzleRouter = router({
           continue;
         }
 
+        if (
+          ctx.userId !== undefined &&
+          campaignUsesRecentPlayGuard(campaignCtx) &&
+          (await hasRecentPlay(ctx.userId, post.id))
+        ) {
+          budget.itemsCheckedRemaining -= 1;
+          rankIndex = await advanceSkip(ctx.userId, campaignCtx, rankIndex);
+          continue;
+        }
+
         const postPayload: {
           title: string;
           body?: string;
@@ -818,6 +835,7 @@ export const puzzleRouter = router({
         ]);
         coins = updatedCoins;
         nextRankIndex = await advanceRankIndex(attempt.owner.userId, attemptCtx);
+        await recordRecentPlay(attempt.owner.userId, attempt.sourcePostId);
         await updateLeaderboard(attemptCtx, attempt.owner.userId, attempt.rankIndex);
         const submitUsername = await ctx.reddit.getCurrentUsername();
         if (submitUsername !== undefined) {
@@ -962,6 +980,10 @@ export const puzzleRouter = router({
               attemptCampaignContext(attempt)
             )
           : attempt.rankIndex + 1;
+
+      if (attempt.owner.kind === 'user') {
+        await recordRecentPlay(attempt.owner.userId, attempt.sourcePostId);
+      }
 
       return {
         status: 'skipped',
@@ -1200,6 +1222,7 @@ export const puzzleRouter = router({
         ]);
         coins = updatedCoins;
         nextRankIndex = await advanceRankIndex(attempt.owner.userId, attemptCtx);
+        await recordRecentPlay(attempt.owner.userId, attempt.sourcePostId);
         await updateLeaderboard(attemptCtx, attempt.owner.userId, attempt.rankIndex);
 
         const stats = await getStats(attempt.owner.userId);

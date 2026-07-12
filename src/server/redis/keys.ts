@@ -10,6 +10,8 @@ export const METADATA_TTL_S = 7 * 24 * 60 * 60; // 7 days
 export const LADDER_PAGE_TTL_S = 7 * 24 * 60 * 60; // 7 days
 export const LADDER_CURSORS_TTL_S = 30 * 24 * 60 * 60; // 30 days
 export const SNAPSHOT_TTL_S = 7 * 24 * 60 * 60; // 7 days
+/** Sliding window for recently revealed post IDs on volatile ladders; matches snapshot TTL. */
+export const RECENT_PLAYS_TTL_S = SNAPSHOT_TTL_S;
 export const ATTEMPT_TTL_S = 60 * 60; // 1 hour
 export const SUBMIT_LOCK_TTL_S = 60 * 60; // 1 hour
 
@@ -55,6 +57,14 @@ export const dailyProgressKey = (userId: string, dateStamp: string): string =>
 
 /** `user:{userId}:stats` — hash of stat fields → counter (integer string) */
 export const statsKey = (userId: string): string => `user:${userId}:stats`;
+
+/**
+ * `user:{userId}:recent-plays` — ZSET of sourcePostId → reveal timestamp (unix ms).
+ * Used to skip recently revealed posts on Gauntlet / now / day ladders. TTL is a
+ * cleanup safeguard; members older than RECENT_PLAYS_TTL_S are pruned on write.
+ */
+export const recentPlaysKey = (userId: string): string =>
+  `user:${userId}:recent-plays`;
 
 /** `leaderboard:{subredditName}` — sorted set of userId → bestClearedRankIndex */
 export const leaderboardKey = (subredditName: string): string =>

@@ -65,6 +65,7 @@ describe('deleteAllUserData', () => {
     expect(mockDel).toHaveBeenCalledWith('user:u1:progress');
     expect(mockDel).toHaveBeenCalledWith('user:u1:stats');
     expect(mockDel).toHaveBeenCalledWith('user:u1:profile');
+    expect(mockDel).toHaveBeenCalledWith('user:u1:recent-plays');
     expect(mockDel).toHaveBeenCalledWith('user:u1:daily-progress:2026-07-07');
     expect(mockDel).toHaveBeenCalledWith('user:u1:daily-progress:2026-07-06');
     expect(mockDel).toHaveBeenCalledWith('user:u1:daily-progress:2026-07-05');
@@ -86,5 +87,6 @@ describe('deleteAllUserData', () => {
     expect(mockDel).toHaveBeenCalledWith('user:u-empty:progress');
     expect(mockDel).toHaveBeenCalledWith('user:u-empty:stats');
     expect(mockDel).toHaveBeenCalledWith('user:u-empty:profile');
+    expect(mockDel).toHaveBeenCalledWith('user:u-empty:recent-plays');
   });
 });

@@ -24,6 +24,8 @@ const {
   mockUpdateStreakAfterRound,
   mockIncrementStreak,
   mockResetStreak,
+  mockHasRecentPlay,
+  mockRecordRecentPlay,
 } = vi.hoisted(() => ({
   mockResolveSubredditMetadata: vi.fn(),
   mockResolveLadderPage: vi.fn(),
@@ -46,6 +48,8 @@ const {
   mockUpdateStreakAfterRound: vi.fn(),
   mockIncrementStreak: vi.fn(),
   mockResetStreak: vi.fn(),
+  mockHasRecentPlay: vi.fn(),
+  mockRecordRecentPlay: vi.fn(),
 }));
 
 vi.mock('../reddit/resolveSubredditMetadata.js', () => ({
@@ -106,6 +110,11 @@ vi.mock('../redis/statsStore.js', async (importOriginal) => {
 
 vi.mock('../redis/leaderboardStore.js', () => ({
   updateLeaderboard: mockUpdateLeaderboard,
+}));
+
+vi.mock('../redis/recentPlaysStore.js', () => ({
+  hasRecentPlay: mockHasRecentPlay,
+  recordRecentPlay: mockRecordRecentPlay,
 }));
 
 const { appRouter } = await import('../appRouter.js');
@@ -234,6 +243,7 @@ const expectNoSubmitMutations = () => {
   expect(mockResetStreak).not.toHaveBeenCalled();
   expect(mockIncrementProgress).not.toHaveBeenCalled();
   expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
+  expect(mockRecordRecentPlay).not.toHaveBeenCalled();
 };
 
 describe('puzzle.next', () => {
@@ -247,6 +257,8 @@ describe('puzzle.next', () => {
     mockIncrementProgress.mockResolvedValue(4);
     mockSetAttempt.mockResolvedValue(undefined);
     mockGetGameMode.mockResolvedValue('expert');
+    mockHasRecentPlay.mockResolvedValue(false);
+    mockRecordRecentPlay.mockResolvedValue(undefined);
   });
 
   it('returns SUBREDDIT_REQUIRED on Hub when subreddit is omitted', async () => {
@@ -362,6 +374,48 @@ describe('puzzle.next', () => {
       expect.any(Object),
       expect.any(Object)
     );
+  });
+
+  it('advances past recently played posts on guarded campaigns', async () => {
+    mockHasRecentPlay.mockResolvedValueOnce(true).mockResolvedValue(false);
+    mockResolveLadderPage
+      .mockResolvedValueOnce(makeLadderHit())
+      .mockResolvedValueOnce(makeLadderHit());
+
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    await caller.puzzle.next({ subreddit: 'askreddit', timeframe: 'now' });
+
+    expect(mockHasRecentPlay).toHaveBeenCalledWith('user-1', 't3_abc123');
+    expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', {
+      subredditName: 'askreddit',
+      timeframe: 'now',
+    });
+    expect(mockValidateComments).toHaveBeenCalledTimes(1);
+    expect(mockRecordRecentPlay).not.toHaveBeenCalled();
+  });
+
+  it('does not check recent plays on unguarded timeframes', async () => {
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    await caller.puzzle.next({ subreddit: 'askreddit', timeframe: 'week' });
+
+    expect(mockHasRecentPlay).not.toHaveBeenCalled();
+    expect(mockSetAttempt).toHaveBeenCalledOnce();
+  });
+
+  it('does not record recent plays when auto-skipping NSFW posts', async () => {
+    mockFastFilterEligible.mockReturnValueOnce(false).mockReturnValue(true);
+    mockResolveLadderPage
+      .mockResolvedValueOnce(makeLadderHit())
+      .mockResolvedValueOnce(makeLadderHit());
+
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    await caller.puzzle.next({ subreddit: 'all' });
+
+    expect(mockRecordRecentPlay).not.toHaveBeenCalled();
+    expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', dailyChallengeCtx);
   });
 
   it('advances logged-in progress on invalid comment validation', async () => {
@@ -638,6 +692,7 @@ describe('puzzle.submit', () => {
       coins: 5,
     });
     mockUpdateLeaderboard.mockResolvedValue(undefined);
+    mockRecordRecentPlay.mockResolvedValue(undefined);
   });
 
   it('returns ATTEMPT_EXPIRED when attempt is missing', async () => {
@@ -880,6 +935,7 @@ describe('puzzle.submit', () => {
     expect(mockIncrementStreak).toHaveBeenCalledWith('user-1', 'askreddit');
     expect(mockResetStreak).not.toHaveBeenCalled();
     expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', askredditAllCtx);
+    expect(mockRecordRecentPlay).toHaveBeenCalledWith('user-1', 't3_abc123');
     expect(mockUpdateLeaderboard).toHaveBeenCalledWith(askredditAllCtx, 'user-1', 3);
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
 
@@ -910,6 +966,7 @@ describe('puzzle.submit', () => {
     expect(mockIncrementStreak).not.toHaveBeenCalled();
     expect(mockResetStreak).not.toHaveBeenCalled();
     expect(mockIncrementProgress).not.toHaveBeenCalled();
+    expect(mockRecordRecentPlay).not.toHaveBeenCalled();
     expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
     expect(mockGetProgress).not.toHaveBeenCalled();
 
@@ -1121,6 +1178,7 @@ describe('puzzle.skip', () => {
     });
     mockDeductCoin.mockResolvedValue({ ok: true, coins: 2 });
     mockUpdateStreakAfterRound.mockResolvedValue(undefined);
+    mockRecordRecentPlay.mockResolvedValue(undefined);
   });
 
   it('returns ATTEMPT_EXPIRED when attempt is missing', async () => {
@@ -1174,6 +1232,7 @@ describe('puzzle.skip', () => {
     expect(mockGetSnapshot).toHaveBeenCalledWith('t3_abc123');
     expect(mockDeductCoin).toHaveBeenCalledWith('user-1');
     expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', askredditAllCtx);
+    expect(mockRecordRecentPlay).toHaveBeenCalledWith('user-1', 't3_abc123');
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
     expect(mockIncrementStats).not.toHaveBeenCalled();
     expect(mockUpdateStreakAfterRound).not.toHaveBeenCalled();
@@ -1219,6 +1278,7 @@ describe('puzzle.skip', () => {
     });
     expect(mockDeductCoin).not.toHaveBeenCalled();
     expect(mockIncrementProgress).not.toHaveBeenCalled();
+    expect(mockRecordRecentPlay).not.toHaveBeenCalled();
     expect(mockIncrementStats).not.toHaveBeenCalled();
     expect(mockUpdateStreakAfterRound).not.toHaveBeenCalled();
     expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
@@ -1382,6 +1442,7 @@ describe('puzzle.forfeit', () => {
       coins: 5,
     });
     mockUpdateLeaderboard.mockResolvedValue(undefined);
+    mockRecordRecentPlay.mockResolvedValue(undefined);
   });
 
   it('returns ATTEMPT_EXPIRED when attempt is missing', async () => {
@@ -1460,6 +1521,7 @@ describe('puzzle.forfeit', () => {
     expect(mockResetStreak).toHaveBeenCalledWith('user-1', 'askreddit');
     expect(mockIncrementStreak).not.toHaveBeenCalled();
     expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', askredditAllCtx);
+    expect(mockRecordRecentPlay).toHaveBeenCalledWith('user-1', 't3_abc123');
     expect(mockUpdateLeaderboard).toHaveBeenCalledWith(askredditAllCtx, 'user-1', 3);
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
     expect(mockDeductCoin).not.toHaveBeenCalled();
@@ -1521,6 +1583,7 @@ describe('puzzle.forfeit', () => {
     expect(mockIncrementStreak).not.toHaveBeenCalled();
     expect(mockResetStreak).not.toHaveBeenCalled();
     expect(mockIncrementProgress).not.toHaveBeenCalled();
+    expect(mockRecordRecentPlay).not.toHaveBeenCalled();
     expect(mockUpdateLeaderboard).not.toHaveBeenCalled();
     expect(mockMarkAttemptSubmitted).toHaveBeenCalledOnce();
   });
