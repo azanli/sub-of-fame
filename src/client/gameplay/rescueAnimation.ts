@@ -27,7 +27,6 @@ export const RESCUE_SCENE_IMAGES = {
   spaceshipSad: '/spaceship-sad.png',
   snooPensive: '/snoo-pensive.png',
   snooDeadpan: '/snoo-deadpan.png',
-  snooLying: '/snoo-lying.png',
   snooMeditation: '/snoo-meditation.png',
   snooWave: '/snoo-wave.png',
   snooFalling1: '/snoo-falling-1.png',
@@ -39,7 +38,6 @@ export const RESCUE_SCENE_IMAGES = {
 export const RESCUE_SNOO_POSES = [
   RESCUE_SCENE_IMAGES.snooPensive,
   RESCUE_SCENE_IMAGES.snooDeadpan,
-  RESCUE_SCENE_IMAGES.snooLying,
   RESCUE_SCENE_IMAGES.snooMeditation,
   RESCUE_SCENE_IMAGES.snooWave,
 ] as const;
