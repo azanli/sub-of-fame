@@ -23,7 +23,7 @@ const HOW_TO_PLAY_STEPS: HowToPlayStep[] = [
     title: 'Pick a campaign',
     hub: 'Choose a subreddit campaign from the dashboard or enter a custom subreddit to unlock.',
     subreddit:
-      "Choose a timeframe in the community's campaign from the dashboard to start.",
+      "Choose a timeframe in the community's campaign from the dashboard to begin playing.",
   },
   {
     title: 'Read the post',
