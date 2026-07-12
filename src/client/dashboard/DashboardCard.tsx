@@ -86,7 +86,7 @@ export const DashboardCard = (props: DashboardCardProps) => {
               {!!props.card.currentStreak && (
                 <>
                   <span
-                    className="mx-1 text-gray-300 dark:text-gray-600"
+                    className="mx-2 text-sm leading-none text-gray-300 dark:text-gray-600"
                     aria-hidden="true"
                   >
                     ·
