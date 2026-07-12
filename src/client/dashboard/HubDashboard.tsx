@@ -149,14 +149,16 @@ export const HubDashboard = ({
 
       {initData.dailyChallenge !== null && (
         <DashboardSection label="Daily Challenge">
-          <DailyChallengeCard
-            resetsAt={initData.dailyChallenge.resetsAt}
-            onSelect={() => {
-              onSelectSubreddit(DAILY_CHALLENGE_SUBREDDIT);
-            }}
-            isLoading={isDailyChallengeLoading}
-            disabled={isLoadingSelection && !isDailyChallengeLoading}
-          />
+          <div className="rounded-xl animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite] shadow-[0_0_15px_rgba(217,57,0,0.6)] border border-[#d93900]/50">
+            <DailyChallengeCard
+              resetsAt={initData.dailyChallenge.resetsAt}
+              onSelect={() => {
+                onSelectSubreddit(DAILY_CHALLENGE_SUBREDDIT);
+              }}
+              isLoading={isDailyChallengeLoading}
+              disabled={isLoadingSelection && !isDailyChallengeLoading}
+            />
+          </div>
         </DashboardSection>
       )}
 
