@@ -48,7 +48,7 @@ export const DashboardTopBar = ({
         >
           <span
             aria-hidden="true"
-            className={`inline-block origin-center text-lg leading-none transition-transform duration-300 ease-out ${
+            className={`inline-block origin-center text-sm leading-none transition-transform duration-300 ease-out ${
               isSettingsOpen ? 'rotate-90' : 'rotate-0'
             }`}
           >
