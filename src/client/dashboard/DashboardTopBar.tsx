@@ -20,7 +20,7 @@ export const DashboardTopBar = ({
   onSettingsToggle,
   settingsPanelId,
 }: DashboardTopBarProps) => (
-  <div className="flex items-center justify-between mb-6">
+  <div className="flex items-center justify-between">
     <WalletBalanceBadge coins={coins ?? 0} />
 
     <div className="flex items-center gap-2">

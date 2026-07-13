@@ -72,6 +72,36 @@
   }
 }
 
+@keyframes footer-gold-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes footer-qm-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.footer-gold-bob {
+  animation: footer-gold-bob 2.8s ease-in-out infinite;
+}
+
+.footer-qm-bounce {
+  animation: footer-qm-bounce 2.2s ease-in-out infinite;
+}
+
 @keyframes snoo-cheer-slide-right {
   from {
     opacity: 0;
@@ -160,12 +190,12 @@
   }
 }
 
-.rescue-spaceship-hidden {
+.dashboard-spaceship-hidden {
   transform: translateX(-100vw);
   opacity: 0;
 }
 
-.rescue-spaceship-entrance {
+.dashboard-spaceship-entrance {
   animation: 
     flyInFromLeft 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards,
     spaceshipSwing 3s ease-in-out infinite 1.2s;
@@ -212,10 +242,24 @@
   }
 }
 
-.rescue-spaceship-fly {
+.dashboard-spaceship-fly {
   animation: flyAway 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
   position: relative;
   z-index: 30;
+}
+
+.dashboard-spaceship-swing {
+  animation: dashboard-spaceship-swing 4s ease-in-out infinite;
+}
+
+@keyframes dashboard-spaceship-swing {
+  0%, 100% {
+    transform: rotate(-2deg) translateY(0);
+  }
+  
+  50% {
+    transform: rotate(1deg) translateY(-0.5px);
+  }
 }
 
 @keyframes flyAway {
