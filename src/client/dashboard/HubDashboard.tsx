@@ -122,6 +122,36 @@ export const HubDashboard = ({
     initData.coins !== null &&
     initData.coins < SUBREDDIT_UNLOCK_COST;
 
+  if (isSettingsOpen) {
+    return (
+      <div className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 p-4">
+        <DashboardTopBar
+          coins={isLoggedIn ? initData.coins : null}
+          {...(onLeaderboardClick !== undefined ? { onLeaderboardClick } : {})}
+          isSettingsOpen={isSettingsOpen}
+          onSettingsToggle={() => {
+            setIsSettingsOpen((open) => !open);
+          }}
+          settingsPanelId={SETTINGS_PANEL_ID}
+        />
+
+        <HubSettingsPanel
+          id={SETTINGS_PANEL_ID}
+          faqVariant="hub"
+          isOpen={isSettingsOpen}
+          gameMode={gameMode}
+          onGameModeChange={onGameModeChange}
+          isSavingGameMode={isSavingGameMode}
+          gameModeError={gameModeError}
+          isLoggedIn={isLoggedIn}
+          onDeleteUserData={onDeleteUserData}
+          isDeletingUserData={isDeletingUserData}
+          deleteUserDataError={deleteUserDataError}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 p-4">
       <DashboardTopBar
@@ -132,20 +162,6 @@ export const HubDashboard = ({
           setIsSettingsOpen((open) => !open);
         }}
         settingsPanelId={SETTINGS_PANEL_ID}
-      />
-
-      <HubSettingsPanel
-        id={SETTINGS_PANEL_ID}
-        faqVariant="hub"
-        isOpen={isSettingsOpen}
-        gameMode={gameMode}
-        onGameModeChange={onGameModeChange}
-        isSavingGameMode={isSavingGameMode}
-        gameModeError={gameModeError}
-        isLoggedIn={isLoggedIn}
-        onDeleteUserData={onDeleteUserData}
-        isDeletingUserData={isDeletingUserData}
-        deleteUserDataError={deleteUserDataError}
       />
 
       <DashboardSpaceScene isLoadingSelection={isLoadingSelection} />
