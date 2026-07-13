@@ -1,3 +1,5 @@
+import { DashboardSpaceScene } from './DashboardSpaceScene';
+
 const SkeletonBar = ({ className }: { className: string }) => (
   <div
     aria-hidden="true"
@@ -24,11 +26,11 @@ export const SubredditDashboardSkeleton = () => (
     aria-busy="true"
     aria-label="Loading dashboard"
   >
-    <div className="flex items-center">
-      <SkeletonBar className="h-8 w-28 rounded-full" />
-      <div className="ml-auto flex items-center gap-2">
-        <SkeletonBar className="h-8 w-32 rounded-lg" />
-        <SkeletonBar className="h-8 w-8 rounded-lg" />
+    <div className="flex items-center w-full">
+      <SkeletonBar className="h-9 w-24 rounded-full" />
+      <div className="ml-auto flex items-center gap-3">
+        <SkeletonBar className="h-9 w-36 rounded-full" />
+        <SkeletonBar className="h-9 w-9 rounded-full" />
       </div>
     </div>
 
@@ -45,6 +47,8 @@ export const SubredditDashboardSkeleton = () => (
         <SkeletonBar className="h-4 w-20" />
       </div>
     </div>
+
+    <DashboardSpaceScene isLoadingSelection={false} isSkeleton={true} />
 
     <div className="flex flex-col gap-2">
       <p className="text-sm font-medium text-gray-700 dark:text-gray-300">

@@ -7,6 +7,7 @@ import { resolveLoadingCard } from '../gameplay/resolveLoadingCard';
 import { DailyChallengeCard } from './DailyChallengeCard';
 import { DashboardCard } from './DashboardCard';
 import { DashboardSection } from './DashboardSection';
+import { DashboardSpaceScene } from './DashboardSpaceScene';
 import { DashboardTopBar } from './DashboardTopBar';
 import { HubSettingsPanel } from './HubSettingsPanel';
 
@@ -133,19 +134,23 @@ export const HubDashboard = ({
         settingsPanelId={SETTINGS_PANEL_ID}
       />
 
-      <HubSettingsPanel
-        id={SETTINGS_PANEL_ID}
-        faqVariant="hub"
-        isOpen={isSettingsOpen}
-        gameMode={gameMode}
-        onGameModeChange={onGameModeChange}
-        isSavingGameMode={isSavingGameMode}
-        gameModeError={gameModeError}
-        isLoggedIn={isLoggedIn}
-        onDeleteUserData={onDeleteUserData}
-        isDeletingUserData={isDeletingUserData}
-        deleteUserDataError={deleteUserDataError}
-      />
+      {isSettingsOpen && (
+        <HubSettingsPanel
+          id={SETTINGS_PANEL_ID}
+          faqVariant="hub"
+          isOpen={isSettingsOpen}
+          gameMode={gameMode}
+          onGameModeChange={onGameModeChange}
+          isSavingGameMode={isSavingGameMode}
+          gameModeError={gameModeError}
+          isLoggedIn={isLoggedIn}
+          onDeleteUserData={onDeleteUserData}
+          isDeletingUserData={isDeletingUserData}
+          deleteUserDataError={deleteUserDataError}
+        />
+      )}
+
+      <DashboardSpaceScene isLoadingSelection={isLoadingSelection} />
 
       {initData.dailyChallenge !== null && (
         <DashboardSection label="Daily Challenge">

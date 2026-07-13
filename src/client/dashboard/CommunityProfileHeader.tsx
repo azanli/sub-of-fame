@@ -22,7 +22,7 @@ export const CommunityProfileHeader = ({
   const showHiveIQScore = hiveIQDisplay?.kind === 'score';
 
   return (
-    <div className="flex items-center justify-between gap-4 mt-4">
+    <div className="flex items-center justify-between gap-4 mb-6">
       <div className="flex min-w-0 items-center gap-3">
         <img
           src={iconUrl}

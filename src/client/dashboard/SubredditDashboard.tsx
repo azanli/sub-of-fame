@@ -4,9 +4,13 @@ import {
   CAMPAIGN_TIMEFRAMES,
   type CampaignTimeframe,
 } from '../../shared/campaignTimeframes';
-import { resolveHiveIQDisplay, formatHiveIQDisplayText } from '../../shared/hiveIQ';
+import {
+  resolveHiveIQDisplay,
+  formatHiveIQDisplayText,
+} from '../../shared/hiveIQ';
 import { CommunityProfileHeader } from './CommunityProfileHeader';
 import { DashboardSection } from './DashboardSection';
+import { DashboardSpaceScene } from './DashboardSpaceScene';
 import { DashboardTopBar } from './DashboardTopBar';
 import { HubSettingsPanel } from './HubSettingsPanel';
 import {
@@ -86,6 +90,22 @@ export const SubredditDashboard = ({
         settingsPanelId={SETTINGS_PANEL_ID}
       />
 
+      {isSettingsOpen && (
+        <HubSettingsPanel
+          id={SETTINGS_PANEL_ID}
+          faqVariant="subreddit"
+          isOpen={isSettingsOpen}
+          gameMode={gameMode}
+          onGameModeChange={onGameModeChange}
+          isSavingGameMode={isSavingGameMode}
+          gameModeError={gameModeError}
+          isLoggedIn={isLoggedIn}
+          onDeleteUserData={onDeleteUserData}
+          isDeletingUserData={isDeletingUserData}
+          deleteUserDataError={deleteUserDataError}
+        />
+      )}
+
       <CommunityProfileHeader
         iconUrl={hostCard.iconUrl}
         displayName={hostCard.subreddit}
@@ -93,19 +113,7 @@ export const SubredditDashboard = ({
         leaderboardRank={hostCard.leaderboardRank}
       />
 
-      <HubSettingsPanel
-        id={SETTINGS_PANEL_ID}
-        faqVariant="subreddit"
-        isOpen={isSettingsOpen}
-        gameMode={gameMode}
-        onGameModeChange={onGameModeChange}
-        isSavingGameMode={isSavingGameMode}
-        gameModeError={gameModeError}
-        isLoggedIn={isLoggedIn}
-        onDeleteUserData={onDeleteUserData}
-        isDeletingUserData={isDeletingUserData}
-        deleteUserDataError={deleteUserDataError}
-      />
+      <DashboardSpaceScene isLoadingSelection={isLoadingSelection} />
 
       <DashboardSection label="Campaigns">
         {CAMPAIGN_TIMEFRAMES.map((campaign) => {
@@ -130,7 +138,10 @@ export const SubredditDashboard = ({
             });
           }
 
-          if (metrics?.leaderboardRank !== null && metrics?.leaderboardRank !== undefined) {
+          if (
+            metrics?.leaderboardRank !== null &&
+            metrics?.leaderboardRank !== undefined
+          ) {
             badges.push({
               label: `#${metrics.leaderboardRank}`,
               emoji: '🏆',
