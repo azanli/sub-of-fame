@@ -47,7 +47,7 @@ export const DashboardSpaceScene = ({
         viewBox="0 0 24 24"
         fill="white"
         className="absolute top-10 left-1/4 twinkle-star"
-        style={{ animationDelay: '0.8s', animationDuration: '4s' }}
+        style={{ animationDelay: '0.8s', animationDuration: '8s' }}
         xmlns="http://www.w3.org/2000/svg"
       >
         <path d="M12 2C12.3 8.3 12.3 8.3 19 12C12.3 15.7 12.3 15.7 12 22C11.7 15.7 11.7 15.7 5 12C11.7 8.3 11.7 8.3 12 2Z" />
