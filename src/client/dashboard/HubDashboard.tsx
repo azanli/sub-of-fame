@@ -134,21 +134,19 @@ export const HubDashboard = ({
         settingsPanelId={SETTINGS_PANEL_ID}
       />
 
-      {isSettingsOpen && (
-        <HubSettingsPanel
-          id={SETTINGS_PANEL_ID}
-          faqVariant="hub"
-          isOpen={isSettingsOpen}
-          gameMode={gameMode}
-          onGameModeChange={onGameModeChange}
-          isSavingGameMode={isSavingGameMode}
-          gameModeError={gameModeError}
-          isLoggedIn={isLoggedIn}
-          onDeleteUserData={onDeleteUserData}
-          isDeletingUserData={isDeletingUserData}
-          deleteUserDataError={deleteUserDataError}
-        />
-      )}
+      <HubSettingsPanel
+        id={SETTINGS_PANEL_ID}
+        faqVariant="hub"
+        isOpen={isSettingsOpen}
+        gameMode={gameMode}
+        onGameModeChange={onGameModeChange}
+        isSavingGameMode={isSavingGameMode}
+        gameModeError={gameModeError}
+        isLoggedIn={isLoggedIn}
+        onDeleteUserData={onDeleteUserData}
+        isDeletingUserData={isDeletingUserData}
+        deleteUserDataError={deleteUserDataError}
+      />
 
       <DashboardSpaceScene isLoadingSelection={isLoadingSelection} />
 
