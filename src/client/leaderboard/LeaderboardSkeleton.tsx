@@ -1,6 +1,6 @@
-export const LeaderboardSkeleton = () => (
+export const LeaderboardSkeleton = ({ isHub = false }: { isHub: boolean }) => (
   <div className="flex flex-col gap-4">
-    {Array.from({ length: 3 }, (_, index) => (
+    {Array.from({ length: isHub ? 3 : 1 }, (_, index) => (
       <div key={index} className="flex flex-col gap-2">
         <div className="h-4 w-40 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
         <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">

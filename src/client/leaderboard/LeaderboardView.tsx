@@ -59,7 +59,9 @@ export const LeaderboardView = ({ initData, onBack }: LeaderboardViewProps) => {
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
       )}
 
-      {data === null && error === null && <LeaderboardSkeleton />}
+      {data === null && error === null && (
+        <LeaderboardSkeleton isHub={initData.isHub} />
+      )}
 
       {data !== null &&
         (data.isHub ? (
