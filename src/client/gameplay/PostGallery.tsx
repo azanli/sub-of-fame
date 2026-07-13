@@ -1,4 +1,9 @@
-import { useRef, useState, type PointerEvent, type TransitionEvent } from 'react';
+import {
+  useRef,
+  useState,
+  type PointerEvent,
+  type TransitionEvent,
+} from 'react';
 
 type PostGalleryProps = {
   imageUrls: string[];
@@ -196,7 +201,10 @@ export const PostGallery = ({ imageUrls }: PostGalleryProps) => {
   };
 
   const handleTransitionEnd = (event: TransitionEvent<HTMLDivElement>) => {
-    if (event.propertyName !== 'transform' || event.target !== event.currentTarget) {
+    if (
+      event.propertyName !== 'transform' ||
+      event.target !== event.currentTarget
+    ) {
       return;
     }
 
@@ -247,11 +255,7 @@ export const PostGallery = ({ imageUrls }: PostGalleryProps) => {
         />
         <div
           className={`absolute inset-0 touch-pan-y ${
-            canNavigate
-              ? isDragging
-                ? 'cursor-grabbing'
-                : 'cursor-grab'
-              : ''
+            canNavigate ? (isDragging ? 'cursor-grabbing' : 'cursor-grab') : ''
           }`}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
@@ -304,7 +308,7 @@ export const PostGallery = ({ imageUrls }: PostGalleryProps) => {
             onClick={goToPrevious}
             aria-label="Previous image"
             disabled={isAnimating || isDragging}
-            className="absolute left-2 top-1/2 z-10 -translate-y-1/2 p-4 cursor-pointer group disabled:pointer-events-none"
+            className="absolute left-2 top-9 z-10 -translate-y-1/2 p-4 cursor-pointer group disabled:pointer-events-none"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white transition-colors group-hover:bg-black/70">
               <ChevronLeftIcon />
@@ -315,7 +319,7 @@ export const PostGallery = ({ imageUrls }: PostGalleryProps) => {
             onClick={goToNext}
             aria-label="Next image"
             disabled={isAnimating || isDragging}
-            className="absolute right-2 top-1/2 z-10 -translate-y-1/2 p-4 cursor-pointer group disabled:pointer-events-none"
+            className="absolute right-2 top-9 z-10 -translate-y-1/2 p-4 cursor-pointer group disabled:pointer-events-none"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white transition-colors group-hover:bg-black/70">
               <ChevronRightIcon />
