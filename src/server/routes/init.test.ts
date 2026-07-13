@@ -194,7 +194,7 @@ describe('init — logged-out', () => {
       ],
       activeSubredditMetrics: null,
       campaignMetrics: null,
-      dailyChallenge: null,
+      dailyChallenge: { subreddit: 'all', resetsAt: expect.any(Number) },
     });
     expect(mockListProgressEntries).not.toHaveBeenCalled();
     expect(mockGetProgress).not.toHaveBeenCalled();
@@ -606,13 +606,17 @@ describe('init — logged-in Community', () => {
     expect(result.hasGameData).toBe(false);
   });
 
-  it('returns null dailyChallenge for logged-in Community', async () => {
+  it('returns a dailyChallenge object with a future resetsAt for logged-in Community', async () => {
     const caller = createCaller(
       makeCtx({ userId: 'user-1', subredditName: 'gaming', surface: 'community' })
     );
 
     const result = await caller.init();
 
-    expect(result.dailyChallenge).toBeNull();
+    expect(result.dailyChallenge).toEqual({
+      subreddit: 'all',
+      resetsAt: expect.any(Number),
+    });
+    expect(result.dailyChallenge?.resetsAt ?? 0).toBeGreaterThan(Date.now());
   });
 });

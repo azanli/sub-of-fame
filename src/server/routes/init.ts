@@ -239,7 +239,7 @@ export const initRouter = router({
         dashboardSubreddits,
         activeSubredditMetrics: null,
         campaignMetrics: null,
-        dailyChallenge: isHub ? buildDailyChallengeMetrics() : null,
+        dailyChallenge: buildDailyChallengeMetrics(),
       };
     }
 
@@ -324,7 +324,7 @@ export const initRouter = router({
         activeTimeframe: DEFAULT_CAMPAIGN_TIMEFRAME,
       },
       campaignMetrics,
-      dailyChallenge: null,
+      dailyChallenge: buildDailyChallengeMetrics(),
     };
   }),
 });

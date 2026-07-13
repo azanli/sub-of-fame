@@ -51,3 +51,9 @@ export const CAMPAIGN_TIMEFRAMES: CampaignTimeframeConfig[] = [
     icon: '⚡',
   },
 ];
+
+/** Historical campaign cards shown under the Live Gauntlet hero. */
+export const HISTORICAL_CAMPAIGN_TIMEFRAMES: CampaignTimeframeConfig[] =
+  CAMPAIGN_TIMEFRAMES.filter(
+    (campaign) => campaign.id !== 'day' && campaign.id !== 'now'
+  );

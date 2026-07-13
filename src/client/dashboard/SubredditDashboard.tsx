@@ -1,18 +1,18 @@
 import { useMemo, useState } from 'react';
 import type { GameMode, InitResponse } from '../../shared/api';
 import {
-  CAMPAIGN_TIMEFRAMES,
+  HISTORICAL_CAMPAIGN_TIMEFRAMES,
   type CampaignTimeframe,
 } from '../../shared/campaignTimeframes';
 import {
   resolveHiveIQDisplay,
   formatHiveIQDisplayText,
 } from '../../shared/hiveIQ';
-import { CommunityProfileHeader } from './CommunityProfileHeader';
 import { DashboardSection } from './DashboardSection';
 import { DashboardSpaceScene } from './DashboardSpaceScene';
 import { DashboardTopBar } from './DashboardTopBar';
 import { HubSettingsPanel } from './HubSettingsPanel';
+import { LiveGauntletCard } from './LiveGauntletCard';
 import {
   SubredditDashboardCard,
   type DashboardCardBadge,
@@ -33,6 +33,7 @@ type SubredditDashboardProps = {
 };
 
 const SETTINGS_PANEL_ID = 'subreddit-settings-panel';
+const LIVE_GAUNTLET_TIMEFRAME: CampaignTimeframe = 'day';
 
 export const SubredditDashboard = ({
   initData,
@@ -50,6 +51,7 @@ export const SubredditDashboard = ({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const isLoggedIn = initData.userGlobalHiveIQ !== null;
   const isLoadingSelection = loadingTimeframe !== null;
+  const isLiveGauntletLoading = loadingTimeframe === LIVE_GAUNTLET_TIMEFRAME;
 
   const hostCard = initData.dashboardSubreddits?.[0] ?? null;
 
@@ -90,38 +92,48 @@ export const SubredditDashboard = ({
         settingsPanelId={SETTINGS_PANEL_ID}
       />
 
-      {isSettingsOpen && (
-        <HubSettingsPanel
-          id={SETTINGS_PANEL_ID}
-          faqVariant="subreddit"
-          isOpen={isSettingsOpen}
-          gameMode={gameMode}
-          onGameModeChange={onGameModeChange}
-          isSavingGameMode={isSavingGameMode}
-          gameModeError={gameModeError}
-          isLoggedIn={isLoggedIn}
-          onDeleteUserData={onDeleteUserData}
-          isDeletingUserData={isDeletingUserData}
-          deleteUserDataError={deleteUserDataError}
-        />
-      )}
-
-      <CommunityProfileHeader
-        iconUrl={hostCard.iconUrl}
-        displayName={hostCard.subreddit}
-        hiveIQDisplay={hiveIQDisplay}
-        leaderboardRank={hostCard.leaderboardRank}
+      <HubSettingsPanel
+        id={SETTINGS_PANEL_ID}
+        faqVariant="subreddit"
+        isOpen={isSettingsOpen}
+        gameMode={gameMode}
+        onGameModeChange={onGameModeChange}
+        isSavingGameMode={isSavingGameMode}
+        gameModeError={gameModeError}
+        isLoggedIn={isLoggedIn}
+        onDeleteUserData={onDeleteUserData}
+        isDeletingUserData={isDeletingUserData}
+        deleteUserDataError={deleteUserDataError}
       />
 
       <DashboardSpaceScene isLoadingSelection={isLoadingSelection} />
 
+      {initData.dailyChallenge !== null && (
+        <DashboardSection label="Daily Challenge">
+          <div className="rounded-xl animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite] shadow-[0_0_15px_rgba(217,57,0,0.6)] border border-[#d93900]/50">
+            <LiveGauntletCard
+              iconUrl={hostCard.iconUrl}
+              displayName={hostCard.subreddit}
+              resetsAt={initData.dailyChallenge.resetsAt}
+              hiveIQDisplay={hiveIQDisplay}
+              leaderboardRank={hostCard.leaderboardRank}
+              onSelect={() => {
+                onSelectCampaign(LIVE_GAUNTLET_TIMEFRAME);
+              }}
+              isLoading={isLiveGauntletLoading}
+              disabled={isLoadingSelection && !isLiveGauntletLoading}
+            />
+          </div>
+        </DashboardSection>
+      )}
+
       <DashboardSection label="Campaigns">
-        {CAMPAIGN_TIMEFRAMES.map((campaign) => {
+        {HISTORICAL_CAMPAIGN_TIMEFRAMES.map((campaign) => {
           const isLoading = loadingTimeframe === campaign.id;
           const metrics = initData.campaignMetrics?.find(
             (entry) => entry.timeframe === campaign.id
           );
-          const hiveIQDisplay =
+          const campaignHiveIQDisplay =
             metrics !== undefined
               ? resolveHiveIQDisplay(
                   metrics.userCampaignHiveIQ,
@@ -150,12 +162,15 @@ export const SubredditDashboard = ({
             });
           }
 
-          if (hiveIQDisplay !== null && hiveIQDisplay.kind !== 'unplayed') {
+          if (
+            campaignHiveIQDisplay !== null &&
+            campaignHiveIQDisplay.kind !== 'unplayed'
+          ) {
             const hiveIQBadge: DashboardCardBadge = {
-              label: formatHiveIQDisplayText(hiveIQDisplay),
-              ariaLabel: `Hive IQ ${formatHiveIQDisplayText(hiveIQDisplay)}`,
+              label: formatHiveIQDisplayText(campaignHiveIQDisplay),
+              ariaLabel: `Hive IQ ${formatHiveIQDisplayText(campaignHiveIQDisplay)}`,
             };
-            if (hiveIQDisplay.kind === 'score') {
+            if (campaignHiveIQDisplay.kind === 'score') {
               hiveIQBadge.emoji = '🧠';
             }
             badges.push(hiveIQBadge);

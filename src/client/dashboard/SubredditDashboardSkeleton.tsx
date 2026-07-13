@@ -26,7 +26,7 @@ export const SubredditDashboardSkeleton = () => (
     aria-busy="true"
     aria-label="Loading dashboard"
   >
-    <div className="flex items-center w-full">
+    <div className="flex items-center w-full mb-4">
       <SkeletonBar className="h-9 w-24 rounded-full" />
       <div className="ml-auto flex items-center gap-3">
         <SkeletonBar className="h-9 w-36 rounded-full" />
@@ -34,29 +34,22 @@ export const SubredditDashboardSkeleton = () => (
       </div>
     </div>
 
-    <div
-      aria-hidden="true"
-      className="mt-4 flex items-center justify-between gap-4"
-    >
-      <div className="flex min-w-0 items-center gap-3">
-        <SkeletonBar className="h-12 w-12 shrink-0 rounded-full" />
-        <SkeletonBar className="h-6 w-28" />
-      </div>
-      <div className="flex shrink-0 flex-col items-end gap-1">
-        <SkeletonBar className="h-4 w-24" />
-        <SkeletonBar className="h-4 w-20" />
+    <DashboardSpaceScene isLoadingSelection={false} isSkeleton={true} />
+
+    <div className="flex flex-col gap-2">
+      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+        Daily Challenge
+      </p>
+      <div className="rounded-xl border border-[#d93900]/50 p-0.5">
+        <CampaignCardSkeleton />
       </div>
     </div>
-
-    <DashboardSpaceScene isLoadingSelection={false} isSkeleton={true} />
 
     <div className="flex flex-col gap-2">
       <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
         Campaigns
       </p>
       <div className="flex flex-col gap-2 pr-1">
-        <CampaignCardSkeleton />
-        <CampaignCardSkeleton />
         <CampaignCardSkeleton />
         <CampaignCardSkeleton />
         <CampaignCardSkeleton />
