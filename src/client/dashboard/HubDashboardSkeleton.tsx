@@ -26,11 +26,11 @@ export const HubDashboardSkeleton = () => (
     aria-busy="true"
     aria-label="Loading dashboard"
   >
-    <div className="flex items-center w-full">
-      <SkeletonBar className="h-12 w-24 rounded-full" />
+    <div className="flex items-center w-full mb-4">
+      <SkeletonBar className="h-9 w-24 rounded-full" />
       <div className="ml-auto flex items-center gap-3">
-        <SkeletonBar className="h-12 w-36 rounded-full" />
-        <SkeletonBar className="h-12 w-9 rounded-full" />
+        <SkeletonBar className="h-9 w-36 rounded-full" />
+        <SkeletonBar className="h-9 w-9 rounded-full" />
       </div>
     </div>
 
