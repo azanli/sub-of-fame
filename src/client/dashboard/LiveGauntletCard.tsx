@@ -2,7 +2,6 @@ import {
   formatHiveIQDisplayText,
   type HiveIQDisplayState,
 } from '../../shared/hiveIQ';
-import { formatSubredditLabel } from '../../shared/subreddits';
 import { cardButtonClasses, idleCardClasses } from './dashboardCardStyles';
 import { DailyChallengeCountdown } from './DailyChallengeCountdown';
 import { SpinningLoadingCard } from './SpinningLoadingCard';
