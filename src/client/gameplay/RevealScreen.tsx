@@ -578,103 +578,103 @@ export const RevealScreen = ({
                   </div>
                 ))
               : result.slots.map((slot, index) => {
-              const isRevealed = index < revealedSlotCount;
-              const isFlashing = flashingSlotIndex === index;
-              const isHintedSlot = hintUsed && index === 2;
+                  const isRevealed = index < revealedSlotCount;
+                  const isFlashing = flashingSlotIndex === index;
+                  const isHintedSlot = hintUsed && index === 2;
 
-              const upvoteBarWidthPercent =
-                maxSlotScore > 0 ? (slot.score / maxSlotScore) * 100 : 0;
+                  const upvoteBarWidthPercent =
+                    maxSlotScore > 0 ? (slot.score / maxSlotScore) * 100 : 0;
 
-              const slotHighlight = isSkipped
-                ? 'neutral'
-                : isHintedSlot
-                  ? 'neutral'
-                  : isCasualMode
-                    ? resolveCasualSlotHighlight(
-                        index,
-                        slot,
-                        result.score,
-                        isForfeited,
-                        isSkipped
-                      )
-                    : slot.correct
-                      ? 'correct'
-                      : 'incorrect';
+                  const slotHighlight = isSkipped
+                    ? 'neutral'
+                    : isHintedSlot
+                      ? 'neutral'
+                      : isCasualMode
+                        ? resolveCasualSlotHighlight(
+                            index,
+                            slot,
+                            result.score,
+                            isForfeited,
+                            isSkipped
+                          )
+                        : slot.correct
+                          ? 'correct'
+                          : 'incorrect';
 
-              const rankBadgeBgClass = !isRevealed
-                ? 'bg-gray-200 dark:bg-gray-700'
-                : slotHighlight === 'correct'
-                  ? 'bg-green-400'
-                  : slotHighlight === 'incorrect'
-                    ? 'bg-amber-400'
-                    : 'bg-gray-200 dark:bg-gray-700';
-              const rankBadgeTextClass =
-                isRevealed && slotHighlight !== 'neutral'
-                  ? 'text-white'
-                  : 'text-gray-500 dark:text-gray-300';
+                  const rankBadgeBgClass = !isRevealed
+                    ? 'bg-gray-200 dark:bg-gray-700'
+                    : slotHighlight === 'correct'
+                      ? 'bg-green-400'
+                      : slotHighlight === 'incorrect'
+                        ? 'bg-amber-400'
+                        : 'bg-gray-200 dark:bg-gray-700';
+                  const rankBadgeTextClass =
+                    isRevealed && slotHighlight !== 'neutral'
+                      ? 'text-white'
+                      : 'text-gray-500 dark:text-gray-300';
 
-              const revealedCardClass = isSkipped
-                ? index === 0
-                  ? 'border-gray-400 bg-gray-50 dark:border-gray-500 dark:bg-gray-800/80'
-                  : 'border-gray-200 bg-gray-50 opacity-60 dark:border-gray-700 dark:bg-gray-800/60'
-                : slotHighlight === 'correct'
-                  ? `border-green-400 bg-green-50 dark:bg-green-950 ${
-                      isFlashing ? 'scale-[1.02] ring-2 ring-green-300' : ''
-                    }`
-                  : slotHighlight === 'incorrect'
-                    ? 'border-amber-400 bg-amber-50 dark:bg-amber-950'
-                    : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/60';
-
-              const upvoteBarClass =
-                slotHighlight === 'correct'
-                  ? 'bg-green-400 dark:bg-green-400'
-                  : slotHighlight === 'incorrect'
-                    ? 'bg-amber-400 dark:bg-amber-400'
-                    : 'bg-gray-300 dark:bg-gray-600';
-
-              return (
-                <div
-                  key={slot.commentId}
-                  className={`relative overflow-hidden rounded-xl border px-4 py-3 flex items-start gap-3 transition-all duration-300 ease-out ${
-                    isRevealed
-                      ? revealedCardClass
+                  const revealedCardClass = isSkipped
+                    ? index === 0
+                      ? 'border-gray-400 bg-gray-50 dark:border-gray-500 dark:bg-gray-800/80'
                       : 'border-gray-200 bg-gray-50 opacity-60 dark:border-gray-700 dark:bg-gray-800/60'
-                  }`}
-                >
-                  <div className="pointer-events-none absolute left-0 top-0 size-10">
+                    : slotHighlight === 'correct'
+                      ? `border-green-400 bg-green-50 dark:bg-green-950 ${
+                          isFlashing ? 'scale-[1.02] ring-2 ring-green-300' : ''
+                        }`
+                      : slotHighlight === 'incorrect'
+                        ? 'border-amber-400 bg-amber-50 dark:bg-amber-950'
+                        : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/60';
+
+                  const upvoteBarClass =
+                    slotHighlight === 'correct'
+                      ? 'bg-green-400 dark:bg-green-400'
+                      : slotHighlight === 'incorrect'
+                        ? 'bg-amber-400 dark:bg-amber-400'
+                        : 'bg-gray-300 dark:bg-gray-600';
+
+                  return (
                     <div
-                      aria-hidden="true"
-                      className={`absolute inset-0 ${rankBadgeBgClass}`}
-                      style={{ clipPath: 'polygon(0 0, 85% 0, 0 85%)' }}
-                    />
-                    <span
-                      className={`absolute left-1 top-1 text-sm font-bold leading-none select-none ${rankBadgeTextClass}`}
-                    >
-                      {index + 1}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-1 flex-1 ml-4">
-                    <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">
-                      {slot.body}
-                    </p>
-                    <p
-                      className={`text-xs text-gray-400 transition-opacity duration-300 ${
-                        isRevealed ? 'opacity-100' : 'opacity-0'
+                      key={slot.commentId}
+                      className={`relative overflow-hidden rounded-xl border px-4 py-3 flex items-start gap-3 transition-all duration-300 ease-out ${
+                        isRevealed
+                          ? revealedCardClass
+                          : 'border-gray-200 bg-gray-50 opacity-60 dark:border-gray-700 dark:bg-gray-800/60'
                       }`}
                     >
-                      {slot.score.toLocaleString()} upvotes
-                    </p>
-                  </div>
-                  {isRevealed && maxSlotScore > 0 ? (
-                    <div
-                      aria-hidden="true"
-                      className={`absolute bottom-0 left-0 h-1 transition-[width] duration-500 ease-out ${upvoteBarClass}`}
-                      style={{ width: `${upvoteBarWidthPercent}%` }}
-                    />
-                  ) : null}
-                </div>
-              );
-            })}
+                      <div className="pointer-events-none absolute left-0 top-0 size-10">
+                        <div
+                          aria-hidden="true"
+                          className={`absolute inset-0 ${rankBadgeBgClass}`}
+                          style={{ clipPath: 'polygon(0 0, 85% 0, 0 85%)' }}
+                        />
+                        <span
+                          className={`absolute left-1 top-1 text-sm font-bold leading-none select-none ${rankBadgeTextClass}`}
+                        >
+                          {index + 1}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1 flex-1 ml-4">
+                        <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">
+                          {slot.body}
+                        </p>
+                        <p
+                          className={`text-xs text-gray-400 transition-opacity duration-300 ${
+                            isRevealed ? 'opacity-100' : 'opacity-0'
+                          }`}
+                        >
+                          {slot.score.toLocaleString()} upvotes
+                        </p>
+                      </div>
+                      {isRevealed && maxSlotScore > 0 ? (
+                        <div
+                          aria-hidden="true"
+                          className={`absolute bottom-0 left-0 h-1 transition-[width] duration-500 ease-out ${upvoteBarClass}`}
+                          style={{ width: `${upvoteBarWidthPercent}%` }}
+                        />
+                      ) : null}
+                    </div>
+                  );
+                })}
           </div>
         </div>
       </div>
@@ -700,7 +700,7 @@ export const RevealScreen = ({
           className="bg-[#d93900] hover:bg-[#c23300] text-white text-sm sm:text-base font-semibold rounded-full px-6 py-2 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
         >
           <div className="flex items-center justify-center gap-1.5">
-            Next Challenge
+            Next Puzzle
             <span
               aria-hidden="true"
               className="inline-flex animate-[next-chevron-nudge_2.4s_ease-in-out_infinite]"
