@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useEffectEvent, useRef } from 'react';
 import {
   FORFEIT_ANGEL_SCENE,
   buildAngelKeyframes,
@@ -16,9 +16,7 @@ export const ForfeitAngelScene = ({
   onComplete,
 }: ForfeitAngelSceneProps) => {
   const angelRef = useRef<HTMLDivElement>(null);
-  const onCompleteRef = useRef(onComplete);
-
-  onCompleteRef.current = onComplete;
+  const onCompleteEvent = useEffectEvent(onComplete);
 
   useEffect(() => {
     const element = angelRef.current;
@@ -34,7 +32,7 @@ export const ForfeitAngelScene = ({
     });
 
     const handleFinish = () => {
-      onCompleteRef.current();
+      onCompleteEvent();
     };
 
     animation.addEventListener('finish', handleFinish);
