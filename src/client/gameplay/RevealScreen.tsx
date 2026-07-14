@@ -369,6 +369,7 @@ export const RevealScreen = ({
     isSkipped,
     isForfeited,
     isCasualMode,
+    isZeroCoinAward,
     coinBalance,
     result.score,
     resultPending,
