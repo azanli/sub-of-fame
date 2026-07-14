@@ -3,15 +3,4 @@ body,
 #root {
   height: 100%;
   background-color: #111827;
-  overscroll-behavior: none;
-}
-
-html,
-body {
-  overflow: hidden;
-}
-
-#root {
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
 }
