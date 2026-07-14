@@ -8,7 +8,14 @@ import {
 } from '../shared/api';
 import { HINT_COST, SUBREDDIT_UNLOCK_COST } from '../shared/coins';
 import type { CampaignTimeframe } from '../shared/campaignTimeframes';
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { TRPCClientError } from '@trpc/client';
 import { mergeInitGameMode, writeLocalGameMode } from './gameModePreference';
 import { DashboardFromPromise } from './dashboard/DashboardFromPromise';
@@ -116,19 +123,25 @@ const buildNextRequest = (
   return input;
 };
 
-const pendingInitPromise = new Promise<InitResponse>(() => {});
-
-const initialAppState = (init: InitResponse | undefined): AppState => {
-  if (init) {
-    return { phase: 'hub_dashboard' };
-  }
-  return { phase: 'loading_hub', initPromise: pendingInitPromise };
-};
+const asSuspenseSafeInitPromise = (
+  fetchPromise: Promise<InitResponse>
+): Promise<InitResponse> =>
+  fetchPromise.then(
+    (init) => init,
+    () => new Promise<InitResponse>(() => {})
+  );
 
 export const App = ({ preloadedInit }: AppProps) => {
-  const [state, setState] = useState<AppState>(() =>
-    initialAppState(preloadedInit)
-  );
+  const [state, setState] = useState<AppState>(() => {
+    if (preloadedInit) {
+      return { phase: 'hub_dashboard' };
+    }
+
+    return {
+      phase: 'loading_hub',
+      initPromise: trpcClient.init.query(),
+    };
+  });
   const [session, setSession] = useState<SessionContext | null>(() =>
     preloadedInit ? buildSessionFromInit(preloadedInit) : null
   );
@@ -579,32 +592,48 @@ export const App = ({ preloadedInit }: AppProps) => {
     setState({ phase: 'hub_dashboard' });
   }, []);
 
-  const beginHubLoad = useCallback(
-    (fetchPromise: Promise<InitResponse>) => {
-      const initPromise = fetchPromise.then(
-        (init) => {
-          applyInitData(init);
-          setState({ phase: 'hub_dashboard' });
-          return init;
-        },
-        () => {
-          handleHubLoadFailure();
-          return new Promise<InitResponse>(() => {});
-        }
-      );
+  const beginHubLoad = useCallback((fetchPromise: Promise<InitResponse>) => {
+    setState({ phase: 'loading_hub', initPromise: fetchPromise });
+  }, []);
 
-      setState({ phase: 'loading_hub', initPromise });
-    },
-    [applyInitData, handleHubLoadFailure]
-  );
+  const hubInitPromise =
+    state.phase === 'loading_hub' ? state.initPromise : null;
 
   useEffect(() => {
-    if (preloadedInit) {
+    if (hubInitPromise === null) {
       return;
     }
 
-    beginHubLoad(trpcClient.init.query());
-  }, [beginHubLoad, preloadedInit]);
+    let cancelled = false;
+
+    void hubInitPromise.then(
+      (init) => {
+        if (cancelled) {
+          return;
+        }
+        applyInitData(init);
+        setState({ phase: 'hub_dashboard' });
+      },
+      () => {
+        if (cancelled) {
+          return;
+        }
+        handleHubLoadFailure();
+      }
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hubInitPromise, applyInitData, handleHubLoadFailure]);
+
+  const suspenseSafeHubInitPromise = useMemo(
+    () =>
+      hubInitPromise === null
+        ? null
+        : asSuspenseSafeInitPromise(hubInitPromise),
+    [hubInitPromise]
+  );
 
   const handleGameModeChange = useCallback(async (mode: GameMode) => {
     const previousMode = initDataRef.current?.gameMode;
@@ -1059,7 +1088,7 @@ export const App = ({ preloadedInit }: AppProps) => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Suspense fallback={dashboardSkeleton}>
           <DashboardFromPromise
-            initPromise={state.initPromise}
+            initPromise={suspenseSafeHubInitPromise ?? state.initPromise}
             onSelectSubreddit={handleSelectSubreddit}
             onSelectCampaign={handleSelectCampaign}
             selectionError={selectionError}
