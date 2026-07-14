@@ -11,7 +11,11 @@ import {
 import { CommentsModal } from './CommentsModal';
 import { RESCUE_SCENE } from './rescueAnimation';
 import { StartPuzzleGate } from './StartPuzzleGate';
-import type { GameplaySubmitPayload, RankAssignments, ReadyPuzzle } from './types';
+import type {
+  GameplaySubmitPayload,
+  RankAssignments,
+  ReadyPuzzle,
+} from './types';
 
 type GameplayRoundProps = {
   puzzle: ReadyPuzzle;
@@ -73,26 +77,7 @@ const GameplayRoundInner = ({
   const [hintUsed, setHintUsed] = useState(false);
   const [secondsRemaining, setSecondsRemaining] = useState(allottedSeconds);
 
-  useEffect(() => {
-    hasSubmittedRef.current = false;
-    setCasualSelectedCommentId(null);
-    setHintedCommentId(null);
-    setHintUsed(false);
-    setAssignments(new Map());
-    if (forfeitTimeoutRef.current !== null) {
-      window.clearTimeout(forfeitTimeoutRef.current);
-      forfeitTimeoutRef.current = null;
-    }
-    if (hintAnimTimeoutRef.current !== null) {
-      window.clearTimeout(hintAnimTimeoutRef.current);
-      hintAnimTimeoutRef.current = null;
-    }
-    if (selectionTimeoutRef.current !== null) {
-      window.clearTimeout(selectionTimeoutRef.current);
-      selectionTimeoutRef.current = null;
-    }
-  }, [puzzle.attemptId]);
-
+  // Round state resets by remounting GameplayRoundInner with key={puzzle.attemptId}.
   useEffect(() => {
     return () => {
       if (forfeitTimeoutRef.current !== null) {
