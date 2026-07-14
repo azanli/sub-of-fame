@@ -196,9 +196,7 @@
 }
 
 .dashboard-spaceship-entrance {
-  animation: 
-    flyInFromLeft 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards,
-    spaceshipSwing 3s ease-in-out infinite 1.2s;
+  animation: flyInFromLeft 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 @keyframes flyInFromLeft {

@@ -19,12 +19,12 @@ export const DashboardSpaceScene = ({
   return (
     <div
       aria-hidden="true"
-      className="relative h-[calc(clamp(2.5rem,8vw,3.25rem)+2rem)] -my-4"
+      className="relative h-[calc(clamp(2.5rem,8vw,3.25rem)+2.25rem)] -mt-4"
     >
       <div className="pointer-events-none absolute inset-y-0 left-1/2 w-screen -translate-x-1/2 overflow-hidden">
         {isSkeleton ? null : (
           <div
-            className={`${!isLoadingSelection ? (isVisible ? 'dashboard-spaceship-entrance' : 'dashboard-spaceship-hidden') : ''} mt-3.75 pl-[max(1rem,calc(50vw-15rem))]`}
+            className={`${!isLoadingSelection ? (isVisible ? 'dashboard-spaceship-entrance' : 'dashboard-spaceship-hidden') : ''} mt-5 pl-[max(1rem,calc(50vw-15rem))]`}
           >
             <div
               className={
