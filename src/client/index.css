@@ -1,5 +1,13 @@
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: dark;
+  --bg-color: #101828;
+  --text-color: #ffffff;
+}
+
 @keyframes countdown-blink {
   0%,
   100% {
@@ -168,26 +176,13 @@
   transform: translate(-50%, -50%);
   background: radial-gradient(
     circle,
-    rgba(255, 224, 140, 0.55) 0%,
-    rgba(255, 200, 70, 0.32) 24%,
-    rgba(255, 193, 7, 0.14) 44%,
-    rgba(255, 193, 7, 0.05) 58%,
+    rgba(255, 193, 7, 0.34) 0%,
+    rgba(220, 150, 20, 0.2) 24%,
+    rgba(180, 120, 10, 0.1) 44%,
+    rgba(140, 90, 5, 0.04) 58%,
     transparent 72%
   );
   animation: coin-reward-glow-pulse 2.8s ease-in-out infinite;
-}
-
-@media (prefers-color-scheme: dark) {
-  .coin-reward-glow {
-    background: radial-gradient(
-      circle,
-      rgba(255, 193, 7, 0.34) 0%,
-      rgba(220, 150, 20, 0.2) 24%,
-      rgba(180, 120, 10, 0.1) 44%,
-      rgba(140, 90, 5, 0.04) 58%,
-      transparent 72%
-    );
-  }
 }
 
 .dashboard-spaceship-hidden {
