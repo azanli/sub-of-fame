@@ -25,11 +25,6 @@ export const LeaderboardRow = ({ row }: LeaderboardRowProps) => {
       </td>
       <td className="px-2 py-2 text-right text-sm text-gray-700 dark:text-gray-300">
         <span className="inline-flex items-center gap-2">
-          {showHiveIQScore ? (
-            <span aria-hidden="true" className="leading-none">
-              🧠
-            </span>
-          ) : null}
           <span
             className={
               showHiveIQScore
@@ -43,9 +38,6 @@ export const LeaderboardRow = ({ row }: LeaderboardRowProps) => {
       </td>
       <td className="px-2 py-2 text-right text-sm text-gray-700 dark:text-gray-300">
         <span className="inline-flex items-center gap-2">
-          <span aria-hidden="true" className="leading-none">
-            🔥
-          </span>
           <span className="tabular-nums">{row.highestStreak}</span>
         </span>
       </td>
