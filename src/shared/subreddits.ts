@@ -8,7 +8,6 @@ export const normalizeSubredditDisplayName = (value: string): string =>
   value.trim().replace(/^r\//i, '').split(' ')[0] ?? '';
 
 export const formatSubredditLabel = (displayName: string): string => {
-  console.log('displayName', displayName);
   if (displayName === 'Global Leaderboard') {
     return 'Global Leaderboard';
   }
