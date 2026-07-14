@@ -47,7 +47,7 @@ export const LeaderboardView = ({ initData, onBack }: LeaderboardViewProps) => {
         >
           ←
         </button>
-        <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <h1 className="text-md font-semibold text-gray-900 dark:text-white">
           Leaderboard
         </h1>
         <div className="ml-auto">
