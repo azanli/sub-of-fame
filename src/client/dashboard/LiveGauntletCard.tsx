@@ -22,7 +22,6 @@ type LiveGauntletCardProps = {
 
 export const LiveGauntletCard = ({
   iconUrl,
-  displayName,
   resetsAt,
   hiveIQDisplay,
   leaderboardRank,
@@ -34,8 +33,6 @@ export const LiveGauntletCard = ({
     hiveIQDisplay !== null
       ? formatHiveIQDisplayText(hiveIQDisplay)
       : 'Calibrating';
-  const showHiveIQScore = hiveIQDisplay?.kind === 'score';
-  const subredditLabel = formatSubredditLabel(displayName);
 
   const cardContent = (
     <>
