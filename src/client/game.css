@@ -1,0 +1,19 @@
+/* Expanded view only: keep document scroll from chaining into Reddit's white
+   parent WebView. Do not apply this to splash — feed cards must chain scroll.
+   Dashboard edge bounce is faked via useFakeRubberBand against the dark body. */
+html {
+  height: 100%;
+}
+
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+#root {
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}

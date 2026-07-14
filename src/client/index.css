@@ -463,28 +463,16 @@
     -webkit-touch-callout: none;
   }
 
-  /* Confined scrolling keeps Reddit/WebView overscroll from revealing a white parent canvas. */
-  html {
-    height: 100%;
+  html,
+  body,
+  #root {
     background-color: #111827;
   }
 
   body {
     margin: 0;
-    height: 100%;
-    overflow: hidden;
-    background-color: #111827;
-    overscroll-behavior: none;
 
     user-select: none;
     -webkit-user-select: none;
-  }
-
-  #root {
-    height: 100%;
-    overflow: auto;
-    overscroll-behavior: none;
-    background-color: #111827;
-    -webkit-overflow-scrolling: touch;
   }
 }
