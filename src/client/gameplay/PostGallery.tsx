@@ -330,7 +330,7 @@ export const PostGallery = ({ imageUrls }: PostGalleryProps) => {
 
       <div
         aria-live="polite"
-        className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white"
+        className="absolute top-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white"
       >
         {activeIndex + 1} / {totalImages}
       </div>
