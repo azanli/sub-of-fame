@@ -8,6 +8,7 @@ import {
   resolveHiveIQDisplay,
   formatHiveIQDisplayText,
 } from '../../shared/hiveIQ';
+import { useFakeRubberBand } from '../useFakeRubberBand';
 import { DashboardFooterAnimation } from './DashboardFooterAnimation';
 import { DashboardSection } from './DashboardSection';
 import { DashboardSpaceScene } from './DashboardSpaceScene';
@@ -49,6 +50,7 @@ export const SubredditDashboard = ({
   isDeletingUserData = false,
   deleteUserDataError = null,
 }: SubredditDashboardProps) => {
+  useFakeRubberBand();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const isLoggedIn = initData.userGlobalHiveIQ !== null;
   const isLoadingSelection = loadingTimeframe !== null;

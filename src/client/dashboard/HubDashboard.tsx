@@ -4,6 +4,7 @@ import { SUBREDDIT_UNLOCK_COST } from '../../shared/coins';
 import { CURATED_SUBREDDITS } from '../../shared/subreddits';
 import { DAILY_CHALLENGE_SUBREDDIT } from '../../shared/dailyChallenge';
 import { resolveLoadingCard } from '../gameplay/resolveLoadingCard';
+import { useFakeRubberBand } from '../useFakeRubberBand';
 import { DailyChallengeCard } from './DailyChallengeCard';
 import { DashboardCard } from './DashboardCard';
 import { DashboardSection } from './DashboardSection';
@@ -52,6 +53,7 @@ export const HubDashboard = ({
   isDeletingUserData = false,
   deleteUserDataError = null,
 }: HubDashboardProps) => {
+  useFakeRubberBand();
   const [customSubreddit, setCustomSubreddit] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const isLoggedIn = initData.userGlobalHiveIQ !== null;
