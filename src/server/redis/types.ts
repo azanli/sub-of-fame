@@ -11,6 +11,8 @@ export type SubredditMetadataCacheEntry = {
   subreddit: string;
   displayName: string;
   iconUrl: string;
+  /** True when Reddit marks the community as NSFW (`SubredditInfo.isNsfw`). */
+  isNsfw: boolean;
   fetchedAt: number;
   expiresAt: number;
 };

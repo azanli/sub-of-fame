@@ -66,6 +66,7 @@ const curatedMetadata = {
   subreddit: 'askreddit',
   displayName: 'AskReddit',
   iconUrl: 'https://example.com/askreddit.png',
+  isNsfw: false,
   metadataSource: 'curated' as const,
 };
 
@@ -73,6 +74,7 @@ const customMetadata = {
   subreddit: 'customsub',
   displayName: 'Custom Sub',
   iconUrl: 'https://example.com/custom.png',
+  isNsfw: false,
   metadataSource: 'reddit' as const,
 };
 

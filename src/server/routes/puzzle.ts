@@ -532,7 +532,9 @@ export const puzzleRouter = router({
           };
         }
 
-        if (!fastFilterEligible(post)) {
+        if (
+          !fastFilterEligible(post, { allowNsfw: metadata?.isNsfw === true })
+        ) {
           budget.itemsCheckedRemaining -= 1;
           rankIndex = await advanceSkip(ctx.userId, campaignCtx, rankIndex);
           continue;

@@ -22,6 +22,7 @@ describe('parseJson', () => {
       subreddit: 'askreddit',
       displayName: 'AskReddit',
       iconUrl: 'https://example.com/icon.png',
+      isNsfw: false,
       fetchedAt: 1000,
       expiresAt: 2000,
     };

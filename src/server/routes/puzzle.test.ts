@@ -126,6 +126,7 @@ const curatedMetadata = {
   subreddit: 'askreddit',
   displayName: 'AskReddit',
   iconUrl: 'https://example.com/askreddit.png',
+  isNsfw: false,
   metadataSource: 'curated' as const,
 };
 
@@ -418,6 +419,24 @@ describe('puzzle.next', () => {
     expect(mockIncrementProgress).toHaveBeenCalledWith('user-1', dailyChallengeCtx);
   });
 
+  it('passes allowNsfw to fastFilterEligible when the campaign subreddit is NSFW', async () => {
+    mockResolveSubredditMetadata.mockResolvedValue({
+      ...curatedMetadata,
+      subreddit: 'nsfw',
+      displayName: 'NSFW',
+      isNsfw: true,
+      metadataSource: 'reddit',
+    });
+
+    const caller = createCaller(makeCtx({ userId: 'user-1' }));
+
+    await caller.puzzle.next({ subreddit: 'nsfw' });
+
+    expect(mockFastFilterEligible).toHaveBeenCalledWith(expect.any(Object), {
+      allowNsfw: true,
+    });
+  });
+
   it('advances logged-in progress on invalid comment validation', async () => {
     mockValidateComments
       .mockResolvedValueOnce({ kind: 'invalid' })
@@ -582,6 +601,7 @@ describe('puzzle.next', () => {
           subreddit: 'all',
           displayName: 'all',
           iconUrl: '/fame-icon.png',
+          isNsfw: false,
           metadataSource: 'curated',
         };
       }
@@ -590,6 +610,7 @@ describe('puzzle.next', () => {
           subreddit: 'gaming',
           displayName: 'Gaming',
           iconUrl: 'https://example.com/gaming.png',
+          isNsfw: false,
           metadataSource: 'reddit',
         };
       }

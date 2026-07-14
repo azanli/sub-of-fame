@@ -94,6 +94,7 @@ describe('leaderboard.getPage', () => {
       subreddit,
       displayName: subreddit,
       iconUrl: `https://example.com/${subreddit}.png`,
+      isNsfw: false,
       metadataSource: 'curated' as const,
     }));
     mockGetEcosystemLeaderboardDisplayPage.mockResolvedValue([makeEntry()]);

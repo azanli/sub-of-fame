@@ -65,6 +65,7 @@ const makeMetadata = (subreddit: string) => ({
   subreddit,
   displayName: subreddit,
   iconUrl: `https://example.com/${subreddit}.png`,
+  isNsfw: false,
   metadataSource: 'curated' as const,
 });
 
@@ -183,6 +184,7 @@ describe('init — logged-out', () => {
           subreddit: 'gaming',
           displayName: 'gaming',
           iconUrl: 'https://example.com/gaming.png',
+          isNsfw: false,
           metadataSource: 'curated',
           currentRankIndex: 1,
           userSubredditHiveIQ: null,
@@ -553,6 +555,7 @@ describe('init — logged-in Community', () => {
         subreddit: 'gaming',
         displayName: 'gaming',
         iconUrl: 'https://example.com/gaming.png',
+        isNsfw: false,
         metadataSource: 'curated',
         currentRankIndex: 4,
         userSubredditHiveIQ: 125,

@@ -329,8 +329,19 @@ export const buildPostSummary = (post: Post): LadderPostSummary => {
   return summary;
 };
 
-export const fastFilterEligible = (summary: LadderPostSummary): boolean => {
-  if (summary.isNSFW || summary.isSpoiler) {
+export type FastFilterOptions = {
+  /** When true, NSFW posts are eligible (NSFW-community ladders). Spoilers stay excluded. */
+  allowNsfw?: boolean;
+};
+
+export const fastFilterEligible = (
+  summary: LadderPostSummary,
+  options?: FastFilterOptions
+): boolean => {
+  if (summary.isSpoiler) {
+    return false;
+  }
+  if (summary.isNSFW && !options?.allowNsfw) {
     return false;
   }
   if (summary.title.length < 10 && !summary.hasBody) {

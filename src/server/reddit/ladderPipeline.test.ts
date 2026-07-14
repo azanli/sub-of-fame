@@ -559,6 +559,42 @@ describe('fastFilterEligible – NSFW', () => {
       })
     ).toBe(false);
   });
+
+  it('returns true for NSFW posts when allowNsfw is true', () => {
+    expect(
+      fastFilterEligible(
+        {
+          id: 't3_1',
+          title: 'Long enough title',
+          postUrl: 'https://www.reddit.com/r/nsfw/comments/abc123/title/',
+          sourceSubredditName: 'nsfw',
+          hasBody: false,
+          isNSFW: true,
+          isSpoiler: false,
+          commentCount: 20,
+        },
+        { allowNsfw: true }
+      )
+    ).toBe(true);
+  });
+
+  it('still rejects spoilers when allowNsfw is true', () => {
+    expect(
+      fastFilterEligible(
+        {
+          id: 't3_1',
+          title: 'Long enough title',
+          postUrl: 'https://www.reddit.com/r/nsfw/comments/abc123/title/',
+          sourceSubredditName: 'nsfw',
+          hasBody: false,
+          isNSFW: true,
+          isSpoiler: true,
+          commentCount: 20,
+        },
+        { allowNsfw: true }
+      )
+    ).toBe(false);
+  });
 });
 
 describe('fastFilterEligible – spoiler', () => {

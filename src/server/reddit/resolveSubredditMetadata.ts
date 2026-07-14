@@ -22,6 +22,11 @@ type Reddit = Pick<
 const isInaccessibleSubredditType = (type: string | undefined): boolean =>
   type === 'private' || type === 'restricted';
 
+const hasUsableIsNsfw = (
+  cached: SubredditMetadataCacheEntry
+): cached is SubredditMetadataCacheEntry & { isNsfw: boolean } =>
+  typeof cached.isNsfw === 'boolean';
+
 const resolveIconUrl = async (
   reddit: Reddit,
   subredditId: T5 | undefined
@@ -49,6 +54,7 @@ export const resolveSubredditMetadata = async (
       subreddit: subredditName,
       displayName: subredditName,
       iconUrl: DAILY_CHALLENGE_ICON_URL,
+      isNsfw: false,
       metadataSource: 'curated',
     };
   }
@@ -61,16 +67,20 @@ export const resolveSubredditMetadata = async (
       subreddit: subredditName,
       displayName: curated.subreddit,
       iconUrl: curated.iconUrl,
+      isNsfw: false,
       metadataSource: 'curated',
     };
   }
 
   const cached = await getMetadata(subredditName);
-  if (cached) {
+  // Stale cache entries written before isNsfw existed must be re-fetched so NSFW
+  // communities are not stuck with the post NSFW gate for the remainder of the TTL.
+  if (cached && hasUsableIsNsfw(cached)) {
     return {
       subreddit: subredditName,
       displayName: normalizeSubredditDisplayName(cached.displayName),
       iconUrl: cached.iconUrl,
+      isNsfw: cached.isNsfw,
       metadataSource: 'reddit',
     };
   }
@@ -89,11 +99,13 @@ export const resolveSubredditMetadata = async (
       info.name ?? subredditName
     );
     const iconUrl = await resolveIconUrl(reddit, info.id);
+    const isNsfw = info.isNsfw === true;
 
     const entry: SubredditMetadataCacheEntry = {
       subreddit: subredditName,
       displayName,
       iconUrl,
+      isNsfw,
       fetchedAt: Date.now(),
       expiresAt: Date.now() + METADATA_TTL_S * 1000,
     };
@@ -103,6 +115,7 @@ export const resolveSubredditMetadata = async (
       subreddit: subredditName,
       displayName,
       iconUrl,
+      isNsfw,
       metadataSource: 'reddit',
     };
   } catch {
