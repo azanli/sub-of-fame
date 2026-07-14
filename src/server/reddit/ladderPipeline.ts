@@ -183,6 +183,8 @@ export const normalizeImageUrl = (post: Post): string | undefined => {
 
   // --- THE FIX: Deep Preview Extraction ---
   // Safely cast to 'any' to bypass Devvit's Post type obscuring the preview object
+  // TODO: Verify if this is still needed with the latest Devvit version.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const anyPost = post as any;
   const deepPreviewUrl = anyPost.preview?.images?.[0]?.source?.url;
 
