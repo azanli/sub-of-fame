@@ -421,8 +421,8 @@ export const RevealScreen = ({
               {onDevResetRankIndex ? (
                 <button
                   type="button"
-                  onClick={handleDevResetTap}
-                  aria-label="Dev: reset rank index to replay this puzzle"
+                  onDoubleClick={handleDevResetTap}
+                  aria-hidden="true"
                   className="absolute inset-0 cursor-default opacity-0"
                 />
               ) : null}
