@@ -4,6 +4,7 @@ import {
   HISTORICAL_CAMPAIGN_TIMEFRAMES,
   type CampaignTimeframe,
 } from '../../shared/campaignTimeframes';
+import { normalizeSubredditDisplayName } from '../../shared/subreddits';
 import {
   resolveHiveIQDisplay,
   formatHiveIQDisplayText,
@@ -88,6 +89,7 @@ export const SubredditDashboard = ({
       <div className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 p-4">
         <DashboardTopBar
           coins={isLoggedIn ? initData.coins : null}
+          leaderboardLabel={`r/${normalizeSubredditDisplayName(hostCard.subreddit)}`}
           {...(onLeaderboardClick !== undefined ? { onLeaderboardClick } : {})}
           isSettingsOpen={isSettingsOpen}
           onSettingsToggle={() => {
@@ -117,6 +119,7 @@ export const SubredditDashboard = ({
     <div className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 p-4">
       <DashboardTopBar
         coins={isLoggedIn ? initData.coins : null}
+        leaderboardLabel={`r/${hostCard.subreddit}`}
         {...(onLeaderboardClick !== undefined ? { onLeaderboardClick } : {})}
         isSettingsOpen={isSettingsOpen}
         onSettingsToggle={() => {

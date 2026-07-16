@@ -3,6 +3,7 @@ import { WalletBalanceBadge } from './WalletBalanceBadge';
 type DashboardTopBarProps = {
   coins: number | null;
   onLeaderboardClick?: () => void;
+  leaderboardLabel?: string;
   showSettings?: boolean;
   isSettingsOpen?: boolean;
   onSettingsToggle?: () => void;
@@ -15,6 +16,7 @@ const secondaryPillClasses =
 export const DashboardTopBar = ({
   coins,
   onLeaderboardClick,
+  leaderboardLabel = 'Leaderboard',
   showSettings = true,
   isSettingsOpen = false,
   onSettingsToggle,
@@ -33,7 +35,7 @@ export const DashboardTopBar = ({
           <span className="text-xs mr-1" aria-hidden="true">
             🏆
           </span>
-          Leaderboard
+          {leaderboardLabel}
         </span>
       </button>
 
