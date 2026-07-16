@@ -20,9 +20,8 @@ import { TRPCClientError } from '@trpc/client';
 import { mergeInitGameMode, writeLocalGameMode } from './gameModePreference';
 import { DashboardFromPromise } from './dashboard/DashboardFromPromise';
 import { HubDashboard } from './dashboard/HubDashboard';
-import { HubDashboardSkeleton } from './dashboard/HubDashboardSkeleton';
+import { DashboardSkeleton } from './dashboard/DashboardSkeleton';
 import { SubredditDashboard } from './dashboard/SubredditDashboard';
-import { SubredditDashboardSkeleton } from './dashboard/SubredditDashboardSkeleton';
 import { GameplayRound } from './gameplay/GameplayRound';
 import { PuzzleGateFromPromise } from './gameplay/PuzzleGateFromPromise';
 import { PuzzleLoadTransition } from './gameplay/PuzzleLoadTransition';
@@ -1077,12 +1076,9 @@ export const App = ({ preloadedInit }: AppProps) => {
     const knownIsHub =
       initData?.isHub ?? session?.isHub ?? preloadedInit?.isHub;
 
-    const dashboardSkeleton =
-      knownIsHub === true ? (
-        <HubDashboardSkeleton />
-      ) : (
-        <SubredditDashboardSkeleton />
-      );
+    const dashboardSkeleton = (
+      <DashboardSkeleton isHub={knownIsHub === true} />
+    );
 
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

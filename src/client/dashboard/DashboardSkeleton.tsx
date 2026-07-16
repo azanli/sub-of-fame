@@ -1,5 +1,9 @@
 import { DashboardSpaceScene } from './DashboardSpaceScene';
 
+type DashboardSkeletonProps = {
+  isHub?: boolean;
+};
+
 const SkeletonBar = ({ className }: { className: string }) => (
   <div
     aria-hidden="true"
@@ -7,7 +11,7 @@ const SkeletonBar = ({ className }: { className: string }) => (
   />
 );
 
-const CampaignCardSkeleton = () => (
+const DashboardCardSkeleton = () => (
   <div
     aria-hidden="true"
     className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800"
@@ -20,7 +24,7 @@ const CampaignCardSkeleton = () => (
   </div>
 );
 
-export const SubredditDashboardSkeleton = () => (
+export const DashboardSkeleton = ({ isHub = false }: DashboardSkeletonProps) => (
   <div
     className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 p-4"
     aria-busy="true"
@@ -41,7 +45,7 @@ export const SubredditDashboardSkeleton = () => (
         Daily Challenge
       </p>
       <div className="rounded-xl border border-[#d93900]/50 p-0.5">
-        <CampaignCardSkeleton />
+        <DashboardCardSkeleton />
       </div>
     </div>
 
@@ -50,13 +54,23 @@ export const SubredditDashboardSkeleton = () => (
         Campaigns
       </p>
       <div className="flex flex-col gap-2 pr-1">
-        <CampaignCardSkeleton />
-        <CampaignCardSkeleton />
-        <CampaignCardSkeleton />
-        <CampaignCardSkeleton />
+        <DashboardCardSkeleton />
+        <DashboardCardSkeleton />
+        <DashboardCardSkeleton />
+        <DashboardCardSkeleton />
       </div>
     </div>
 
-    <SkeletonBar className="mx-auto h-32 w-1/2 max-w-[220px] rounded-lg" />
+    {isHub ? (
+      <div className="flex flex-col gap-2">
+        <SkeletonBar className="h-4 w-32" />
+        <div className="flex gap-2">
+          <SkeletonBar className="h-10 min-w-0 flex-1 rounded-full" />
+          <SkeletonBar className="h-10 w-16 shrink-0 rounded-full" />
+        </div>
+      </div>
+    ) : (
+      <SkeletonBar className="mx-auto h-32 w-1/2 max-w-[220px] rounded-lg" />
+    )}
   </div>
 );
